@@ -96,7 +96,7 @@ A plugin built for **Antigravity** (Google's Windsurf-based IDE) that provides r
 
 > [!IMPORTANT]
 > **Antigravity Internal Summarization**
-> The Antigravity IDE has a hardcoded 7500 token "Summarization Threshold" for checkpoint summaries. This can lead to slight discrepancies in token counts for very long conversations once the threshold is crossed. For more details on this behavior, see the [lalalavir fork](https://github.com/lalalavir/Antigravity-Context-Window-Monitor).
+> The Antigravity IDE has a hardcoded 7500 token "Summarization Threshold" for checkpoint summaries. This can lead to slight discrepancies in token counts for very long conversations once the threshold is crossed. For more details on this behavior, see the [Reddit reference](https://www.reddit.com/r/google_antigravity/comments/1q7zcag/heres_how_to_find_which_mcp_tools_are_leading_to/).
 
 > [!NOTE]
 > **Dynamic Sub-Agent Switching**

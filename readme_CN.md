@@ -145,11 +145,26 @@
 
 > [!IMPORTANT]
 > **Antigravity 内部总结机制**
-> Antigravity IDE 对检查点总结有一个硬编码的 7500 token "总结阈值" (Summarization Threshold)。这当对话非常长且跨过该阈值后，Token 计数可能会出现轻微偏差。更多细节请参考 [lalalavir fork](https://github.com/lalalavir/Antigravity-Context-Window-Monitor)。
+> Antigravity IDE 对检查点总结有一个硬编码的 7500 token "总结阈值" (Summarization Threshold)。这当对话非常长且跨过该阈值后，Token 计数可能会出现轻微偏差。更多细节请参考 [Reddit 社区讨论](https://www.reddit.com/r/google_antigravity/comments/1q7zcag/heres_how_to_find_which_mcp_tools_are_leading_to/)。
 
 > [!NOTE]
 > **子智能体动态切换**
 > 使用 Claude 模型时，Antigravity 可能会调用 Gemini 2.5 Flash Lite 作为子智能体处理轻量任务。这会导致上下文上限临时跳到 1M，当 Claude 恢复执行任务时会回退到 200k。
+### Known Issues & Notes / 已知问题与说明
+
+- **同一工作区多窗口 / Multiple Windows in the Same Workspace**:
+  如果在**同一个文件夹**上打开多个 Antigravity 窗口，它们共享相同的 workspace URI，会话数据可能会混合。
+  **解决方法**: 不同窗口打开不同的文件夹。
+
+- **上下文压缩提示 / Context Compression Hint**:
+  压缩完成通知（🗜 图标）持续约 15 秒（3 个轮询周期）后恢复正常显示。
+
+- **Summarization Threshold / 总结阈值**:
+  Antigravity IDE has a hardcoded 7500 token "Summarization Threshold" for checkpoint summaries. This may lead to slight calculation discrepancies during long conversations. Reference: [Reddit Post](https://www.reddit.com/r/google_antigravity/comments/1q7zcag/heres_how_to_find_which_mcp_tools_are_leading_to/)
+  Antigravity IDE 对检查点总结有一个硬编码的 7500 token "总结阈值"。这可能会导致长对话期间的计算结果出现轻微偏差。参考：[Reddit 社区讨论](https://www.reddit.com/r/google_antigravity/comments/1q7zcag/heres_how_to_find_which_mcp_tools_are_leading_to/)
+
+- **子智能体动态切换 / Sub-agent Dynamic Switching**:
+  使用 Claude 模型时，Antigravity 可能会调用 Gemini 2.5 Flash Lite 作为子智能体处理轻量任务。这会导致上下文上限临时跳到 1M，当 Claude 恢复执行任务时会回退到 200k。
 
 ## ⚙️ 设置
 
