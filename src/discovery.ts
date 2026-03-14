@@ -5,6 +5,17 @@ import * as http from 'http';
 
 const execFileAsync = promisify(execFile);
 
+// ─── Windows Process Discovery: wmic availability cache ──────────────────────
+// Tri-state: null = untested, true = wmic works, false = wmic missing.
+// Once set to false (e.g. Windows 11 25H2), subsequent poll cycles skip
+// straight to PowerShell Get-CimInstance, avoiding ~170ms wasted per poll.
+let wmicAvailable: boolean | null = null;
+
+/** Reset wmic availability cache (exported for testing). */
+export function resetWmicCache(): void {
+    wmicAvailable = null;
+}
+
 export interface LSInfo {
     pid: number;
     csrfToken: string;
@@ -21,7 +32,22 @@ export interface LSInfo {
  * Mirrors the conversion Antigravity uses for --workspace_id process argument.
  */
 export function buildExpectedWorkspaceId(workspaceUri: string): string {
-    return workspaceUri.replace(':///', '_').replace(/\//g, '_');
+    // Step 1: Strip the URI scheme separator
+    let id = workspaceUri.replace(':///', '_');
+    if (process.platform === 'win32') {
+        // Windows: the LS hex-encodes the drive-letter colon as _3A_ and
+        // replaces hyphens with underscores. Encode colon BEFORE replacing
+        // slashes to avoid double-underscore artifacts (c:/ → c_3A_/ → c_3A_).
+        id = id.replace(/:/g, '_3A_');
+    }
+    // Replace path separators (and hyphens on Windows)
+    id = id.replace(/\//g, '_');
+    if (process.platform === 'win32') {
+        id = id.replace(/-/g, '_');
+        // Collapse any double underscores from adjacent special chars (e.g., c_3A_/)
+        id = id.replace(/__+/g, '_');
+    }
+    return id;
 }
 
 /**
@@ -52,9 +78,11 @@ export function extractWorkspaceId(line: string): string | null {
  * Filter ps output lines for LS processes.
  */
 export function filterLsProcessLines(psOutput: string): string[] {
-    const binaryName = process.platform === 'linux'
-        ? 'language_server_linux'
-        : 'language_server_macos';
+    const binaryName = process.platform === 'win32'
+        ? 'language_server_windows'
+        : process.platform === 'linux'
+            ? 'language_server_linux'
+            : 'language_server_macos';
     return psOutput.split('\n').filter(l =>
         l.includes(binaryName) && l.includes('antigravity')
     );
@@ -78,11 +106,72 @@ export function extractPortFromSs(line: string): number | null {
 }
 
 /**
+ * Extract port from a Windows `netstat -ano` output line.
+ * Matches patterns like `TCP    127.0.0.1:12345    0.0.0.0:0    LISTENING    1234`
+ */
+export function extractPortFromNetstat(line: string): number | null {
+    const portMatch = line.match(/\s+127\.0\.0\.1:(\d+)\s/);
+    return portMatch ? parseInt(portMatch[1], 10) : null;
+}
+
+/**
+ * Discover Windows LS processes via wmic (preferred) or Get-CimInstance (fallback).
+ * Caches wmic availability to avoid retrying a missing executable every poll cycle.
+ * Returns raw CSV output containing CommandLine and ProcessId fields.
+ */
+async function discoverWindowsProcesses(signal?: AbortSignal): Promise<string> {
+    // Try wmic unless already known to be unavailable
+    if (wmicAvailable !== false) {
+        try {
+            const result = await execFileAsync('wmic', [
+                'process', 'where',
+                "name like 'language_server_windows%'",
+                'get', 'ProcessId,CommandLine', '/format:csv'
+            ], { encoding: 'utf-8', timeout: 5000, signal });
+            wmicAvailable = true;
+            return result.stdout;
+        } catch {
+            wmicAvailable = false;
+            console.log('[ContextMonitor] wmic not available, falling back to Get-CimInstance');
+        }
+    }
+
+    // Fallback: PowerShell Get-CimInstance with server-side WMI filter
+    const result = await execFileAsync('powershell.exe', [
+        '-NoProfile', '-NoLogo', '-Command',
+        'Get-CimInstance Win32_Process -Filter "Name like \'language_server_windows%\'" | Select-Object ProcessId, CommandLine | ConvertTo-Csv -NoTypeInformation'
+    ], { encoding: 'utf-8', timeout: 10000, signal });
+    return result.stdout;
+}
+
+/**
  * Find listening TCP ports for a given PID.
  * Uses lsof (macOS + most Linux), with fallback to ss (Linux default).
  */
 async function findListeningPorts(pid: number, signal?: AbortSignal): Promise<number[]> {
-    // Try lsof first (works on both macOS and most Linux)
+    // Windows: use netstat -ano (native exe, ~25ms, fastest option)
+    if (process.platform === 'win32') {
+        try {
+            const result = await execFileAsync('netstat', [
+                '-ano'
+            ], { encoding: 'utf-8', timeout: 5000, signal });
+            const ports: number[] = [];
+            const pidStr = String(pid);
+            for (const line of result.stdout.split('\n')) {
+                // netstat -ano format: TCP    127.0.0.1:PORT    0.0.0.0:0    LISTENING    PID
+                if (line.includes('LISTENING') && line.trim().endsWith(pidStr)) {
+                    const port = extractPortFromNetstat(line);
+                    if (port !== null) {
+                        ports.push(port);
+                    }
+                }
+            }
+            return ports;
+        } catch { /* netstat failed */ }
+        return [];
+    }
+
+    // macOS + Linux: try lsof first
     try {
         const result = await execFileAsync('lsof', [
             '-nP', '-iTCP', '-sTCP:LISTEN', '-a', '-p', String(pid)
@@ -135,63 +224,129 @@ async function findListeningPorts(pid: number, signal?: AbortSignal): Promise<nu
  */
 export async function discoverLanguageServer(workspaceUri?: string, signal?: AbortSignal): Promise<LSInfo | null> {
     try {
-        // 1. Find all LS processes
-        // S2/S3: async execFile — does not block the Extension Host event loop,
-        // and does not spawn a shell (no command injection risk).
-        // We use `ps -ax -o pid=,command=` to list all processes, then filter in JS
-        // instead of piping through grep (execFile does not support shell pipes).
-        let psOutput: string;
-        try {
-            const result = await execFileAsync('ps', ['-ax', '-o', 'pid=,command='], {
-                encoding: 'utf-8',
-                timeout: 5000,
-                signal
-            });
-            psOutput = result.stdout;
-        } catch {
-            return null;
-        }
+        let pid: number | null = null;
+        let csrfToken: string | null = null;
 
-        const lines = filterLsProcessLines(psOutput);
+        if (process.platform === 'win32') {
+            // ─── Windows: wmic.exe (preferred) or Get-CimInstance (fallback) ───
+            // Uses cached wmic availability to skip missing wmic on subsequent polls.
+            let wmicOutput: string;
+            try {
+                wmicOutput = await discoverWindowsProcesses(signal);
+            } catch {
+                return null;
+            }
 
-        if (lines.length === 0) {
-            return null;
-        }
+            // Parse wmic CSV or PowerShell CSV output
+            // Both contain lines with CommandLine and ProcessId fields
+            const lines = wmicOutput.split('\n').filter(l =>
+                l.includes('language_server_windows') && l.includes('antigravity')
+            );
 
-        let targetLine = lines[0]; // fallback to first if no specific match
+            if (lines.length === 0) {
+                return null;
+            }
 
-        if (workspaceUri) {
-            // Antigravity replaces ':///' with '_' and '/' with '_' for the workspace_id arg
-            // e.g. file:///Users/foo/bar -> file_Users_foo_bar
-            const expectedWorkspaceId = buildExpectedWorkspaceId(workspaceUri);
+            // Find the line matching our workspace
+            let targetLine = lines[0];
+            if (workspaceUri) {
+                const expectedWorkspaceId = buildExpectedWorkspaceId(workspaceUri);
+                const matchedLine = lines.find(line => {
+                    const wsId = extractWorkspaceId(line);
+                    return wsId === expectedWorkspaceId;
+                });
+                if (matchedLine) {
+                    targetLine = matchedLine;
+                }
+            }
 
-            // Look for the specific process serving this workspace
-            const matchedLine = lines.find(line => {
-                const wsId = extractWorkspaceId(line);
-                return wsId === expectedWorkspaceId;
-            });
+            // Extract CSRF token from the command line string
+            csrfToken = extractCsrfToken(targetLine);
+            if (!csrfToken) {
+                return null;
+            }
 
-            if (matchedLine) {
-                targetLine = matchedLine;
+            // Extract PID: in wmic CSV, ProcessId is the last field on the line
+            const pidMatch = targetLine.match(/(\d+)\s*$/);
+            if (pidMatch) {
+                pid = parseInt(pidMatch[1], 10);
+            }
+            // Also try the standard ps-style PID extraction (for PowerShell CSV)
+            if (!pid) {
+                // PowerShell CSV: "ProcessId","CommandLine" or similar column order
+                // Try extracting any standalone number that looks like a PID
+                const allNumbers = targetLine.match(/(?:^|,|")(\d{2,})(?:"|,|$)/g);
+                if (allNumbers) {
+                    for (const m of allNumbers) {
+                        const n = parseInt(m.replace(/[",]/g, ''), 10);
+                        // A reasonable PID range
+                        if (n > 0 && n < 1000000) {
+                            pid = n;
+                            break;
+                        }
+                    }
+                }
+            }
+            if (!pid) {
+                return null;
+            }
+        } else {
+            // ─── macOS / Linux: ps for process discovery ──────────────────
+            // S2/S3: async execFile — does not block the Extension Host event loop,
+            // and does not spawn a shell (no command injection risk).
+            let psOutput: string;
+            try {
+                const result = await execFileAsync('ps', ['-ax', '-o', 'pid=,command='], {
+                    encoding: 'utf-8',
+                    timeout: 5000,
+                    signal
+                });
+                psOutput = result.stdout;
+            } catch {
+                return null;
+            }
+
+            const lines = filterLsProcessLines(psOutput);
+
+            if (lines.length === 0) {
+                return null;
+            }
+
+            let targetLine = lines[0]; // fallback to first if no specific match
+
+            if (workspaceUri) {
+                // Antigravity replaces ':///' with '_' and '/' with '_' for the workspace_id arg
+                // e.g. file:///Users/foo/bar -> file_Users_foo_bar
+                const expectedWorkspaceId = buildExpectedWorkspaceId(workspaceUri);
+
+                // Look for the specific process serving this workspace
+                const matchedLine = lines.find(line => {
+                    const wsId = extractWorkspaceId(line);
+                    return wsId === expectedWorkspaceId;
+                });
+
+                if (matchedLine) {
+                    targetLine = matchedLine;
+                }
+            }
+
+            const firstLine = targetLine.trim();
+
+            // Extract PID (first number)
+            pid = extractPid(firstLine);
+            if (!pid) {
+                return null;
+            }
+
+            // Extract CSRF token
+            csrfToken = extractCsrfToken(firstLine);
+            if (!csrfToken) {
+                return null;
             }
         }
 
-        const firstLine = targetLine.trim();
-
-        // Extract PID (first number)
-        const pid = extractPid(firstLine);
-        if (!pid) {
-            return null;
-        }
-
-        // Extract CSRF token
-        const csrfToken = extractCsrfToken(firstLine);
-        if (!csrfToken) {
-            return null;
-        }
-
         // 2. Find listening ports
-        // Cross-platform: lsof (macOS + Linux) with ss fallback (Linux)
+        // Cross-platform: netstat (Windows), lsof (macOS + Linux), ss fallback (Linux)
         const ports = await findListeningPorts(pid, signal);
 
         if (ports.length === 0) {

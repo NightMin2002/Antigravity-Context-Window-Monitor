@@ -1,0 +1,90 @@
+import { describe, it, expect } from 'vitest';
+import { 
+    buildExpectedWorkspaceId, 
+    extractPid, 
+    extractCsrfToken, 
+    extractWorkspaceId, 
+    filterLsProcessLines,
+    extractPort,
+    extractPortFromNetstat
+} from './discovery';
+
+describe('discovery.ts', () => {
+    describe('buildExpectedWorkspaceId', () => {
+        it('should handle standard Posix workspace URIs', () => {
+            // Mirrors: id = workspaceUri.replace(':///', '_'); id = id.replace(/\//g, '_');
+            const uri = 'file:///Users/foo/bar';
+            const expected = 'file_Users_foo_bar';
+            expect(buildExpectedWorkspaceId(uri)).toBe(expected);
+        });
+
+        if (process.platform === 'win32') {
+            it('should handle Windows workspace URIs with colon encoding', () => {
+                const uri = 'file:///c:/Users/8bit/project';
+                // Step 1: file_c:/Users/8bit/project
+                // Step 2: file_c_3A_/Users/8bit/project
+                // Step 3: file_c_3A__Users_8bit_project
+                // Step 4 (regex /__+/): file_c_3A_Users_8bit_project
+                const result = buildExpectedWorkspaceId(uri);
+                expect(result).toBe('file_c_3A_Users_8bit_project');
+            });
+
+            it('should handle hyphens on Windows', () => {
+                const uri = 'file:///c:/my-project';
+                const result = buildExpectedWorkspaceId(uri);
+                expect(result).toBe('file_c_3A_my_project');
+            });
+        }
+    });
+
+    describe('extractPid', () => {
+        it('should extract PID from a ps-style line', () => {
+            const line = '  12345 language_server_macos --csrf_token abc';
+            expect(extractPid(line)).toBe(12345);
+        });
+
+        it('should return null for invalid lines', () => {
+            expect(extractPid('invalid line')).toBe(null);
+        });
+    });
+
+    describe('extractCsrfToken', () => {
+        it('should extract CSRF token from command line', () => {
+            const line = 'ls --csrf_token token123 --workspace_id ws1';
+            expect(extractCsrfToken(line)).toBe('token123');
+        });
+    });
+
+    describe('extractWorkspaceId', () => {
+        it('should extract workspace ID from command line', () => {
+            const line = 'ls --csrf_token t1 --workspace_id file_c_3A_tmp';
+            expect(extractWorkspaceId(line)).toBe('file_c_3A_tmp');
+        });
+    });
+
+    describe('filterLsProcessLines', () => {
+        it('should filter correct process lines based on platform', () => {
+            const binary = process.platform === 'win32' ? 'language_server_windows' : 'language_server_macos';
+            const lines = [
+                `100 ${binary} --antigravity --csrf_token x`,
+                `101 some_other_proc`,
+                `102 ${binary} --other --antigravity`
+            ].join('\n');
+            const filtered = filterLsProcessLines(lines);
+            expect(filtered).toHaveLength(2);
+            expect(filtered[0]).toContain('100');
+        });
+    });
+
+    describe('port extraction', () => {
+        it('extractPort should handle lsof format', () => {
+            const line = 'procnm 123 user 4u IPv4 0x... 0t0 TCP 127.0.0.1:54321 (LISTEN)';
+            expect(extractPort(line)).toBe(54321);
+        });
+
+        it('extractPortFromNetstat should handle Windows netstat format', () => {
+            const line = '  TCP    127.0.0.1:65432    0.0.0.0:0              LISTENING       1234';
+            expect(extractPortFromNetstat(line)).toBe(65432);
+        });
+    });
+});

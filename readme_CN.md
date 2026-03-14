@@ -13,7 +13,56 @@
 >
 > 🐧 **Linux**: 完全支持（v1.6.0+）。通过 `ps` 和 `lsof`/`ss` 实现进程发现。已在 Ubuntu 22.04 (x64 & ARM64) 上测试通过。
 >
-> 🪟 **Windows**: 开发中，敬请期待。
+> 🪟 **Windows**: 完全支持（v1.8.0+）。通过 `wmic` 缓存和 PowerShell 回退机制优化了发现逻辑。
+
+---
+
+## 📚 技术细节
+
+👉 **[阅读技术实现说明](docs/technical_implementation.md)**
+
+---
+
+## ✨ 主要功能
+
+* **⚡ 实时 Token 监控**
+    状态栏显示当前 Token 消耗，格式如 `125k/200k, 62.5%`。Token 数据优先取自模型 checkpoint 的精确值（`inputTokens` + `outputTokens`），两次 checkpoint 之间通过基于实际文本内容的字符估算实时计算增量（v1.4.0 起替代了固定常量）。仅在步骤数据结构缺失时 fallback 到固定常量。
+
+* **🌐 中英双语**
+    状态栏、QuickPick 面板、tooltip 均提供中英文显示。
+
+* **🔒 多窗口隔离**
+    每个 Antigravity 窗口只显示本工作区的对话数据。插件通过 workspace URI 过滤，多窗口之间互不干扰。
+
+* **🗜️ 上下文压缩检测**
+    当模型自动压缩对话历史时，插件通过双层检测机制识别：主层比较连续 checkpoint 的 `inputTokens`（下降超过 5000 tokens 即判定，天然免疫 Undo 误报），降级层比较跨轮询 `contextUsed` 变化（带 Undo 排除守卫）。状态栏显示 `~100% 🗜` 压缩标识。
+
+* **⏪ Undo/Rewind 支持**
+    撤销对话步骤后，插件检测到 `stepCount` 减少，会重新计算 Token 用量，显示回滚后的准确值。
+
+    | 回退前 | 回退后 |
+    | :---: | :---: |
+    | ![回退前](src/images/回退前.png) | ![回退后](src/images/回退后.png) |
+
+* **🔄 动态模型切换**
+    对话中切换模型时，上下文窗口上限自动更新为当前模型的限制值。v1.4.0 起通过 `GetUserStatus` API 动态获取模型显示名称。
+
+# 🌌 Antigravity 实时上下文窗口监控
+
+一个专为 **Antigravity**（Google 基于 Windsurf 修改的 IDE）开发的插件，用于实时**监控所有聊天会话的上下文窗口使用情况**。
+
+**[🇺🇸 English Documentation / 英文文档](README.md)**
+
+---
+
+> [!WARNING]
+> **平台支持**
+>
+> 🍏 **macOS**: 完全支持。通过 `ps` 和 `lsof` 命令实现进程发现。
+>
+> 🐧 **Linux**: 完全支持（v1.6.0+）。通过 `ps` 和 `lsof`/`ss` 实现进程发现。已在 Ubuntu 22.04 (x64 & ARM64) 上测试通过。
+>
+> 🪟 **Windows**: 完全支持（v1.8.0+）。通过 `wmic` 缓存和 PowerShell 回退机制优化了发现逻辑。
 
 ---
 
@@ -94,9 +143,13 @@
 > **上下文压缩提示**
 > 压缩完成通知（🗜 图标）持续约 15 秒（3 个轮询周期）后恢复正常显示。
 
+> [!IMPORTANT]
+> **Antigravity 内部总结机制**
+> Antigravity IDE 对检查点总结有一个硬编码的 7500 token "总结阈值" (Summarization Threshold)。这当对话非常长且跨过该阈值后，Token 计数可能会出现轻微偏差。更多细节请参考 [lalalavir fork](https://github.com/lalalavir/Antigravity-Context-Window-Monitor)。
+
 > [!NOTE]
-> **新对话默认显示**
-> 新建对话时，状态栏默认显示 `0k/1000k, 0.0%`（1000k 为 Gemini 系列模型的默认上下文上限）。**只有在与模型产生实际对话后**，插件才会从语言服务器获取到会话数据并更新状态栏显示。
+> **子智能体动态切换**
+> 使用 Claude 模型时，Antigravity 可能会调用 Gemini 2.5 Flash Lite 作为子智能体处理轻量任务。这会导致上下文上限临时跳到 1M，当 Claude 恢复执行任务时会回退到 200k。
 
 ## ⚙️ 设置
 
@@ -111,4 +164,4 @@
 
 ---
 **作者**: AGI-is-going-to-arrive
-**版本**: 1.6.0
+**Version**: 1.8.0

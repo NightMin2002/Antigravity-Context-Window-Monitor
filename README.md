@@ -13,7 +13,7 @@ A plugin built for **Antigravity** (Google's Windsurf-based IDE) that provides r
 >
 > 🐧 **Linux**: Fully supported (v1.6.0+). Uses `ps` with `lsof`/`ss` fallback for process discovery. Tested on Ubuntu 22.04 (x64 & ARM64).
 >
-> 🪟 **Windows**: Coming soon.
+> 🪟 **Windows**: Fully supported (v1.8.0+). Optimized discovery with `wmic` caching and PowerShell fallbacks.
 
 ---
 
@@ -94,9 +94,13 @@ A plugin built for **Antigravity** (Google's Windsurf-based IDE) that provides r
 > **Compression Notification**
 > The compression notification (🗜 icon) shows for ~15 seconds (3 poll cycles) before reverting to normal display.
 
+> [!IMPORTANT]
+> **Antigravity Internal Summarization**
+> The Antigravity IDE has a hardcoded 7500 token "Summarization Threshold" for checkpoint summaries. This can lead to slight discrepancies in token counts for very long conversations once the threshold is crossed. For more details on this behavior, see the [lalalavir fork](https://github.com/lalalavir/Antigravity-Context-Window-Monitor).
+
 > [!NOTE]
-> **Default Display for New Conversations**
-> When you start a new conversation, the status bar defaults to `0k/1000k, 0.0%` (1000k is the default context limit for Gemini models). The display **only updates after you interact with the model**, as the plugin needs the language server to register the conversation before it can fetch usage data.
+> **Dynamic Sub-Agent Switching**
+> When using Claude models, Antigravity may call Gemini 2.5 Flash Lite as a sub-agent for lightweight tasks. This causes the context limit to temporarily jump to 1M, returning to 200k when Claude resumes execution.
 
 ## ⚙️ Settings
 
@@ -111,4 +115,4 @@ A plugin built for **Antigravity** (Google's Windsurf-based IDE) that provides r
 
 ---
 **Author**: AGI-is-going-to-arrive
-**Version**: 1.6.0
+**Version**: 1.8.0

@@ -295,6 +295,21 @@ async function pollContextUsage(): Promise<void> {
                 selectionReason = 'new RUNNING cascade in ws';
             }
         }
+        // --- Priority 1b: RUNNING trajectory without workspace URI ---
+        // New conversations may not have a workspace URI for the first few steps.
+        // If there's a RUNNING trajectory in the FULL list (not just qualified),
+        // it's almost certainly the user's current conversation in this window.
+        if (!newCandidateId) {
+            const allRunning = trajectories.filter(t =>
+                t.status === 'CASCADE_RUN_STATUS_RUNNING' &&
+                t.workspaceUris.length === 0 // no workspace assigned yet
+            );
+            if (allRunning.length > 0) {
+                newCandidateId = allRunning[0].cascadeId;
+                selectionReason = 'RUNNING cascade without workspace (new conversation)';
+                log(`Priority 1b: found RUNNING trajectory ${newCandidateId!.substring(0, 8)} without workspace URI`);
+            }
+        }
         // --- Priority 2: stepCount CHANGE detection (increase OR decrease) ---
         // Detecting decrease is essential for Undo/Rewind: when the user undoes
         // a conversation step, stepCount drops and we must refresh the usage data.
@@ -328,6 +343,22 @@ async function pollContextUsage(): Promise<void> {
             }
         }
 
+        // --- Priority 4: Most recently modified trajectory in workspace ---
+        // When no RUNNING / stepCount-changed / newly-created signal fires,
+        // fall back to the trajectory with the latest lastModifiedTime in
+        // this workspace. This prevents showing "idle" when the user's
+        // conversation is between turns (AI finished → status=IDLE) or
+        // when the extension just started (firstPollDone=false on 1st cycle).
+        // Workspace isolation is preserved — only qualified trajectories
+        // (matching this window's workspace URI) are considered.
+        if (!newCandidateId && qualifiedTrajectories.length > 0) {
+            // qualifiedTrajectories are already sorted by lastModifiedTime desc
+            // (from getAllTrajectories), so [0] is the most recent.
+            const mostRecent = qualifiedTrajectories[0];
+            newCandidateId = mostRecent.cascadeId;
+            selectionReason = 'most recently modified in ws (fallback)';
+        }
+
         // Update tracked cascade
         if (newCandidateId) {
             if (trackedCascadeId !== newCandidateId) {
@@ -338,10 +369,12 @@ async function pollContextUsage(): Promise<void> {
                 log(`Refreshing cascade ${trackedCascadeId?.substring(0, 8)} (${selectionReason})`);
             }
         } else if (trackedCascadeId) {
-            // Ensure tracked cascade is still in our qualified list
-            const currentTracked = qualifiedTrajectories.find(t => t.cascadeId === trackedCascadeId);
+            // Ensure tracked cascade is still in our qualified list OR the full list
+            // (Priority 1b candidates may be in the full list without workspace URI)
+            const currentTracked = qualifiedTrajectories.find(t => t.cascadeId === trackedCascadeId)
+                || trajectories.find(t => t.cascadeId === trackedCascadeId);
             if (!currentTracked) {
-                log(`Tracked cascade ${trackedCascadeId.substring(0, 8)} no longer in qualified list (deleted or moved), clearing`);
+                log(`Tracked cascade ${trackedCascadeId.substring(0, 8)} no longer in any list (deleted or moved), clearing`);
                 trackedCascadeId = null;
                 isExplicitlyIdle = true;
             }
@@ -351,14 +384,17 @@ async function pollContextUsage(): Promise<void> {
         let activeTrajectory: TrajectorySummary | null = null;
 
         if (trackedCascadeId) {
-            activeTrajectory = qualifiedTrajectories.find(t => t.cascadeId === trackedCascadeId) || null;
+            // Search qualified list first, then full list (for Priority 1b candidates)
+            activeTrajectory = qualifiedTrajectories.find(t => t.cascadeId === trackedCascadeId)
+                || trajectories.find(t => t.cascadeId === trackedCascadeId)
+                || null;
             if (activeTrajectory && !selectionReason) {
                 selectionReason = 'tracked cascade';
             }
         }
 
-        // NO FALLBACK: We intentionally do NOT auto-select a stale IDLE trajectory.
-        // This ensures new conversations show 0k until their trajectory registers.
+        // Priority 4 fallback above handles the case where all trajectories
+        // are IDLE — it selects the most recently modified one in this workspace.
 
         if (!activeTrajectory) {
             // Determine the context limit to display in idle state.
@@ -382,6 +418,7 @@ async function pollContextUsage(): Promise<void> {
         const customLimits = config.get<Record<string, number>>('contextLimits');
 
         currentUsage = await getContextUsage(lsInfo, activeTrajectory, customLimits, abortController.signal);
+        log(`  → contextUsed=${currentUsage.contextUsed} model=${currentUsage.model} steps=${currentUsage.stepCount} estimated=${currentUsage.isEstimated} ckpt_in=${currentUsage.lastModelUsage?.inputTokens ?? 'none'} ckpt_out=${currentUsage.lastModelUsage?.outputTokens ?? 'none'} estDelta=${currentUsage.estimatedDeltaSinceCheckpoint}`);
         statusBar.update(currentUsage);
 
         // Track the model for idle-state display

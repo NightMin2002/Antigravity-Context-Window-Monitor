@@ -370,10 +370,15 @@ export function normalizeUri(uri: string): string {
     } catch {
         // If decoding fails, keep as-is
     }
+    // Windows: strip leading / before drive letter (e.g., /c:/ → c:/)
+    // Must be AFTER URL decoding so that %3A → : is resolved first.
+    if (process.platform === 'win32') {
+        normalized = normalized.replace(/^\/([a-zA-Z]:)/, '$1');
+    }
     // Remove trailing slash
     normalized = normalized.replace(/\/$/, '');
-    // Only lowercase on macOS (case-insensitive FS); Linux is case-sensitive
-    if (process.platform === 'darwin') {
+    // Lowercase on macOS and Windows (case-insensitive FS); Linux is case-sensitive
+    if (process.platform === 'darwin' || process.platform === 'win32') {
         normalized = normalized.toLowerCase();
     }
     return normalized;
