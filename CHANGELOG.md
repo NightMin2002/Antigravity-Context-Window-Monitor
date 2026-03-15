@@ -1,5 +1,55 @@
 # Changelog / 变更日志
 
+## [1.10.0] - 2026-03-15
+
+### Added / 新增
+
+- **Language Switching / 语言切换**: New command `Switch Display Language` allows users to choose between Chinese-only, English-only, or bilingual display mode. Preference is persisted via `globalState`. All UI strings (status bar, tooltip, QuickPick panel) respect the selected language. Accessible directly from the details panel.
+  新增 `切换显示语言` 命令，用户可选择仅中文、仅英文或双语显示模式。偏好通过 `globalState` 持久化。可直接从详情面板底部切换。
+
+- **i18n Module / 国际化模块**: Centralized translation system (`src/i18n.ts`) with `t(key)` and `tBi(en, zh)` helper functions. 80+ translation keys covering all user-facing strings.
+  集中式翻译系统（`src/i18n.ts`），提供 `t(key)` 和 `tBi(en, zh)` 辅助函数。80+ 翻译 key 覆盖所有用户可见字符串。
+
+### Changed / 变更
+
+- **Claude 4.6 Context Limits Updated / Claude 4.6 上下文限制更新**: Both Claude Sonnet 4.6 (`MODEL_PLACEHOLDER_M35`) and Claude Opus 4.6 (`MODEL_PLACEHOLDER_M26`) context limits updated from 200K to **1M tokens**, reflecting the GA release on 2026-03-13.
+  Claude Sonnet 4.6 和 Claude Opus 4.6 的上下文限制从 200K 更新为 **1M tokens**，反映 2026-03-13 正式发布的 1M 上下文窗口。
+
+- **Gemini 3 Flash M47 sync / Gemini 3 Flash M47 同步**: Synced with upstream v1.9.0 — `MODEL_PLACEHOLDER_M47` added as primary Gemini 3 Flash ID, `MODEL_PLACEHOLDER_M18` preserved as legacy alias.
+  同步上游 v1.9.0 —— 新增 `MODEL_PLACEHOLDER_M47` 为 Gemini 3 Flash 主 ID，`MODEL_PLACEHOLDER_M18` 保留为旧别名。
+
+### Refactored / 重构
+
+- **Module Extraction / 模块提取**: Broke down the 838-line `tracker.ts` into focused modules:
+  - `src/rpc-client.ts` — RPC communication layer
+  - `src/models.ts` — Model configuration and display names (with i18n support)
+  - `src/constants.ts` — All magic strings and numeric constants centralized
+  - `src/i18n.ts` — Internationalization system
+  将 838 行的 `tracker.ts` 拆分为职责明确的模块。
+
+- **processSteps() Decomposition / processSteps() 拆分**: Extracted helper functions `processUserInputStep()`, `processPlannerResponseStep()`, `isImageGenStep()`, `extractCheckpointModelUsage()` from the 240-line monolithic function.
+  从 240 行的单体函数中提取子函数。
+
+- **Token Formatting Unified / Token 格式化统一**: Merged duplicate logic between `formatTokenCount` and `formatContextLimit` into a single `formatTokenValue()`.
+  合并两个重复的格式化函数为统一的 `formatTokenValue()`。
+
+- **Magic Strings → Constants / 魔法字符串 → 常量**: Extracted `CASCADE_RUN_STATUS_RUNNING`, `CORTEX_STEP_TYPE_*` and all numeric constants into `src/constants.ts`.
+  所有散落的字面量提取到 `src/constants.ts`。
+
+### Tests / 测试
+
+- Added `src/tracker.test.ts` (16 tests): `estimateTokensFromText`, `processSteps` covering checkpoint extraction, compression detection, image gen detection, model priority, tool output tracking, estimation reset after checkpoint.
+  新增 `src/tracker.test.ts`（16 个测试）。
+
+- Added `src/statusbar.test.ts` (11 tests): `formatTokenCount`, `formatContextLimit`, `calculateCompressionStats`.
+  新增 `src/statusbar.test.ts`（11 个测试）。
+
+- Added `__mocks__/vscode.ts` and `vitest.config.ts` for proper VS Code API mocking in unit tests.
+  新增 vscode 模块 mock 和 vitest 配置。
+
+- Total test count: 37 (was 10 in v1.8.0).
+  测试总数：37（v1.8.0 为 10）。
+
 ## [1.8.0] - 2026-03-15
 
 ### Added / 新增加
