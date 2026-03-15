@@ -11,6 +11,8 @@ import {
     TrajectorySummary
 } from './tracker';
 import { StatusBarManager, formatContextLimit } from './statusbar';
+import { initI18n, showLanguagePicker } from './i18n';
+import { CascadeStatus, MAX_BACKOFF_INTERVAL_MS, COMPRESSION_PERSIST_POLLS } from './constants';
 
 // ─── Extension State ──────────────────────────────────────────────────────────
 // Each VS Code window runs its own extension instance, so module-level
@@ -29,54 +31,42 @@ let extensionContext: vscode.ExtensionContext;
 /** The cascade ID that THIS window instance is tracking. */
 let trackedCascadeId: string | null = null;
 
-/** Previous poll's step counts per cascade — used to detect activity (both increase AND decrease). */
+/** Previous poll's step counts per cascade — used to detect activity. */
 const previousStepCounts = new Map<string, number>();
 
 /** Previous poll's known trajectory IDs — used to detect new conversations. */
 const previousTrajectoryIds = new Set<string>();
 
-/** C3: Previous poll's contextUsed per cascade — used to detect context compression. */
+/** Previous poll's contextUsed per cascade — used to detect context compression. */
 const previousContextUsedMap = new Map<string, number>();
 
-/** Whether we've completed at least one poll cycle (to populate baselines). */
+/** Whether we've completed at least one poll cycle. */
 let firstPollDone = false;
 
-/** CR-C1: Prevent concurrent pollContextUsage() reentrance. */
+/** Prevents concurrent pollContextUsage() reentrance. */
 let isPolling = false;
 
-/** CR-C1v2: Prevents schedulePoll() from creating new timers after deactivate. */
+/** Prevents schedulePoll() from creating new timers after deactivate. */
 let disposed = false;
 
-/** CR2-Fix1: Generation counter — prevents orphan timer chains.
- *  Each schedulePoll() captures its generation; if restartPolling() increments
- *  the counter before the finally block runs, finally skips re-scheduling. */
+/** Generation counter — prevents orphan timer chains. */
 let pollGeneration = 0;
 
-// TODO: isExplicitlyIdle is set when the tracked cascade is deleted/moved from the
-// qualified list, allowing differentiation between "cascade deleted → actively idle"
-// vs "window just opened → no cascade yet". Currently only written, never read.
-// Reserved for future UI improvement: show distinct idle messages per cause.
+// isExplicitlyIdle: Reserved for future UI improvement — differentiate between
+// "cascade deleted → actively idle" vs "window just opened → no cascade yet".
 let isExplicitlyIdle = false;
 
 /** The last known model identifier — used to show correct context limit in idle state. */
 let lastKnownModel = '';
 
 // ─── Exponential Backoff State ────────────────────────────────────────────────
-/** Base polling interval in milliseconds (from config, default 5s). */
 let baseIntervalMs = 5000;
-/** Current polling interval (increases on failure, resets on success). */
 let currentIntervalMs = 5000;
-/** Maximum backoff interval: 60 seconds. */
-const MAX_BACKOFF_INTERVAL_MS = 60_000;
-/** Number of consecutive LS discovery failures. */
 let consecutiveFailures = 0;
 
-// A1: AbortController — used to cancel in-flight RPC requests on extension deactivate.
+// AbortController — cancel in-flight RPC requests on extension deactivate.
 let abortController = new AbortController();
 
-// A4: Compression persistence — keeps the compression indicator visible for
-// COMPRESSION_PERSIST_POLLS poll cycles after detection, so users don't miss it.
-const COMPRESSION_PERSIST_POLLS = 3;
 /** Map of cascadeId → remaining polls to show compression indicator. */
 const compressionPersistCounters = new Map<string, number>();
 
@@ -84,15 +74,15 @@ const compressionPersistCounters = new Map<string, number>();
 
 export function activate(context: vscode.ExtensionContext): void {
     extensionContext = context;
-    // CR-#4: Rebuild AbortController on activation so re-activation after
-    // deactivate works (the previous controller was already aborted).
     abortController = new AbortController();
-    // CR-C1v2: Reset disposed flag on re-activation
     disposed = false;
     outputChannel = vscode.window.createOutputChannel('Antigravity Context Monitor');
     log('Extension activating...');
 
-    // M4: Restore persisted lastKnownModel from workspaceState
+    // Initialize i18n from persisted state
+    initI18n(context);
+
+    // Restore persisted lastKnownModel from workspaceState
     lastKnownModel = context.workspaceState.get<string>('lastKnownModel', '');
     if (lastKnownModel) {
         log(`Restored lastKnownModel from workspaceState: ${lastKnownModel}`);
@@ -107,11 +97,19 @@ export function activate(context: vscode.ExtensionContext): void {
         }),
         vscode.commands.registerCommand('antigravity-context-monitor.refresh', () => {
             log('Manual refresh triggered');
-            cachedLsInfo = null; // Force re-discovery
-            consecutiveFailures = 0; // Reset backoff on manual refresh
+            cachedLsInfo = null;
+            consecutiveFailures = 0;
             currentIntervalMs = baseIntervalMs;
             restartPolling();
             pollContextUsage();
+        }),
+        vscode.commands.registerCommand('antigravity-context-monitor.switchLanguage', () => {
+            showLanguagePicker(context).then(() => {
+                // Rebuild statusBar to reflect new language immediately
+                if (currentUsage) {
+                    statusBar.update(currentUsage);
+                }
+            });
         }),
         statusBar,
         outputChannel
@@ -119,18 +117,10 @@ export function activate(context: vscode.ExtensionContext): void {
 
     // Start polling
     const config = vscode.workspace.getConfiguration('antigravityContextMonitor');
-    // CR-M5: Lower bound prevents 0 or negative values from causing excessive polling
     const intervalSec = Math.max(1, config.get<number>('pollingInterval', 5));
     baseIntervalMs = intervalSec * 1000;
     currentIntervalMs = baseIntervalMs;
 
-    // S1 fix: Use setTimeout chain instead of setInterval to avoid:
-    //   - Silently skipped polls when RPC takes longer than the interval
-    //   - Timer drift from async execution time not being accounted for
-    //   - Overlapping polls (partially mitigated by isPolling guard, but
-    //     the guard causes silent skips instead)
-    // With setTimeout chain, the next poll is scheduled AFTER the current
-    // one completes, ensuring no overlap and predictable intervals.
     schedulePoll();
 
     // Ensure timer and abort controller are cleaned up when extension is disposed
@@ -140,7 +130,6 @@ export function activate(context: vscode.ExtensionContext): void {
                 clearTimeout(pollingTimer);
                 pollingTimer = undefined;
             }
-            // A1: Abort any in-flight RPC requests
             abortController.abort();
         }
     });
@@ -150,7 +139,6 @@ export function activate(context: vscode.ExtensionContext): void {
         vscode.workspace.onDidChangeConfiguration(e => {
             if (e.affectsConfiguration('antigravityContextMonitor.pollingInterval')) {
                 const newConfig = vscode.workspace.getConfiguration('antigravityContextMonitor');
-                // CR-M5: Lower bound prevents 0 or negative values
                 const newIntervalSec = Math.max(1, newConfig.get<number>('pollingInterval', 5));
                 baseIntervalMs = newIntervalSec * 1000;
                 currentIntervalMs = baseIntervalMs;
@@ -166,13 +154,11 @@ export function activate(context: vscode.ExtensionContext): void {
 // ─── Deactivation ─────────────────────────────────────────────────────────────
 
 export function deactivate(): void {
-    // CR-C1v2: Prevent schedulePoll() from creating new timers after this point
     disposed = true;
     if (pollingTimer) {
         clearTimeout(pollingTimer);
         pollingTimer = undefined;
     }
-    // A1: Cancel any in-flight RPC requests to prevent dangling network operations
     abortController.abort();
     log('Extension deactivated');
 }
@@ -180,15 +166,11 @@ export function deactivate(): void {
 // ─── Polling Logic ────────────────────────────────────────────────────────────
 
 async function pollContextUsage(): Promise<void> {
-    // CR-C1: Skip if a previous poll is still in-flight (prevents state races)
     if (isPolling) { return; }
     isPolling = true;
-    // CR2-Fix5: Snapshot cachedLsInfo to a local variable so that a concurrent
-    // refresh command setting cachedLsInfo=null during an await gap cannot
-    // cause null to be passed to downstream RPC functions.
     let lsInfo = cachedLsInfo;
     try {
-        // 1. Determine workspace URI for this window first so we can find the correct LS
+        // 1. Determine workspace URI for this window
         const workspaceUri = getWorkspaceUri();
         const normalizedWs = workspaceUri ? normalizeUri(workspaceUri) : '(none)';
 
@@ -197,17 +179,16 @@ async function pollContextUsage(): Promise<void> {
             log('Discovering language server...');
             statusBar.showInitializing();
             lsInfo = await discoverLanguageServer(workspaceUri, abortController.signal);
-            cachedLsInfo = lsInfo; // CR2-Fix5: Write back to global cache
+            cachedLsInfo = lsInfo;
 
             if (!lsInfo) {
-                handleLsFailure('LS not found / 未找到 Antigravity 语言服务器');
+                handleLsFailure('LS not found');
                 return;
             }
-            // LS found — reset backoff
             resetBackoff();
             log(`LS found: port=${lsInfo.port}, tls=${lsInfo.useTls}`);
 
-            // v1.4.0: Dynamically update model display names from GetUserStatus
+            // Dynamically update model display names from GetUserStatus
             try {
                 const configs = await fetchModelConfigs(lsInfo, abortController.signal);
                 if (configs.length > 0) {
@@ -222,23 +203,20 @@ async function pollContextUsage(): Promise<void> {
         try {
             trajectories = await getAllTrajectories(lsInfo, abortController.signal);
         } catch (err) {
-            // LS might have restarted, invalidate cache and retry
             log(`RPC failed, retrying discovery: ${err}`);
             lsInfo = await discoverLanguageServer(workspaceUri, abortController.signal);
-            cachedLsInfo = lsInfo; // CR2-Fix5: Write back to global cache
+            cachedLsInfo = lsInfo;
             if (!lsInfo) {
-                handleLsFailure('LS connection lost / 语言服务器连接断开');
+                handleLsFailure('LS connection lost');
                 return;
             }
             resetBackoff();
             trajectories = await getAllTrajectories(lsInfo, abortController.signal);
         }
 
-        // Successful poll — ensure backoff is reset
         resetBackoff();
 
         if (trajectories.length === 0) {
-            // Use last known model's limit (M4 fix: was always defaulting to '1000k')
             const config0 = vscode.workspace.getConfiguration('antigravityContextMonitor');
             const customLimits0 = config0.get<Record<string, number>>('contextLimits');
             const noConvLimit = getContextLimit(lastKnownModel, customLimits0);
@@ -250,26 +228,12 @@ async function pollContextUsage(): Promise<void> {
             return;
         }
 
-        // Log each trajectory's workspace URIs for debugging
         for (const t of trajectories.slice(0, 5)) {
             const wsUris = t.workspaceUris.map(u => `"${u}" → "${normalizeUri(u)}"`).join(', ');
             log(`  Trajectory "${t.summary?.substring(0, 30)}" status=${t.status} steps=${t.stepCount} workspaces=[${wsUris}]`);
         }
 
-        // 4. Per-window cascade tracking — STRICT Workspace Isolation.
-        //
-        // A window should ONLY track trajectories belonging to its workspace.
-        // If a window has no workspace (no folder opened), it only sees orphans.
-        //
-        // CRITICAL: We NEVER auto-lock to a stale IDLE trajectory.
-        // We only track a trajectory when there is EVIDENCE it's the current one:
-        //   Priority 1: RUNNING status in our workspace
-        //   Priority 2: stepCount CHANGED (increase OR decrease) in our workspace
-        //   Priority 3: New trajectory appeared in our workspace
-        //
-        // If none of these fire, we show idle — this is correct for new
-        // conversations that haven't registered in the LS yet.
-
+        // 4. Per-window cascade tracking — STRICT Workspace Isolation
         const qualifiedTrajectories = trajectories.filter(t => {
             if (workspaceUri) {
                 return t.workspaceUris.some(u => normalizeUri(u) === normalizedWs);
@@ -277,7 +241,7 @@ async function pollContextUsage(): Promise<void> {
             return t.workspaceUris.length === 0;
         });
 
-        const qualifiedRunning = qualifiedTrajectories.filter(t => t.status === 'CASCADE_RUN_STATUS_RUNNING');
+        const qualifiedRunning = qualifiedTrajectories.filter(t => t.status === CascadeStatus.RUNNING);
         let newCandidateId: string | null = null;
         let selectionReason = '';
 
@@ -285,7 +249,6 @@ async function pollContextUsage(): Promise<void> {
 
         // --- Priority 1: RUNNING status detection ---
         if (qualifiedRunning.length > 0) {
-            // Keep current if still running, otherwise pick the first new one
             const currentStillRunning = qualifiedRunning.find(t => t.cascadeId === trackedCascadeId);
             if (currentStillRunning) {
                 newCandidateId = currentStillRunning.cascadeId;
@@ -295,14 +258,11 @@ async function pollContextUsage(): Promise<void> {
                 selectionReason = 'new RUNNING cascade in ws';
             }
         }
-        // --- Priority 1b: RUNNING trajectory without workspace URI ---
-        // New conversations may not have a workspace URI for the first few steps.
-        // If there's a RUNNING trajectory in the FULL list (not just qualified),
-        // it's almost certainly the user's current conversation in this window.
+        // --- Priority 1b: RUNNING without workspace URI ---
         if (!newCandidateId) {
             const allRunning = trajectories.filter(t =>
-                t.status === 'CASCADE_RUN_STATUS_RUNNING' &&
-                t.workspaceUris.length === 0 // no workspace assigned yet
+                t.status === CascadeStatus.RUNNING &&
+                t.workspaceUris.length === 0
             );
             if (allRunning.length > 0) {
                 newCandidateId = allRunning[0].cascadeId;
@@ -310,16 +270,13 @@ async function pollContextUsage(): Promise<void> {
                 log(`Priority 1b: found RUNNING trajectory ${newCandidateId!.substring(0, 8)} without workspace URI`);
             }
         }
-        // --- Priority 2: stepCount CHANGE detection (increase OR decrease) ---
-        // Detecting decrease is essential for Undo/Rewind: when the user undoes
-        // a conversation step, stepCount drops and we must refresh the usage data.
+        // --- Priority 2: stepCount CHANGE detection ---
         else if (firstPollDone) {
             const activeChanges = qualifiedTrajectories.filter(t => {
                 const prev = previousStepCounts.get(t.cascadeId);
-                return prev !== undefined && t.stepCount !== prev; // ← detect ANY change, not just increase
+                return prev !== undefined && t.stepCount !== prev;
             });
             if (activeChanges.length > 0) {
-                // If currently tracked cascade had a change, prefer keeping it
                 const trackedChange = activeChanges.find(t => t.cascadeId === trackedCascadeId);
                 if (trackedChange) {
                     newCandidateId = trackedChange.cascadeId;
@@ -327,7 +284,6 @@ async function pollContextUsage(): Promise<void> {
                     const direction = trackedChange.stepCount > prev ? 'increased' : 'decreased (undo/rewind)';
                     selectionReason = `stepCount ${direction}: ${prev} → ${trackedChange.stepCount}`;
                 } else {
-                    // Pick the most recently modified among those that changed
                     newCandidateId = activeChanges[0].cascadeId;
                     selectionReason = 'stepCount changed in ws';
                 }
@@ -344,16 +300,7 @@ async function pollContextUsage(): Promise<void> {
         }
 
         // --- Priority 4: Most recently modified trajectory in workspace ---
-        // When no RUNNING / stepCount-changed / newly-created signal fires,
-        // fall back to the trajectory with the latest lastModifiedTime in
-        // this workspace. This prevents showing "idle" when the user's
-        // conversation is between turns (AI finished → status=IDLE) or
-        // when the extension just started (firstPollDone=false on 1st cycle).
-        // Workspace isolation is preserved — only qualified trajectories
-        // (matching this window's workspace URI) are considered.
         if (!newCandidateId && qualifiedTrajectories.length > 0) {
-            // qualifiedTrajectories are already sorted by lastModifiedTime desc
-            // (from getAllTrajectories), so [0] is the most recent.
             const mostRecent = qualifiedTrajectories[0];
             newCandidateId = mostRecent.cascadeId;
             selectionReason = 'most recently modified in ws (fallback)';
@@ -369,12 +316,10 @@ async function pollContextUsage(): Promise<void> {
                 log(`Refreshing cascade ${trackedCascadeId?.substring(0, 8)} (${selectionReason})`);
             }
         } else if (trackedCascadeId) {
-            // Ensure tracked cascade is still in our qualified list OR the full list
-            // (Priority 1b candidates may be in the full list without workspace URI)
             const currentTracked = qualifiedTrajectories.find(t => t.cascadeId === trackedCascadeId)
                 || trajectories.find(t => t.cascadeId === trackedCascadeId);
             if (!currentTracked) {
-                log(`Tracked cascade ${trackedCascadeId.substring(0, 8)} no longer in any list (deleted or moved), clearing`);
+                log(`Tracked cascade ${trackedCascadeId.substring(0, 8)} no longer in any list, clearing`);
                 trackedCascadeId = null;
                 isExplicitlyIdle = true;
             }
@@ -384,7 +329,6 @@ async function pollContextUsage(): Promise<void> {
         let activeTrajectory: TrajectorySummary | null = null;
 
         if (trackedCascadeId) {
-            // Search qualified list first, then full list (for Priority 1b candidates)
             activeTrajectory = qualifiedTrajectories.find(t => t.cascadeId === trackedCascadeId)
                 || trajectories.find(t => t.cascadeId === trackedCascadeId)
                 || null;
@@ -393,12 +337,7 @@ async function pollContextUsage(): Promise<void> {
             }
         }
 
-        // Priority 4 fallback above handles the case where all trajectories
-        // are IDLE — it selects the most recently modified one in this workspace.
-
         if (!activeTrajectory) {
-            // Determine the context limit to display in idle state.
-            // Use the last known model's limit, or fall back to the default.
             const config = vscode.workspace.getConfiguration('antigravityContextMonitor');
             const customLimits = config.get<Record<string, number>>('contextLimits');
             const idleLimit = getContextLimit(lastKnownModel, customLimits);
@@ -424,19 +363,10 @@ async function pollContextUsage(): Promise<void> {
         // Track the model for idle-state display
         if (currentUsage.model) {
             lastKnownModel = currentUsage.model;
-            // M4: Persist to workspaceState so it survives extension restarts
             extensionContext.workspaceState.update('lastKnownModel', lastKnownModel);
         }
 
-        // ─── Compression Detection ───────────────────────────────────────────
-        // v1.5.1: Two-layer compression detection:
-        //   Layer 1 (primary): checkpoint inputTokens diff — set by processSteps() in tracker.ts.
-        //     This is immune to Undo false positives because existing checkpoint data is immutable.
-        //   Layer 2 (fallback): cross-poll contextUsed comparison — catches compression in
-        //     conversations with < 2 checkpoints, guarded by Undo exclusion (Plan C).
-
-        // Layer 2 fallback: cross-poll contextUsed comparison
-        // Only trigger if the primary layer didn't fire AND this isn't an Undo event.
+        // ─── Compression Detection ─────────────────────────────────────────
         const prevUsed = previousContextUsedMap.get(currentUsage.cascadeId);
         const prevSteps = previousStepCounts.get(activeTrajectory.cascadeId);
         const isUndo = prevSteps !== undefined && activeTrajectory.stepCount < prevSteps;
@@ -444,55 +374,42 @@ async function pollContextUsage(): Promise<void> {
         if (!currentUsage.compressionDetected && !isUndo
             && prevUsed !== undefined && currentUsage.contextUsed < prevUsed) {
             const drop = prevUsed - currentUsage.contextUsed;
-            // Only flag as compression if the drop is meaningful (>1% of context limit)
             if (drop > currentUsage.contextLimit * 0.01) {
                 currentUsage.compressionDetected = true;
                 currentUsage.previousContextUsed = prevUsed;
-                // A4: Start persistence counter so the indicator stays visible
                 compressionPersistCounters.set(currentUsage.cascadeId, COMPRESSION_PERSIST_POLLS);
                 log(`Compression detected (fallback) for ${currentUsage.cascadeId.substring(0, 8)}: ${prevUsed} → ${currentUsage.contextUsed} (dropped ${drop})`);
             }
         }
 
-        // Primary layer logging (when compression came from checkpoint diff)
         if (currentUsage.compressionDetected && !compressionPersistCounters.has(currentUsage.cascadeId)) {
             if (prevUsed !== undefined) {
                 currentUsage.previousContextUsed = prevUsed;
             }
             compressionPersistCounters.set(currentUsage.cascadeId, COMPRESSION_PERSIST_POLLS);
             if (currentUsage.checkpointCompressionDrop > 0) {
-                log(
-                    `Compression detected (checkpoint) for ${currentUsage.cascadeId.substring(0, 8)}: ` +
-                    `checkpoint inputTokens dropped ${currentUsage.checkpointCompressionDrop}`
-                );
+                log(`Compression detected (checkpoint) for ${currentUsage.cascadeId.substring(0, 8)}: checkpoint inputTokens dropped ${currentUsage.checkpointCompressionDrop}`);
             } else {
                 log(`Compression detected (checkpoint) for ${currentUsage.cascadeId.substring(0, 8)}: checkpoint inputTokens dropped`);
             }
         }
 
-        // A4: Check persistence counter — keep showing compression for a few polls
         if (!currentUsage.compressionDetected) {
             const remaining = compressionPersistCounters.get(currentUsage.cascadeId);
             if (remaining && remaining > 0) {
                 currentUsage.compressionDetected = true;
-                // CR-M3: Only set previousContextUsed when prevUsed is defined
                 if (prevUsed !== undefined) {
                     currentUsage.previousContextUsed = prevUsed;
                 }
                 compressionPersistCounters.set(currentUsage.cascadeId, remaining - 1);
             }
         }
-        // Store current contextUsed for next poll comparison
         previousContextUsedMap.set(currentUsage.cascadeId, currentUsage.contextUsed);
 
         const sourceLabel = currentUsage.isEstimated ? 'estimated' : 'precise';
         log(`Context: ${currentUsage.contextUsed} tokens (${sourceLabel}) | ${currentUsage.usagePercent.toFixed(1)}% | modelOut=${currentUsage.totalOutputTokens} | toolOut=${currentUsage.totalToolCallOutputTokens} | delta=${currentUsage.estimatedDeltaSinceCheckpoint} | imageGen=${currentUsage.imageGenStepCount}`);
 
         // 6. Background: compute usage for other recent trajectories
-        // M1 fix: Use Promise.all for parallel computation instead of serial await.
-        // Each getContextUsage() is an independent read-only RPC query with no shared
-        // mutable state, so parallelization is safe and significantly faster for
-        // multi-session views (e.g., 5 trajectories × 500 steps each).
         const scopeTrajectories = qualifiedTrajectories.length > 0 ? qualifiedTrajectories : trajectories;
         const recentTrajectories = scopeTrajectories.slice(0, 5);
         const usagePromises = recentTrajectories.map(async (t) => {
@@ -502,7 +419,7 @@ async function pollContextUsage(): Promise<void> {
             try {
                 return await getContextUsage(lsInfo!, t, customLimits, abortController.signal);
             } catch {
-                return null; // Skip failed trajectories
+                return null;
             }
         });
         const usageResults = await Promise.all(usagePromises);
@@ -513,27 +430,20 @@ async function pollContextUsage(): Promise<void> {
 
     } catch (err) {
         log(`Polling error: ${err}`);
-        handleLsFailure(`Error / 错误: ${err}`);
+        handleLsFailure(`Error: ${err}`);
         lsInfo = null;
-        cachedLsInfo = null; // Force re-discovery next time (global)
+        cachedLsInfo = null;
     } finally {
         isPolling = false;
     }
 }
 
-/**
- * Handle LS discovery or connection failure with exponential backoff.
- * Increases polling interval progressively: 5s → 10s → 20s → 60s
- * Resets when LS reconnects.
- */
 function handleLsFailure(message: string): void {
     consecutiveFailures++;
-    // CR-M4: Clear stale usage data so showDetails panel doesn't show outdated info
     currentUsage = null;
     allTrajectoryUsages = [];
     statusBar.showDisconnected(message);
 
-    // Calculate backoff: double the interval on each failure, up to MAX
     const backoffMs = Math.min(baseIntervalMs * Math.pow(2, consecutiveFailures - 1), MAX_BACKOFF_INTERVAL_MS);
 
     if (backoffMs !== currentIntervalMs) {
@@ -543,9 +453,6 @@ function handleLsFailure(message: string): void {
     }
 }
 
-/**
- * Reset backoff to base interval after successful LS connection.
- */
 function resetBackoff(): void {
     if (consecutiveFailures > 0) {
         log(`Backoff reset: LS reconnected after ${consecutiveFailures} failures`);
@@ -555,9 +462,6 @@ function resetBackoff(): void {
     }
 }
 
-/**
- * Update baseline data (stepCounts, trajectory IDs) for next poll comparison.
- */
 function updateBaselines(trajectories: TrajectorySummary[]): void {
     previousStepCounts.clear();
     previousTrajectoryIds.clear();
@@ -567,13 +471,11 @@ function updateBaselines(trajectories: TrajectorySummary[]): void {
         previousTrajectoryIds.add(t.cascadeId);
         activeIds.add(t.cascadeId);
     }
-    // CR-m3: Clean up stale entries from previousContextUsedMap
     for (const id of previousContextUsedMap.keys()) {
         if (!activeIds.has(id)) {
             previousContextUsedMap.delete(id);
         }
     }
-    // M3: Clean up stale entries from compressionPersistCounters
     for (const id of compressionPersistCounters.keys()) {
         if (!activeIds.has(id)) {
             compressionPersistCounters.delete(id);
@@ -582,29 +484,15 @@ function updateBaselines(trajectories: TrajectorySummary[]): void {
     firstPollDone = true;
 }
 
-/**
- * S1 fix: Schedule the next poll using setTimeout chain.
- * The next poll fires AFTER the current one completes — no overlap, no drift.
- */
 function schedulePoll(): void {
-    // CR-C1v2: Do not schedule after extension has been disposed/deactivated
     if (disposed) { return; }
-    // CR2-Fix1: Capture current generation. If restartPolling() fires during
-    // this poll's await, it increments pollGeneration and creates a new chain.
-    // The finally block below then sees a stale generation and does NOT
-    // schedule another timer — preventing orphan parallel chains.
     const myGeneration = ++pollGeneration;
     pollingTimer = setTimeout(async () => {
         try {
             await pollContextUsage();
         } catch (err) {
-            // CR-#2: Wrap log() in its own try/catch so that if it throws
-            // (e.g. outputChannel already disposed), schedulePoll() is still
-            // reached via the finally block — preventing the polling chain
-            // from silently breaking.
             try { log(`Unexpected polling error: ${err}`); } catch { /* ignore */ }
         } finally {
-            // CR2-Fix1: Only re-schedule if no restartPolling() has intervened
             if (pollGeneration === myGeneration) {
                 schedulePoll();
             }
@@ -621,23 +509,16 @@ function restartPolling(): void {
 }
 
 function log(message: string): void {
-    // CR-m5: Fixed ISO format instead of locale-dependent toLocaleTimeString()
     const timestamp = new Date().toISOString().substring(11, 23);
     outputChannel.appendLine(`[${timestamp}] ${message}`);
 }
 
 // ─── Workspace Detection ──────────────────────────────────────────────────────
 
-/**
- * Get the workspace URI for the current VS Code window.
- * This is used to filter trajectories so each window only shows
- * context for conversations that belong to its workspace.
- */
 function getWorkspaceUri(): string | undefined {
     const folders = vscode.workspace.workspaceFolders;
     if (!folders || folders.length === 0) {
         return undefined;
     }
-    // Use the first workspace folder's URI (file:// format)
     return folders[0].uri.toString();
 }

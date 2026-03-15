@@ -2,7 +2,7 @@
   "name": "antigravity-context-monitor",
   "displayName": "Antigravity Context Window Monitor",
   "description": "Real-time context window usage monitor for Antigravity (实时显示 Antigravity 当前会话的上下文窗口使用量和剩余量)",
-  "version": "1.9.0",
+  "version": "1.10.0",
   "publisher": "AGI-is-going-to-arrive",
   "license": "MIT",
   "repository": {
@@ -29,6 +29,10 @@
       {
         "command": "antigravity-context-monitor.refresh",
         "title": "Refresh Context Window Monitor / 刷新上下文窗口监控"
+      },
+      {
+        "command": "antigravity-context-monitor.switchLanguage",
+        "title": "Switch Display Language / 切换显示语言"
       }
     ],
     "configuration": {
@@ -46,11 +50,11 @@
             "MODEL_PLACEHOLDER_M36": 1000000,
             "MODEL_PLACEHOLDER_M47": 1000000,
             "MODEL_PLACEHOLDER_M18": 1000000,
-            "MODEL_PLACEHOLDER_M35": 200000,
-            "MODEL_PLACEHOLDER_M26": 200000,
+            "MODEL_PLACEHOLDER_M35": 1000000,
+            "MODEL_PLACEHOLDER_M26": 1000000,
             "MODEL_OPENAI_GPT_OSS_120B_MEDIUM": 128000
           },
-          "description": "Model context window limits (in tokens). Key is the model's internal ID. Override if needed. IDs: MODEL_PLACEHOLDER_M37=Gemini 3.1 Pro (High), MODEL_PLACEHOLDER_M36=Gemini 3.1 Pro (Low), MODEL_PLACEHOLDER_M47=Gemini 3 Flash, MODEL_PLACEHOLDER_M35=Claude Sonnet 4.6, MODEL_PLACEHOLDER_M26=Claude Opus 4.6, MODEL_OPENAI_GPT_OSS_120B_MEDIUM=GPT-OSS 120B / 各模型上下文窗口大小（token 数），key 为模型内部 ID。如需可自行覆盖。"
+          "description": "Model context window limits (in tokens). Key is the model's internal ID. Override if needed. IDs: MODEL_PLACEHOLDER_M37=Gemini 3.1 Pro (High), MODEL_PLACEHOLDER_M36=Gemini 3.1 Pro (Low), MODEL_PLACEHOLDER_M47=Gemini 3 Flash, MODEL_PLACEHOLDER_M35=Claude Sonnet 4.6 (1M GA), MODEL_PLACEHOLDER_M26=Claude Opus 4.6 (1M GA), MODEL_OPENAI_GPT_OSS_120B_MEDIUM=GPT-OSS 120B / 各模型上下文窗口大小（token 数），key 为模型内部 ID。如需可自行覆盖。"
         }
       }
     }
