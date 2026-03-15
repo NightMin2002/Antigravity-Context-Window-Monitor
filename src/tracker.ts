@@ -132,14 +132,14 @@ export interface ContextUsage {
 
 // ─── Model Context Limits ─────────────────────────────────────────────────────
 // Real model IDs discovered from Antigravity LS via GetUserStatus API.
-// Updated: 2026-02-22
+// Updated: 2026-03-15
 //
 // L5: These model IDs are the actual internal identifiers returned by the
 // Antigravity Language Server's GetUserStatus API. The "MODEL_PLACEHOLDER_Mxx"
 // naming is Antigravity's convention for aliased models. Mapping:
 //   M37 = Gemini 3.1 Pro (High quality variant)
 //   M36 = Gemini 3.1 Pro (Low quality variant)
-//   M18 = Gemini 3 Flash
+//   M47 = Gemini 3 Flash (renamed from M18 as of 2026-03-15)
 //   M35 = Claude Sonnet 4.6 (Thinking mode)
 //   M26 = Claude Opus 4.6 (Thinking mode)
 // See also: README.md "Supported Models" section and
@@ -148,7 +148,8 @@ export interface ContextUsage {
 const DEFAULT_CONTEXT_LIMITS: Record<string, number> = {
     'MODEL_PLACEHOLDER_M37': 1_000_000,  // Gemini 3.1 Pro (High)
     'MODEL_PLACEHOLDER_M36': 1_000_000,  // Gemini 3.1 Pro (Low)
-    'MODEL_PLACEHOLDER_M18': 1_000_000,  // Gemini 3 Flash
+    'MODEL_PLACEHOLDER_M47': 1_000_000,  // Gemini 3 Flash (renamed from M18)
+    'MODEL_PLACEHOLDER_M18': 1_000_000,  // [Legacy] Gemini 3 Flash (old ID, kept for backward compat)
     'MODEL_PLACEHOLDER_M35': 200_000,    // Claude Sonnet 4.6 (Thinking)
     'MODEL_PLACEHOLDER_M26': 200_000,    // Claude Opus 4.6 (Thinking)
     'MODEL_OPENAI_GPT_OSS_120B_MEDIUM': 128_000,  // GPT-OSS 120B (Medium)
@@ -158,7 +159,8 @@ const DEFAULT_CONTEXT_LIMITS: Record<string, number> = {
 let modelDisplayNames: Record<string, string> = {
     'MODEL_PLACEHOLDER_M37': 'Gemini 3.1 Pro (High) / Gemini 3.1 Pro (强)',
     'MODEL_PLACEHOLDER_M36': 'Gemini 3.1 Pro (Low) / Gemini 3.1 Pro (弱)',
-    'MODEL_PLACEHOLDER_M18': 'Gemini 3 Flash',
+    'MODEL_PLACEHOLDER_M47': 'Gemini 3 Flash',
+    'MODEL_PLACEHOLDER_M18': 'Gemini 3 Flash',  // [Legacy] old ID, kept for backward compat
     'MODEL_PLACEHOLDER_M35': 'Claude Sonnet 4.6 (Thinking) / Claude Sonnet 4.6 (思考)',
     'MODEL_PLACEHOLDER_M26': 'Claude Opus 4.6 (Thinking) / Claude Opus 4.6 (思考)',
     'MODEL_OPENAI_GPT_OSS_120B_MEDIUM': 'GPT-OSS 120B (Medium)',
