@@ -62,8 +62,8 @@ A plugin built for **Antigravity** (Google's Windsurf-based IDE) that provides r
 | Gemini 3.1 Pro (High) | MODEL_PLACEHOLDER_M37 | 1,000,000 |
 | Gemini 3.1 Pro (Low) | MODEL_PLACEHOLDER_M36 | 1,000,000 |
 | Gemini 3 Flash | MODEL_PLACEHOLDER_M47 | 1,000,000 |
-| Claude Sonnet 4.6 (Thinking) | MODEL_PLACEHOLDER_M35 | 200,000 |
-| Claude Opus 4.6 (Thinking) | MODEL_PLACEHOLDER_M26 | 200,000 |
+| Claude Sonnet 4.6 (Thinking) | MODEL_PLACEHOLDER_M35 | 1,000,000 |
+| Claude Opus 4.6 (Thinking) | MODEL_PLACEHOLDER_M26 | 1,000,000 |
 | GPT-OSS 120B (Medium) | MODEL_OPENAI_GPT_OSS_120B_MEDIUM | 128,000 |
 
 *Model IDs are fetched from the local Antigravity language server's `GetUserStatus` API. If new models are added, you can override context limits in IDE settings.*
@@ -78,7 +78,7 @@ A plugin built for **Antigravity** (Google's Windsurf-based IDE) that provides r
 
    ![Hover Details](src/images/悬停详情.png)
 
-4. **Click**: Click the status bar item to open a QuickPick panel listing all tracked sessions in this workspace.
+4. **Click**: Click the status bar item to open a **WebView monitor panel** showing full account status, model quotas, credits, and all tracked sessions.
 
    ![Click to View](src/images/点击查看.png)
 
@@ -115,4 +115,4 @@ A plugin built for **Antigravity** (Google's Windsurf-based IDE) that provides r
 
 ---
 **Author**: AGI-is-going-to-arrive
-**Version**: 1.9.0
+**Version**: 1.10.1

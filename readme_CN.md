@@ -111,8 +111,8 @@
 | Gemini 3.1 Pro (High) | MODEL_PLACEHOLDER_M37 | 1,000,000 |
 | Gemini 3.1 Pro (Low) | MODEL_PLACEHOLDER_M36 | 1,000,000 |
 | Gemini 3 Flash | MODEL_PLACEHOLDER_M47 | 1,000,000 |
-| Claude Sonnet 4.6 (Thinking) | MODEL_PLACEHOLDER_M35 | 200,000 |
-| Claude Opus 4.6 (Thinking) | MODEL_PLACEHOLDER_M26 | 200,000 |
+| Claude Sonnet 4.6 (Thinking) | MODEL_PLACEHOLDER_M35 | 1,000,000 |
+| Claude Opus 4.6 (Thinking) | MODEL_PLACEHOLDER_M26 | 1,000,000 |
 | GPT-OSS 120B (Medium) | MODEL_OPENAI_GPT_OSS_120B_MEDIUM | 128,000 |
 
 *模型 ID 来自 Antigravity 本地语言服务器的 `GetUserStatus` API。如果新增了模型，可以在 IDE 设置中手动覆盖上下文上限。*
@@ -127,7 +127,7 @@
 
    ![悬停详情](src/images/悬停详情.png)
 
-4. **点击查看**: 点击状态栏项，弹出 QuickPick 面板显示当前工作区所有被追踪的会话。
+4. **点击查看**: 点击状态栏项，打开 **WebView 监控面板**，展示完整的账户状态、模型配额、Credits 余额和所有追踪的会话。
 
    ![点击查看](src/images/点击查看.png)
 
