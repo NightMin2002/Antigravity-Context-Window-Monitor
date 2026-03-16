@@ -1,5 +1,15 @@
 # Changelog / 变更日志
 
+## [1.10.2] - 2026-03-16
+
+### Added / 新增
+
+- **Status Bar Quota Summary / 状态栏配额摘要**: Tooltip now includes per-model quota percentages with color indicators (🟢≥60% / 🟡≥40% / 🔴<40%), reset countdown per model, and plan/tier display (Markdown table layout).
+  悬浮提示现在包含每模型配额百分比（含颜色指示）、各模型重置倒计时和会员计划显示（Markdown 表格布局）。
+
+- **Auto-Refresh User Status / 自动刷新用户状态**: Model quotas and plan info automatically refresh every ~60 seconds. Data is persisted via `globalState` for instant display on reload.
+  模型配额和计划信息每 ~60 秒自动刷新。数据通过 `globalState` 持久化，重启后即时显示。
+
 ## [1.10.1] - 2026-03-16
 
 ### Added / 新增
@@ -12,9 +22,6 @@
 
 - **Collapsible Sections / 可折叠区域**: Plan Limits, Feature Flags, Team Config, and Google AI Credits are hidden by default in collapsible sections. Open/close state persists.
   计划限制、功能开关、团队配置和 Google AI 额度默认折叠隐藏，展开/收起状态持久化。
-
-- **Status Bar Quota Summary / 状态栏配额摘要**: Tooltip now includes per-model quota percentages with color indicators.
-  悬浮提示现在包含每模型配额百分比和颜色指示。
 
 ## [1.10.0] - 2026-03-15
 
