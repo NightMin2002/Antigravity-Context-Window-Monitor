@@ -91,7 +91,7 @@ A plugin built for **Antigravity** (Google's Windsurf-based IDE) that provides r
    * **Privacy Mask**: Click the 🛡️ shield button in the header to hide your name and email. The mask toggles on/off and persists across refreshes.
    * **Collapsible Details**: Click the ▶ triangles to expand Plan Limits, Feature Flags, Team Config, or Google AI Credits. These are collapsed by default to keep the panel clean.
 
-   ![Click to View](src/images/点击查看.png)
+   ![WebView Monitor Panel](src/images/webview_panel_en.png)
 
 ## ⚠️ Known Limitations
 
