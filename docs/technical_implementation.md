@@ -1,8 +1,8 @@
 # 🛠️ Antigravity Context Window Monitor — 技术实现说明 / Technical Implementation
 
-本文档说明 Antigravity Context Window Monitor 插件的工作原理。插件由以下核心模块组成：`discovery.ts`（服务器发现）、`tracker.ts`（Token 计算）、`extension.ts`（轮询调度）、`statusbar.ts`（界面展示）、`rpc-client.ts`（RPC 通信层）、`models.ts`（模型配置与显示名称）、`constants.ts`（常量定义）、`i18n.ts`（国际化系统）。
+本文档说明 Antigravity Context Window Monitor 插件的工作原理。插件由以下核心模块组成：`discovery.ts`（服务器发现）、`tracker.ts`（Token 计算）、`extension.ts`（轮询调度）、`statusbar.ts`（界面展示）、`webview-panel.ts`（WebView 监控面板）、`rpc-client.ts`（RPC 通信层）、`models.ts`（模型配置与显示名称）、`constants.ts`（常量定义）、`i18n.ts`（国际化系统）。
 
-This document explains how the Antigravity Context Window Monitor plugin works. The plugin consists of the following core modules: `discovery.ts` (server discovery), `tracker.ts` (token calculation), `extension.ts` (polling scheduler), `statusbar.ts` (UI display), `rpc-client.ts` (RPC communication layer), `models.ts` (model config & display names), `constants.ts` (constants), and `i18n.ts` (internationalization system).
+This document explains how the Antigravity Context Window Monitor plugin works. The plugin consists of the following core modules: `discovery.ts` (server discovery), `tracker.ts` (token calculation), `extension.ts` (polling scheduler), `statusbar.ts` (UI display), `webview-panel.ts` (WebView monitor panel), `rpc-client.ts` (RPC communication layer), `models.ts` (model config & display names), `constants.ts` (constants), and `i18n.ts` (internationalization system).
 
 ---
 
@@ -92,6 +92,29 @@ Once connected, the plugin periodically fetches conversation data and tracks cha
 
 * **状态栏颜色 / Status Bar Colors**: 根据使用率变色——＜50% 正常、50-80% 黄色警告（`warningBackground`）、≥80% 红色（`errorBackground`）。≥95% 时图标切换为 `$(zap)`。
     Color-coded by usage: <50% normal, 50-80% warning (`warningBackground`), ≥80% error (`errorBackground`). At ≥95% the icon switches to `$(zap)`.
+
+## 📊 5. WebView 监控面板 / WebView Monitor Panel
+
+> 源码：[`webview-panel.ts`](../src/webview-panel.ts)
+
+自 v1.10.1 起，点击状态栏打开 WebView 侧边面板（替代之前的 QuickPick 弹窗），展示完整的用户状态仪表盘。
+
+Since v1.10.1, clicking the status bar opens a WebView side panel (replacing the previous QuickPick popup) showing a full user status dashboard.
+
+* **数据来源 / Data Source**: 所有数据来自已有的 `GetUserStatus` RPC 调用，通过 `fetchFullUserStatus()` 函数获取完整用户状态（`FullUserStatus`）。零额外网络请求。
+  All data comes from the existing `GetUserStatus` RPC call via `fetchFullUserStatus()` which returns the full `FullUserStatus` object. Zero additional network requests.
+
+* **面板内容 / Panel Content**: 展示账户信息（planName、userTier）、Credits 余额（Prompt Credits、Flow Credits）、每模型配额百分比（带颜色指示）、Feature Flags、团队配置（MCP Servers、Auto-Run 等）、Google AI 额度。
+  Displays account info (planName, userTier), credit balance (Prompt & Flow Credits), per-model quota percentages (color-coded), feature flags, team config (MCP Servers, Auto-Run, etc.), and Google AI credits.
+
+* **隐私遮罩 / Privacy Mask**: 盾牌按钮遮罩姓名和邮箱，状态通过 `vscode.getState()` 跨面板刷新持久化。
+  Shield button masks name and email; state persists across panel refreshes via `vscode.getState()`.
+
+* **可折叠区域 / Collapsible Sections**: 次要数据（Plan Limits、Feature Flags、Team Config、Google AI Credits）默认折叠在 `<details>` 标签中，展开/收起状态持久化。
+  Secondary data (Plan Limits, Feature Flags, Team Config, Google AI Credits) hidden by default in `<details>` elements; open/close state persists.
+
+* **实时刷新 / Live Refresh**: 轮询循环中通过 `updateMonitorPanel()` 推送最新数据到已打开的面板，保持数据实时同步。
+  The polling loop pushes latest data to the open panel via `updateMonitorPanel()`, keeping data in real-time sync.
 
 ---
 基于 TypeScript 构建，适用于 Antigravity IDE。包含 37 个 vitest 单元测试覆盖纯逻辑函数（`npm test`）：`discovery.test.ts`（10 tests）、`tracker.test.ts`（16 tests）、`statusbar.test.ts`（11 tests）。
