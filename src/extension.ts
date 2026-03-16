@@ -27,6 +27,9 @@ let currentUsage: ContextUsage | null = null;
 let allTrajectoryUsages: ContextUsage[] = [];
 let cachedModelConfigs: import('./models').ModelConfig[] = [];
 let cachedUserInfo: UserStatusInfo | null = null;
+let statusPollCount = 0;
+/** Refresh user status every N poll cycles (~60s at default 5s interval) */
+const STATUS_REFRESH_INTERVAL = 12;
 let outputChannel: vscode.OutputChannel;
 
 /** Extension context reference — needed for workspaceState persistence. */
@@ -209,6 +212,23 @@ async function pollContextUsage(): Promise<void> {
                     log(`User: ${fullStatus.userInfo.name} (${fullStatus.userInfo.planName}) credits: prompt=${fullStatus.userInfo.availablePromptCredits} flow=${fullStatus.userInfo.availableFlowCredits}`);
                 }
             } catch { /* Silent degradation */ }
+        } else {
+            // Periodic refresh of user status (every STATUS_REFRESH_INTERVAL polls)
+            statusPollCount++;
+            if (statusPollCount >= STATUS_REFRESH_INTERVAL) {
+                statusPollCount = 0;
+                try {
+                    const fullStatus = await fetchFullUserStatus(lsInfo, abortController.signal);
+                    if (fullStatus.configs.length > 0) {
+                        cachedModelConfigs = fullStatus.configs;
+                        statusBar.setModelConfigs(fullStatus.configs);
+                    }
+                    if (fullStatus.userInfo) {
+                        cachedUserInfo = fullStatus.userInfo;
+                    }
+                    log('Refreshed user status (periodic)');
+                } catch { /* Silent — keep cached data */ }
+            }
         }
 
         // 3. Get all trajectories
