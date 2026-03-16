@@ -28,8 +28,8 @@ A plugin built for **Antigravity** (Google's Windsurf-based IDE) that provides r
 * **⚡ Real-Time Token Usage**
     Shows current token consumption in the status bar (e.g. `125k/200k, 62.5%`). Token data comes from model checkpoint values when available, with content-based character estimation between checkpoints (replaces fixed constants since v1.4.0). Fixed constants are only used as fallback when step data structure is missing.
 
-* **🌐 Bilingual Interface**
-    Full Chinese/English support across status bar, QuickPick panel, and tooltips.
+* **🌐 Language Switching**
+    Users can choose between Chinese-only, English-only, or bilingual display mode. Accessible from the details panel: click status bar → Settings → Switch Language. Preference is persisted via `globalState` across sessions.
 
 * **🔒 Multi-Window Isolation**
     Each Antigravity window only shows conversations belonging to its workspace, filtered by workspace URI.
@@ -100,7 +100,7 @@ A plugin built for **Antigravity** (Google's Windsurf-based IDE) that provides r
 
 > [!NOTE]
 > **Dynamic Sub-Agent Switching**
-> When using Claude models, Antigravity may call Gemini 2.5 Flash Lite as a sub-agent for lightweight tasks. This causes the context limit to temporarily jump to 1M, returning to 200k when Claude resumes execution.
+> When using Claude models, Antigravity may call Gemini 2.5 Flash Lite as a sub-agent for lightweight tasks. Since v1.10.0, Claude 4.6 models also have 1M context limits (GA 2026-03-13), so sub-agent switching no longer causes a visible context limit change.
 
 ## ⚙️ Settings
 
@@ -108,6 +108,14 @@ A plugin built for **Antigravity** (Google's Windsurf-based IDE) that provides r
 | --- | --- | --- |
 | `pollingInterval` | 5 | Polling interval in seconds |
 | `contextLimits` | (see defaults) | Override context limits per model |
+
+## 🔤 Commands
+
+| Command | Description |
+| --- | --- |
+| `Show Context Window Details` | Open a QuickPick panel listing all tracked sessions |
+| `Refresh Context Window Monitor` | Re-discover the language server and restart polling |
+| `Switch Display Language` | Choose between Chinese-only, English-only, or bilingual display |
 
 ## ⭐ Star History
 
