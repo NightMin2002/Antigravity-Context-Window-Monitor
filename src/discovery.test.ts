@@ -18,6 +18,13 @@ describe('discovery.ts', () => {
             expect(buildExpectedWorkspaceId(uri)).toBe(expected);
         });
 
+        it('should replace hyphens with underscores on all platforms', () => {
+            // The LS converts hyphens to underscores in --workspace_id on ALL platforms
+            const uri = 'file:///Users/foo/my-project';
+            const expected = 'file_Users_foo_my_project';
+            expect(buildExpectedWorkspaceId(uri)).toBe(expected);
+        });
+
         if (process.platform === 'win32') {
             it('should handle Windows workspace URIs with colon encoding', () => {
                 const uri = 'file:///c:/Users/8bit/project';
