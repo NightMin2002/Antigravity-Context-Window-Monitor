@@ -37,13 +37,14 @@ export function buildExpectedWorkspaceId(workspaceUri: string): string {
     if (process.platform === 'win32') {
         // Windows: the LS hex-encodes the drive-letter colon as _3A_ and
         // replaces hyphens with underscores. Encode colon BEFORE replacing
-        // slashes to avoid double-underscore artifacts (c:/ → c_3A_/ → c_3A_).
+        // slashes to avoid double-underscore artifacts (c:/ -> c_3A_/ -> c_3A_).
         id = id.replace(/:/g, '_3A_');
     }
-    // Replace path separators (and hyphens on Windows)
+    // Replace path separators
     id = id.replace(/\//g, '_');
+    // The LS replaces hyphens with underscores on ALL platforms
+    id = id.replace(/-/g, '_');
     if (process.platform === 'win32') {
-        id = id.replace(/-/g, '_');
         // Collapse any double underscores from adjacent special chars (e.g., c_3A_/)
         id = id.replace(/__+/g, '_');
     }
