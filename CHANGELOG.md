@@ -1,5 +1,24 @@
 # 变更日志 / Changelog
 
+## [1.10.2] - 2026-03-17
+
+### Fixed / 修复
+
+- **Cross-Platform Workspace ID Hyphen Handling / 跨平台工作区 ID 连字符处理**: `buildExpectedWorkspaceId()` now replaces hyphens (`-`) with underscores (`_`) on **all platforms**, not just Windows. Previously, macOS and Linux users with hyphens in their project folder names (e.g., `my-project`, `schic-diff`) would experience workspace discovery matching the wrong LS process, causing stale data from a different workspace to be displayed.
+  `buildExpectedWorkspaceId()` 现在在**所有平台**上将连字符（`-`）替换为下划线（`_`），而非仅在 Windows 上执行。此前，macOS 和 Linux 用户如果项目文件夹名包含连字符（如 `my-project`、`schic-diff`），会导致工作区发现匹配到错误的 LS 进程，显示其他工作区的过时数据。
+
+### Tests / 测试
+
+- Added cross-platform hyphen handling test in `discovery.test.ts`.
+  在 `discovery.test.ts` 中新增跨平台连字符处理测试。
+- Total test count: 38 (was 37 in v1.10.0).
+  测试总数：38（v1.10.0 为 37）。
+
+### Contributors / 贡献者
+
+- Thanks to [@FlorianHuo](https://github.com/FlorianHuo) for reporting and fixing this issue ([PR #12](https://github.com/AGI-is-going-to-arrive/Antigravity-Context-Window-Monitor/pull/12)).
+  感谢 [@FlorianHuo](https://github.com/FlorianHuo) 报告并修复此问题（[PR #12](https://github.com/AGI-is-going-to-arrive/Antigravity-Context-Window-Monitor/pull/12)）。
+
 ## [1.10.1] - 2026-03-16
 
 ### 新增 / Added
