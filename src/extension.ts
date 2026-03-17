@@ -27,6 +27,9 @@ let currentUsage: ContextUsage | null = null;
 let allTrajectoryUsages: ContextUsage[] = [];
 let cachedModelConfigs: import('./models').ModelConfig[] = [];
 let cachedUserInfo: UserStatusInfo | null = null;
+let statusPollCount = 0;
+/** Refresh user status every N poll cycles (~60s at default 5s interval) */
+const STATUS_REFRESH_INTERVAL = 12;
 let outputChannel: vscode.OutputChannel;
 
 /** Extension context reference — needed for workspaceState persistence. */
@@ -93,6 +96,18 @@ export function activate(context: vscode.ExtensionContext): void {
     }
 
     statusBar = new StatusBarManager();
+
+    // Restore cached user status from globalState for instant tooltip display
+    const savedConfigs = context.globalState.get<import('./models').ModelConfig[]>('cachedModelConfigs');
+    const savedPlan = context.globalState.get<string>('cachedPlanName', '');
+    const savedTier = context.globalState.get<string>('cachedTierName', '');
+    if (savedConfigs && savedConfigs.length > 0) {
+        cachedModelConfigs = savedConfigs;
+        statusBar.setModelConfigs(savedConfigs);
+    }
+    if (savedPlan) {
+        statusBar.setPlanName(savedPlan, savedTier);
+    }
 
     // Register commands
     context.subscriptions.push(
@@ -206,9 +221,35 @@ async function pollContextUsage(): Promise<void> {
                 }
                 if (fullStatus.userInfo) {
                     cachedUserInfo = fullStatus.userInfo;
+                    statusBar.setPlanName(fullStatus.userInfo.planName, fullStatus.userInfo.userTierName);
+                    // Persist for instant display on next activation
+                    extensionContext.globalState.update('cachedModelConfigs', cachedModelConfigs);
+                    extensionContext.globalState.update('cachedPlanName', fullStatus.userInfo.planName);
+                    extensionContext.globalState.update('cachedTierName', fullStatus.userInfo.userTierName);
                     log(`User: ${fullStatus.userInfo.name} (${fullStatus.userInfo.planName}) credits: prompt=${fullStatus.userInfo.availablePromptCredits} flow=${fullStatus.userInfo.availableFlowCredits}`);
                 }
             } catch { /* Silent degradation */ }
+        } else {
+            // Periodic refresh of user status (every STATUS_REFRESH_INTERVAL polls)
+            statusPollCount++;
+            if (statusPollCount >= STATUS_REFRESH_INTERVAL) {
+                statusPollCount = 0;
+                try {
+                    const fullStatus = await fetchFullUserStatus(lsInfo, abortController.signal);
+                    if (fullStatus.configs.length > 0) {
+                        cachedModelConfigs = fullStatus.configs;
+                        statusBar.setModelConfigs(fullStatus.configs);
+                    }
+                    if (fullStatus.userInfo) {
+                        cachedUserInfo = fullStatus.userInfo;
+                        statusBar.setPlanName(fullStatus.userInfo.planName, fullStatus.userInfo.userTierName);
+                        extensionContext.globalState.update('cachedModelConfigs', cachedModelConfigs);
+                        extensionContext.globalState.update('cachedPlanName', fullStatus.userInfo.planName);
+                        extensionContext.globalState.update('cachedTierName', fullStatus.userInfo.userTierName);
+                    }
+                    log('Refreshed user status (periodic)');
+                } catch { /* Silent — keep cached data */ }
+            }
         }
 
         // 3. Get all trajectories
