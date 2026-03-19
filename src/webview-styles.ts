@@ -795,6 +795,83 @@ export function getStyles(): string {
             font-family: inherit;
         }
 
+        /* ─── Settings Card ───────────── */
+        .setting-row label {
+            font-size: 0.85em;
+            font-weight: 600;
+            color: var(--color-text);
+            display: block;
+            margin-bottom: var(--space-1);
+        }
+
+        .threshold-input-row {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            margin-bottom: var(--space-2);
+        }
+
+        .threshold-input {
+            appearance: none;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            color: var(--color-text);
+            font-family: var(--vscode-editor-font-family, monospace);
+            font-size: 0.85em;
+            padding: var(--space-1) var(--space-2);
+            width: 140px;
+            transition: border-color 0.15s cubic-bezier(.4,0,.2,1);
+        }
+
+        .threshold-input:focus-visible {
+            outline: none;
+            border-color: var(--color-info);
+            box-shadow: 0 0 0 2px rgba(96,165,250,0.2);
+        }
+
+        .threshold-presets {
+            display: flex;
+            gap: var(--space-1);
+            flex-wrap: wrap;
+        }
+
+        .preset-btn {
+            appearance: none;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            color: var(--color-text-dim);
+            font-size: 0.75em;
+            font-family: inherit;
+            padding: 2px var(--space-2);
+            cursor: pointer;
+            transition: background 0.15s cubic-bezier(.4,0,.2,1), color 0.15s cubic-bezier(.4,0,.2,1), border-color 0.15s cubic-bezier(.4,0,.2,1);
+        }
+
+        .preset-btn:focus-visible {
+            outline: none;
+            box-shadow: 0 0 0 2px var(--color-info);
+        }
+
+        .preset-btn:active { transform: scale(0.98); }
+
+        @media (hover: hover) {
+            .preset-btn:hover {
+                background: rgba(96,165,250,0.12);
+                color: var(--color-info);
+                border-color: var(--color-info);
+            }
+        }
+
+        .threshold-feedback {
+            font-size: 0.85em;
+            color: var(--color-ok);
+            font-weight: 700;
+            opacity: 0;
+            transition: opacity 0.3s cubic-bezier(.4,0,.2,1);
+        }
+
         /* ─── Pause Button ────────────── */
         .action-btn.paused {
             color: var(--color-ok);

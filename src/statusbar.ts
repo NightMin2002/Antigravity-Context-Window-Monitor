@@ -364,11 +364,13 @@ export class StatusBarManager {
                 const bar = pct >= 60 ? '🟢' : pct >= 40 ? '🟡' : '🔴';
                 let resetStr = '—';
                 if (qi.resetTime) {
-                    const diffMs = new Date(qi.resetTime).getTime() - now;
+                    const resetDate = new Date(qi.resetTime);
+                    const diffMs = resetDate.getTime() - now;
                     if (diffMs > 0) {
                         const h = Math.floor(diffMs / 3600000);
                         const m = Math.floor((diffMs % 3600000) / 60000);
-                        resetStr = `${h}h${m}m`;
+                        const timeStr = resetDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                        resetStr = `${h}h${m}m (${timeStr})`;
                     }
                 }
                 rows.push(`| ${bar} ${escapeMarkdown(c.label)} | ${pct}% | 🔄 ${resetStr} |`);
@@ -377,7 +379,18 @@ export class StatusBarManager {
             result.push(sep);
             result.push(...rows);
             result.push('');
+
+            // Show earliest reset as a standalone line for quick reading
+            const earliest = this.getEarliestResetTime();
+            if (earliest) {
+                const resetTimeStr = earliest.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                result.push(`🔔 ${tBi('Next reset at', '下次重置')}: **${resetTimeStr}**`);
+            }
         }
+
+        // Show compression warning threshold
+        result.push(`——————————`);
+        result.push(`🎯 ${tBi('Compression warning', '压缩警告')}: **${formatTokenCount(this.warningThreshold)}**`);
 
         return result;
     }

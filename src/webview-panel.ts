@@ -52,7 +52,7 @@ export function showMonitorPanel(
 
     panel.webview.html = buildHtml(currentUsage, allTrajectoryUsages, modelConfigs, userInfo, isPaused);
 
-    panel.webview.onDidReceiveMessage(async (msg: { command: string; lang?: string }) => {
+    panel.webview.onDidReceiveMessage(async (msg: { command: string; lang?: string; value?: number }) => {
         if (msg.command === 'switchLanguage' && msg.lang && extensionCtx) {
             await setLanguage(msg.lang as Language, extensionCtx);
             if (panel) {
@@ -69,6 +69,13 @@ export function showMonitorPanel(
             } else if (panel) {
                 // Just update the button state via a small message
                 panel.webview.postMessage({ command: 'setPaused', paused: isPaused });
+            }
+        } else if (msg.command === 'setThreshold' && typeof msg.value === 'number') {
+            const val = Math.max(10_000, msg.value);
+            await vscode.workspace.getConfiguration('antigravityContextMonitor')
+                .update('compressionWarningThreshold', val, vscode.ConfigurationTarget.Global);
+            if (panel) {
+                panel.webview.postMessage({ command: 'thresholdSaved' });
             }
         }
     });
@@ -518,6 +525,38 @@ function buildHtml(usage: ContextUsage | null, allUsages: ContextUsage[], config
             </section>`);
     }
 
+    // ━━━ Settings ━━━
+    {
+        const currentThreshold = vscode.workspace.getConfiguration('antigravityContextMonitor')
+            .get<number>('compressionWarningThreshold', 200_000);
+        sections.push(`
+            <section class="card">
+                <h2>${ICON.shield} ${tBi('Settings', '设置')}</h2>
+                <div class="setting-row">
+                    <label for="thresholdInput">${tBi(
+                        'Compression warning threshold (tokens)',
+                        '压缩警告阈值（token 数）',
+                    )}</label>
+                    <p class="raw-desc">${tBi(
+                        'Status bar turns yellow/red based on this value. Default 200K matches Antigravity\'s internal compression point.',
+                        '状态栏颜色基于此值判断。默认 200K 匹配 Antigravity 内建压缩线。',
+                    )}</p>
+                    <div class="threshold-input-row">
+                        <input type="number" id="thresholdInput" class="threshold-input"
+                               value="${currentThreshold}" min="10000" step="10000" />
+                        <button class="action-btn" id="thresholdSaveBtn">${tBi('Save', '保存')}</button>
+                        <span id="thresholdFeedback" class="threshold-feedback"></span>
+                    </div>
+                    <div class="threshold-presets">
+                        <button class="preset-btn" data-val="150000">150K</button>
+                        <button class="preset-btn" data-val="200000">200K</button>
+                        <button class="preset-btn" data-val="500000">500K</button>
+                        <button class="preset-btn" data-val="900000">900K</button>
+                    </div>
+                </div>
+            </section>`);
+    }
+
     // ━━━ Raw Data (Full Transparency) ━━━
     if (userInfo?._rawResponse) {
         const rawJson = JSON.stringify(userInfo._rawResponse, null, 2);
@@ -622,7 +661,35 @@ ${getStyles()}
                 if (msg.command === 'setPaused' && pauseBtn) {
                     pauseBtn.classList.toggle('paused', msg.paused);
                 }
+                if (msg.command === 'thresholdSaved') {
+                    var fb = document.getElementById('thresholdFeedback');
+                    if (fb) {
+                        fb.textContent = '✓';
+                        fb.style.opacity = '1';
+                        setTimeout(function() { fb.style.opacity = '0'; }, 2000);
+                    }
+                }
             });
+
+            // ─── Threshold Settings ───
+            var thresholdInput = document.getElementById('thresholdInput');
+            var thresholdSaveBtn = document.getElementById('thresholdSaveBtn');
+            if (thresholdSaveBtn && thresholdInput) {
+                thresholdSaveBtn.addEventListener('click', function() {
+                    var val = parseInt(thresholdInput.value, 10);
+                    if (val >= 10000) {
+                        vscode.postMessage({ command: 'setThreshold', value: val });
+                    }
+                });
+            }
+            var presets = document.querySelectorAll('.preset-btn');
+            for (var p = 0; p < presets.length; p++) {
+                presets[p].addEventListener('click', function() {
+                    var val = parseInt(this.dataset.val, 10);
+                    if (thresholdInput) { thresholdInput.value = val; }
+                    vscode.postMessage({ command: 'setThreshold', value: val });
+                });
+            }
 
             // ─── Restore & persist collapsible states ───
             var detailsOpen = savedState.detailsOpen || {};
