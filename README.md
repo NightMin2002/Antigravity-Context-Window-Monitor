@@ -60,6 +60,14 @@ A plugin built for **Antigravity** (Google's Windsurf-based IDE) that provides r
     * **🛡️ Privacy Mask**: A shield button in the panel header masks your name and email. The toggle state persists across panel refreshes.
     * **📂 Collapsible Sections**: Secondary info (Plan Limits, Feature Flags, Team Config, Google AI Credits) is collapsed by default. Expand/collapse state persists.
 
+* **⚙️ Interactive Settings Dashboard** *(v1.11.0)*
+    The WebView panel now features a dual-tab layout ('Monitor' and 'Settings'). The Settings tab lets you configure extension behaviors directly from a GUI — no more manual `settings.json` editing.
+    * **🎯 Compression Warning Threshold**: Set a custom "tripwire" (e.g., 150K, 200K, 500K, 900K) for early warning before Antigravity's backend compression triggers (~200K). Status bar color changes are based on this threshold instead of the full model limit.
+    * **🟢 Status Bar Quota Indicator**: Current model's quota percentage is now shown directly in the status bar with color-coded dot icons (`🟢`, `🟡`, `🔴`).
+    * **⏳ Current-Model Reset Countdown**: The status bar countdown now tracks the reset time of the model you are currently using, not the earliest reset across all models.
+    * **🎛️ Status Bar Display Toggles**: Independent toggle switches to hide/show 'Context Usage', 'Quota Indicator', and 'Reset Countdown' in the status bar.
+    * **⏸️ Pause/Resume**: Pause auto-refresh to freeze the panel while investigating data.
+
 ## 🤖 Supported Models
 
 | Model | Internal ID | Context Limit |
@@ -119,6 +127,10 @@ A plugin built for **Antigravity** (Google's Windsurf-based IDE) that provides r
 | --- | --- | --- |
 | `pollingInterval` | 5 | Polling interval in seconds |
 | `contextLimits` | (see defaults) | Override context limits per model |
+| `compressionWarningThreshold` | 200000 | Compression warning threshold (tokens). Status bar color is based on this value. |
+| `statusBar.showContext` | true | Show context usage (e.g. `45k/1M, 4.5%`) in status bar |
+| `statusBar.showQuota` | true | Show current model quota indicator (e.g. `🟢85%`) in status bar |
+| `statusBar.showResetCountdown` | true | Show quota reset countdown (e.g. `⏳4h32m`) in status bar |
 
 ## 🔤 Commands
 
@@ -134,4 +146,4 @@ A plugin built for **Antigravity** (Google's Windsurf-based IDE) that provides r
 
 ---
 **Author**: AGI-is-going-to-arrive
-**Version**: 1.10.3
+**Version**: 1.11.0
