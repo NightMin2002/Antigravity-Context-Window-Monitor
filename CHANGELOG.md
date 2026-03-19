@@ -15,19 +15,17 @@
 - **Custom Model Context Limits / 自定义模型上下文限制**: You no longer need to edit JSON files. Each model's context limit can now be independently overridden directly from the Settings tab!
   不再需要手动修改 JSON 文件。现在可以直接在“设置”标签页中独立调整覆盖每个模型的上下文上限！
 
+- **Status Bar Quota Indicator / 状态栏额度指示灯**: Current model's quota percentage is now directly visible on the status bar along with real-time context stats, featuring color-coded dot icons (`🟢`, `🟡`, `🔴`) so you are always aware of your API limits.
+  当前模型的额度百分比带色彩状态灯（`🟢`, `🟡`, `🔴`）直接显示在状态栏上，让你在使用时随时对 API 速率限制了然于胸。
+
+- **Current-Model Reset Countdown / 当前模型重置倒计时**: The status bar countdown now tracks the reset time of **the model you are currently using**, instead of the earliest reset across all models. Tooltip also shows the current model's exact reset time alongside the global overview table.
+  状态栏倒计时现在跟随**你当前正在使用的模型**的重置时间，而不再是所有模型中最早的那个。Tooltip 同时在全局概览表格之外单独显示当前模型的精确重置时间。
+
 - **Status Bar Display Toggles / 状态栏显示开关**: Added toggle switches in the Settings panel to independently control the visibility of 'Context Usage' (`45k/1M`), 'Quota Indicator' (`🟢85%`), and 'Reset Countdown' (`⏳4h32m`) in the status bar.
   设置页新增状态栏元素开关，支持随时打开/关闭“上下文用量”、“额度指示灯”与“重置倒计时”的显示。
 
 - **Polling Interval UI / 轮询间隔配置**: Modify the polling interval directly from the settings menu and save instantly.
   直接在设置菜单内修改轮询间隔，保存后即时生效。
-
-### Improved / 改进
-
-- **Status Bar Quota Indicator / 状态栏额度指示灯**: Current model's quota percentage is now directly visible on the status bar along with real-time context stats, featuring color-coded dot icons (`🟢`, `🟡`, `🔴`) so you are always aware of your API limits.
-  当前模型的额度百分比带色彩状态灯（`🟢`, `🟡`, `🔴`）直接显示在状态栏上，让你在使用时随时对 API 速率限制了然于胸。
-
-- **Exact Reset Countdown / 精确重置倒计时提示**: Updated tooltip to clarify the reset countdown text reads "Earliest reset at: [Time]" since different models possess independent quotas and cooldown schedules.
-  由于多模型是独立计算额度和冷却期的，将提示框中的倒计时描述更正为“最近重置时间为: [具体时间]”，以准确反映底层逻辑。
 
 ### Fixed / 修复
 
