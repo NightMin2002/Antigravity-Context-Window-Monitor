@@ -114,6 +114,10 @@ export class StatusBarManager {
     private cachedConfigs: ModelConfig[] = [];
     private cachedPlanName: string = '';
     private cachedTierName: string = '';
+    /** User-configurable compression warning threshold (tokens). */
+    private warningThreshold: number = 200_000;
+    /** Timer ID for reset countdown. */
+    private resetCountdownTimer: NodeJS.Timeout | undefined;
 
     constructor() {
         this.statusBarItem = vscode.window.createStatusBarItem(
@@ -131,6 +135,51 @@ export class StatusBarManager {
      */
     setModelConfigs(configs: ModelConfig[]): void {
         this.cachedConfigs = configs;
+        this.scheduleResetRefresh();
+    }
+
+    /**
+     * Set the compression warning threshold from user settings.
+     */
+    setWarningThreshold(threshold: number): void {
+        this.warningThreshold = Math.max(10_000, threshold);
+    }
+
+    /**
+     * Get the earliest quota reset time from cached configs.
+     */
+    getEarliestResetTime(): Date | null {
+        let earliest: Date | null = null;
+        const now = Date.now();
+        for (const c of this.cachedConfigs) {
+            if (c.quotaInfo?.resetTime) {
+                const resetDate = new Date(c.quotaInfo.resetTime);
+                if (resetDate.getTime() > now) {
+                    if (!earliest || resetDate < earliest) {
+                        earliest = resetDate;
+                    }
+                }
+            }
+        }
+        return earliest;
+    }
+
+    /**
+     * Schedule an auto-refresh when the earliest quota reset time arrives.
+     */
+    private scheduleResetRefresh(): void {
+        if (this.resetCountdownTimer) {
+            clearTimeout(this.resetCountdownTimer);
+            this.resetCountdownTimer = undefined;
+        }
+        const earliest = this.getEarliestResetTime();
+        if (!earliest) { return; }
+        const delayMs = earliest.getTime() - Date.now() + 3000; // +3s buffer
+        if (delayMs > 0 && delayMs < 24 * 3600_000) {
+            this.resetCountdownTimer = setTimeout(() => {
+                vscode.commands.executeCommand('antigravity-context-monitor.refresh');
+            }, delayMs);
+        }
     }
 
     /**
@@ -191,11 +240,18 @@ export class StatusBarManager {
             : usage.usagePercent.toFixed(1).replace(/\.0$/, '');
         const compressIcon = isCompressing ? ' 🗜' : '';
 
-        const severity = getSeverity(usage.usagePercent);
+        // Warning severity is based on the compression threshold, not the model limit
+        const warningPercent = this.warningThreshold > 0
+            ? (usage.contextUsed / this.warningThreshold) * 100
+            : usage.usagePercent;
+        const severity = getSeverity(warningPercent);
         const icon = getSeverityIcon(severity);
         const gapsIndicator = usage.hasGaps ? ' ⚠️' : '';
 
-        this.statusBarItem.text = `${icon} ${usedStr}/${limitStr}, ${displayPercent}%${compressIcon}${gapsIndicator}`;
+        // Add reset countdown to status bar text
+        const resetSuffix = this.formatResetCountdown();
+
+        this.statusBarItem.text = `${icon} ${usedStr}/${limitStr}, ${displayPercent}%${compressIcon}${gapsIndicator}${resetSuffix}`;
         this.statusBarItem.backgroundColor = getSeverityColor(severity);
 
         // Build detailed tooltip
@@ -433,7 +489,24 @@ export class StatusBarManager {
         }
     }
 
+    /**
+     * Format a compact reset countdown string for StatusBar text.
+     */
+    private formatResetCountdown(): string {
+        const earliest = this.getEarliestResetTime();
+        if (!earliest) { return ''; }
+        const diffMs = earliest.getTime() - Date.now();
+        if (diffMs <= 0) { return ''; }
+        const h = Math.floor(diffMs / 3600_000);
+        const m = Math.floor((diffMs % 3600_000) / 60_000);
+        if (h > 0) { return ` ⏳${h}h${m}m`; }
+        return ` ⏳${m}m`;
+    }
+
     dispose(): void {
+        if (this.resetCountdownTimer) {
+            clearTimeout(this.resetCountdownTimer);
+        }
         this.statusBarItem.dispose();
     }
 }
