@@ -84,6 +84,8 @@ export interface ModelConfig {
     allowedTiers: string[];
     tagTitle?: string;
     mimeTypeCount: number;
+    isRecommended: boolean;
+    supportedMimeTypes: string[];
 }
 
 export interface PlanLimits {

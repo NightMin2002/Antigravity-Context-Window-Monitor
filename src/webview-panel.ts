@@ -100,6 +100,9 @@ const ICON = {
     user: '<svg class="icon" viewBox="0 0 16 16"><path fill="currentColor" d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0m4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4m-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10s-3.516.68-4.168 1.332c-.678.678-.83 1.418-.832 1.664z"/></svg>',
     image: '<svg class="icon" viewBox="0 0 16 16" width="10" height="10"><path fill="currentColor" d="M6.002 5.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0"/><path fill="currentColor" d="M2.002 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2zm12 1a1 1 0 0 1 1 1v6.5l-3.777-1.947a.5.5 0 0 0-.577.093l-3.71 3.71-2.66-1.772a.5.5 0 0 0-.63.062L1.002 12V3a1 1 0 0 1 1-1z"/></svg>',
     shield: '<svg class="icon" viewBox="0 0 16 16"><path fill="currentColor" d="M5.338 1.59a61 61 0 0 0-2.837.856.48.48 0 0 0-.328.39c-.554 4.157.726 7.19 2.253 9.188a10.7 10.7 0 0 0 2.287 2.233c.346.244.652.42.893.533q.18.085.293.118a1 1 0 0 0 .101.025 1 1 0 0 0 .1-.025q.114-.034.294-.118c.24-.113.547-.29.893-.533a10.7 10.7 0 0 0 2.287-2.233c1.527-1.997 2.807-5.031 2.253-9.188a.48.48 0 0 0-.328-.39c-.651-.213-1.75-.56-2.837-.855C9.552 1.29 8.531 1.067 8 1.067c-.53 0-1.552.223-2.662.524zM5.072.56C6.157.265 7.31 0 8 0s1.843.265 2.928.56c1.11.3 2.229.655 2.887.87a1.54 1.54 0 0 1 1.044 1.262c.596 4.477-.787 7.795-2.465 9.99a11.8 11.8 0 0 1-2.517 2.453 7 7 0 0 1-1.048.625 2.5 2.5 0 0 1-.444.2 1 1 0 0 1-.385.063 1 1 0 0 1-.385-.063 2.5 2.5 0 0 1-.444-.2 7 7 0 0 1-1.048-.625 11.8 11.8 0 0 1-2.517-2.453C1.928 10.487.545 7.169 1.141 2.692A1.54 1.54 0 0 1 2.185 1.43 63 63 0 0 1 5.072.56"/></svg>',
+    git: '<svg class="icon" viewBox="0 0 16 16"><path fill="currentColor" d="M15.698 7.287 8.712.302a1.03 1.03 0 0 0-1.457 0l-1.45 1.45 1.84 1.84a1.223 1.223 0 0 1 1.55 1.56l1.773 1.774a1.224 1.224 0 1 1-.733.693l-1.654-1.654v4.353a1.226 1.226 0 1 1-1.008-.036V5.889a1.226 1.226 0 0 1-.666-1.608L5.093 2.465l-4.79 4.79a1.03 1.03 0 0 0 0 1.457l6.986 6.986a1.03 1.03 0 0 0 1.457 0l6.953-6.953a1.031 1.031 0 0 0 0-1.457"/></svg>',
+    branch: '<svg class="icon" viewBox="0 0 16 16"><path fill="currentColor" d="M11.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5m-2.25.75a2.25 2.25 0 1 1 3 2.122V6A2.5 2.5 0 0 1 10 8.5H6a1 1 0 0 0-1 1v1.128a2.251 2.251 0 1 1-1.5 0V5.372a2.25 2.25 0 1 1 1.5 0v1.836A2.5 2.5 0 0 1 6 7h4a1 1 0 0 0 1-1v-.628A2.25 2.25 0 0 1 9.5 3.25M4.25 12a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5M3.5 3.25a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0"/></svg>',
+    star: '<svg class="icon" viewBox="0 0 16 16"><path fill="currentColor" d="M3.612 15.443c-.386.198-.824-.149-.746-.592l.83-4.73L.173 6.765c-.329-.314-.158-.888.283-.95l4.898-.696L7.538.792c.197-.39.73-.39.927 0l2.184 4.327 4.898.696c.441.062.612.636.282.95l-3.522 3.356.83 4.73c.078.443-.36.79-.746.592L8 13.187l-4.389 2.256z"/></svg>',
 } as const;
 
 // ─── HTML Builder ─────────────────────────────────────────────────────────────
@@ -236,7 +239,7 @@ function buildHtml(usage: ContextUsage | null, allUsages: ContextUsage[], config
     // ━━━ Quota Monitor ━━━
     const quotaModels = configs.filter(c => c.quotaInfo);
     if (quotaModels.length > 0) {
-        const quotaRows = quotaModels.map(c => {
+        const quotaRows = quotaModels.map((c, idx) => {
             const qi = c.quotaInfo!;
             const pct = Math.round(qi.remainingFraction * 100);
             const barColor = pct <= 20 ? 'var(--color-danger)' : pct <= 50 ? 'var(--color-warn)' : 'var(--color-ok)';
@@ -249,10 +252,23 @@ function buildHtml(usage: ContextUsage | null, allUsages: ContextUsage[], config
             }
             const tagHtml = c.tagTitle ? `<span class="badge info-badge">${esc(c.tagTitle)}</span>` : '';
             const imgTag = c.supportsImages ? `<span class="badge ok-badge">${ICON.image} IMG</span>` : '';
+            const recTag = c.isRecommended ? `<span class="badge rec-badge">${ICON.star} REC</span>` : '';
             const mimeTag = c.mimeTypeCount > 0 ? `<span class="mime-count">${c.mimeTypeCount} MIME</span>` : '';
+
+            // MIME type details (collapsible)
+            let mimeDetailsHtml = '';
+            if (c.supportedMimeTypes.length > 0) {
+                const mimeTags = c.supportedMimeTypes.map(m => `<span class="mime-tag">${esc(m)}</span>`).join('');
+                mimeDetailsHtml = `
+                    <details class="collapsible inline-details" id="d-mime-${idx}">
+                        <summary>${tBi('MIME Types', 'MIME 类型')} (${c.supportedMimeTypes.length})</summary>
+                        <div class="details-body"><div class="mime-tags-wrap">${mimeTags}</div></div>
+                    </details>`;
+            }
+
             return `
                 <div class="quota-row">
-                    <div class="quota-label">${esc(c.label)} ${tagHtml} ${imgTag}</div>
+                    <div class="quota-label">${esc(c.label)} ${tagHtml} ${imgTag} ${recTag}</div>
                     <div class="quota-bar-wrap">
                         <div class="quota-bar" style="width:${pct}%;background:${barColor}"></div>
                     </div>
@@ -261,6 +277,8 @@ function buildHtml(usage: ContextUsage | null, allUsages: ContextUsage[], config
                         <span>${mimeTag}</span>
                         ${resetLabel ? `<span class="quota-reset">${tBi('Reset', '重置')}: ${resetLabel}</span>` : ''}
                     </div>
+                    <div class="quota-id">${esc(c.model)}</div>
+                    ${mimeDetailsHtml}
                 </div>`;
         }).join('');
 
@@ -328,6 +346,7 @@ function buildHtml(usage: ContextUsage | null, allUsages: ContextUsage[], config
                     ${ICON.clock}
                     ${t('panel.currentSession')}
                     ${sourceTag}
+                    <span class="badge status-badge">${esc(usage.status.replace('CASCADE_RUN_STATUS_', ''))}</span>
                 </h2>
                 <div class="stat-grid">
                     <div class="stat">
@@ -339,6 +358,7 @@ function buildHtml(usage: ContextUsage | null, allUsages: ContextUsage[], config
                         <div class="stat-value title-val">${esc(usage.title || usage.cascadeId.substring(0, 8))}</div>
                     </div>
                 </div>
+                ${buildGitInfoHtml(usage)}
                 <div class="progress-section">
                     <div class="progress-header">
                         <span>${tBi('Context Usage', '上下文使用')}</span>
@@ -373,6 +393,16 @@ function buildHtml(usage: ContextUsage | null, allUsages: ContextUsage[], config
                 ${compressHtml}
                 ${checkpointHtml}
                 ${deltaHtml}
+                <details class="collapsible" id="d-current-times">
+                    <summary>${tBi('Timestamps', '时间戳')}</summary>
+                    <div class="details-body">
+                        <div class="detail-row"><span>${tBi('Created', '创建')}</span><span>${formatTime(usage.createdTime)}</span></div>
+                        <div class="detail-row"><span>${tBi('Last Modified', '最后修改')}</span><span>${formatTime(usage.lastModifiedTime)}</span></div>
+                        <div class="detail-row"><span>${tBi('Last User Input', '最后用户输入')}</span><span>${formatTime(usage.lastUserInputTime)}</span></div>
+                        <div class="detail-row"><span>${tBi('Last Input Step', '最后输入步骤')}</span><span>#${usage.lastUserInputStepIndex}</span></div>
+                        <div class="detail-row"><span>Cascade ID</span><span class="mono-val">${esc(usage.cascadeId)}</span></div>
+                    </div>
+                </details>
             </section>`);
     } else {
         sections.push(`
@@ -385,27 +415,89 @@ function buildHtml(usage: ContextUsage | null, allUsages: ContextUsage[], config
             </section>`);
     }
 
-    // ━━━ Other Sessions ━━━
+    // ━━━ Other Sessions (Full Transparency) ━━━
     const others = allUsages.filter(u => u.cascadeId !== usage?.cascadeId);
     if (others.length > 0) {
-        const rows = others.slice(0, 10).map(u => {
+        const rows = others.slice(0, 10).map((u, idx) => {
             const pct = Math.min(u.usagePercent, 100);
             const barColor = pct >= 80 ? 'var(--color-danger)' : pct >= 50 ? 'var(--color-warn)' : 'var(--color-ok)';
             const compTag = u.compressionDetected ? '<span class="badge danger-badge">COMP</span>' : '';
+            const statusTag = `<span class="badge status-badge">${esc(u.status.replace('CASCADE_RUN_STATUS_', ''))}</span>`;
+            const remaining = Math.max(0, u.contextLimit - u.contextUsed);
+            const sourceTag = u.isEstimated
+                ? `<span class="badge warn-badge">${tBi('EST', '估')}</span>`
+                : `<span class="badge ok-badge">${tBi('✓', '精')}</span>`;
+
             return `
-                <div class="session-row">
-                    <div class="session-title">${esc(u.title || u.cascadeId.substring(0, 8))} ${compTag}</div>
-                    <div class="session-model">${esc(u.modelDisplayName)}</div>
-                    <div class="session-bar-wrap">
-                        <div class="session-bar" style="width:${pct}%;background:${barColor}"></div>
+                <details class="collapsible session-detail" id="d-session-${idx}">
+                    <summary>
+                        <div class="session-summary-row">
+                            <span class="session-title-text">${esc(u.title || u.cascadeId.substring(0, 8))}</span>
+                            ${compTag} ${statusTag} ${sourceTag}
+                            <span class="session-pct-inline">${u.usagePercent.toFixed(1)}%</span>
+                        </div>
+                        <div class="session-bar-wrap compact">
+                            <div class="session-bar" style="width:${pct}%;background:${barColor}"></div>
+                        </div>
+                    </summary>
+                    <div class="details-body">
+                        <div class="stat-grid four-col">
+                            <div class="stat mini">
+                                <div class="stat-label">${tBi('Used', '已用')}</div>
+                                <div class="stat-value">${formatTokenCount(u.contextUsed)}</div>
+                            </div>
+                            <div class="stat mini">
+                                <div class="stat-label">${tBi('Limit', '限制')}</div>
+                                <div class="stat-value">${formatContextLimit(u.contextLimit)}</div>
+                            </div>
+                            <div class="stat mini">
+                                <div class="stat-label">${tBi('Remaining', '剩余')}</div>
+                                <div class="stat-value">${formatTokenCount(remaining)}</div>
+                            </div>
+                            <div class="stat mini">
+                                <div class="stat-label">${t('tooltip.steps')}</div>
+                                <div class="stat-value">${u.stepCount}</div>
+                            </div>
+                        </div>
+                        <div class="stat-grid four-col">
+                            <div class="stat mini">
+                                <div class="stat-label">${t('tooltip.model')}</div>
+                                <div class="stat-value" style="font-size:0.85em">${esc(u.modelDisplayName)}</div>
+                            </div>
+                            <div class="stat mini">
+                                <div class="stat-label">${t('tooltip.modelOutput')}</div>
+                                <div class="stat-value">${formatTokenCount(u.totalOutputTokens)}</div>
+                            </div>
+                            <div class="stat mini">
+                                <div class="stat-label">${t('tooltip.toolResults')}</div>
+                                <div class="stat-value">${formatTokenCount(u.totalToolCallOutputTokens)}</div>
+                            </div>
+                            <div class="stat mini">
+                                <div class="stat-label">${t('tooltip.imageGen')}</div>
+                                <div class="stat-value">${u.imageGenStepCount}</div>
+                            </div>
+                        </div>
+                        ${buildGitInfoHtml(u)}
+                        ${u.lastModelUsage ? `
+                        <div class="checkpoint-section">
+                            <div class="section-subtitle">${t('tooltip.lastCheckpoint')}</div>
+                            <div class="stat-grid three-col">
+                                <div class="stat mini"><div class="stat-label">${t('tooltip.input')}</div><div class="stat-value">${u.lastModelUsage.inputTokens.toLocaleString()}</div></div>
+                                <div class="stat mini"><div class="stat-label">${t('tooltip.output')}</div><div class="stat-value">${u.lastModelUsage.outputTokens.toLocaleString()}</div></div>
+                                <div class="stat mini"><div class="stat-label">${t('tooltip.cache')}</div><div class="stat-value">${u.lastModelUsage.cacheReadTokens.toLocaleString()}</div></div>
+                            </div>
+                        </div>` : ''}
+                        <div class="detail-row"><span>${tBi('Created', '创建')}</span><span>${formatTime(u.createdTime)}</span></div>
+                        <div class="detail-row"><span>${tBi('Last Modified', '最后修改')}</span><span>${formatTime(u.lastModifiedTime)}</span></div>
+                        <div class="detail-row"><span>${tBi('Last User Input', '最后用户输入')}</span><span>${formatTime(u.lastUserInputTime)}</span></div>
+                        <div class="detail-row"><span>Cascade ID</span><span class="mono-val">${esc(u.cascadeId)}</span></div>
                     </div>
-                    <div class="session-pct">${u.usagePercent.toFixed(1)}% | ${formatTokenCount(u.contextUsed)}/${formatContextLimit(u.contextLimit)}</div>
-                </div>`;
+                </details>`;
         }).join('');
 
         sections.push(`
             <section class="card">
-                <h2>${ICON.chat} ${t('panel.otherSessions')}</h2>
+                <h2>${ICON.chat} ${t('panel.otherSessions')} (${others.length})</h2>
                 ${rows}
             </section>`);
     }
@@ -521,6 +613,34 @@ ${getStyles()}
     </script>
 </body>
 </html>`;
+}
+
+// ─── Helper: Format ISO timestamp ────────────────────────────────────────────
+
+function formatTime(iso: string): string {
+    if (!iso) { return '—'; }
+    try {
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) { return esc(iso); }
+        return d.toLocaleString([], {
+            month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit', second: '2-digit',
+        });
+    } catch { return esc(iso); }
+}
+
+// ─── Helper: Build Git info HTML block ───────────────────────────────────────
+
+function buildGitInfoHtml(u: ContextUsage): string {
+    if (!u.repositoryName && !u.branchName) { return ''; }
+    const parts: string[] = [];
+    if (u.repositoryName) {
+        parts.push(`<span class="git-repo">${ICON.git} ${esc(u.repositoryName)}</span>`);
+    }
+    if (u.branchName) {
+        parts.push(`<span class="git-branch">${ICON.branch} ${esc(u.branchName)}</span>`);
+    }
+    return `<div class="git-info">${parts.join('')}</div>`;
 }
 
 // ─── Escape HTML ──────────────────────────────────────────────────────────────
@@ -1161,6 +1281,142 @@ function getStyles(): string {
             background: rgba(74, 222, 128, 0.08);
             border-color: rgba(74, 222, 128, 0.2);
             color: var(--color-ok);
+        }
+
+        /* ─── Git Info ────────────────── */
+        .git-info {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+            padding: var(--space-2) var(--space-3);
+            background: rgba(96, 165, 250, 0.06);
+            border: 1px solid rgba(96, 165, 250, 0.12);
+            border-radius: var(--radius-md);
+            margin-bottom: var(--space-3);
+            font-size: 0.82em;
+        }
+
+        .git-repo, .git-branch {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-1);
+            color: var(--color-info);
+        }
+
+        .git-branch {
+            color: var(--color-ok);
+        }
+
+        /* ─── Rec Badge ──────────────── */
+        .rec-badge {
+            background: rgba(250, 204, 21, 0.15);
+            color: var(--color-warn);
+        }
+
+        .rec-badge .icon {
+            width: 10px;
+            height: 10px;
+        }
+
+        /* ─── Status Badge ────────────── */
+        .status-badge {
+            background: rgba(156, 163, 175, 0.12);
+            color: var(--color-text-dim);
+            font-size: 0.6em;
+            padding: 1px 5px;
+            border-radius: var(--radius-sm);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        /* ─── Mono Values ─────────────── */
+        .mono-val {
+            font-family: var(--vscode-editor-font-family, 'Cascadia Code', 'Fira Code', monospace);
+            font-size: 0.85em;
+            word-break: break-all;
+        }
+
+        /* ─── Quota ID ────────────────── */
+        .quota-id {
+            font-family: var(--vscode-editor-font-family, monospace);
+            font-size: 0.7em;
+            color: var(--color-text-dim);
+            opacity: 0.5;
+            margin-top: 1px;
+        }
+
+        /* ─── MIME Tag Grid ───────────── */
+        .mime-tags-wrap {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-1);
+        }
+
+        .mime-tag {
+            font-size: 0.65em;
+            font-family: var(--vscode-editor-font-family, monospace);
+            padding: 1px 5px;
+            border-radius: var(--radius-sm);
+            background: rgba(255,255,255,0.04);
+            color: var(--color-text-dim);
+            border: 1px solid var(--color-border);
+        }
+
+        /* ─── Inline Details (smaller) ── */
+        .inline-details {
+            border-top: none;
+            margin-top: var(--space-1);
+        }
+
+        .inline-details summary {
+            font-size: 0.72em;
+            padding: var(--space-1) 0;
+        }
+
+        /* ─── Session Detail (expanded) ── */
+        .session-detail {
+            border-top: 1px solid var(--color-border);
+            margin-top: 0;
+        }
+
+        .session-detail:first-child {
+            border-top: none;
+        }
+
+        .session-detail summary {
+            padding: var(--space-2) 0;
+            flex-direction: column;
+            align-items: stretch;
+            gap: var(--space-1);
+        }
+
+        .session-summary-row {
+            display: flex;
+            align-items: center;
+            gap: var(--space-1);
+            flex-wrap: wrap;
+        }
+
+        .session-title-text {
+            font-weight: 500;
+            color: var(--color-text);
+            flex-shrink: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 50%;
+        }
+
+        .session-pct-inline {
+            margin-left: auto;
+            font-weight: 700;
+            font-size: 0.9em;
+        }
+
+        .session-bar-wrap.compact {
+            height: 3px;
+            width: 100%;
         }
 
         /* ─── Reduced Motion ─────────── */
