@@ -483,3 +483,47 @@ npx tsx src/diag-monitor.ts
 - 不同对话返回的步数略有差异（419 vs 426），取决于每步的数据量
 - `startIndex/endIndex` 参数持续无效（v1.11.3 验证）
 - 超出窗口的步骤用 📊 图标 + `stepIndex` 标记起始位置，保持排版一致
+
+### 18. Warm-up 吞噬首消息（v1.11.3 修复）
+
+**现象**：扩展加载/重载后，当前对话的第一条用户消息从不出现在"最近操作"时间线中
+**根因**：Warm-up 阶段用 `emitEvent=false` 处理所有已有步骤（含 USER_INPUT），设置 `processedIndex` 后，增量模式不再触碰这些步骤
+**修复**：Warm-up 完成后，对 RUNNING 对话的最近 30 步调用 `_injectTimelineEvent()`——仅创建 `StepEvent`，不重复统计。使用 LS 的 `metadata.createdAt` 作为历史时间戳
+
+### 19. 切换/回退对话：status 时序与 stepCount 回退（v1.11.3 修复）
+
+**现象**：切换到已有对话发消息，或回退/重发消息时，新步骤无法录入时间线
+**诊断**（实时脚本 2 秒轮询 `GetAllCascadeTrajectories`）：
+
+```
+21:05:15 [CHANGE] b365cb34 | status: IDLE → RUNNING | steps: 31 → 33 (+2)
+         ↳ API returned 33 steps, including USER_INPUT at [31]
+21:05:29 [CHANGE] b365cb34 | steps: 33 → 35 (+2)
+21:05:43 [CHANGE] b365cb34 | status: RUNNING → IDLE
+```
+
+**LS 行为确认**：切换对话时 LS 正常更新 status（IDLE→RUNNING）和 stepCount，API 完整返回含 USER_INPUT 的步骤
+
+**Bug 1 — statusChanged 被早期跳过拦截**：
+
+```typescript
+// BUG: 这行在 statusChanged 检测之前，直接跳过了
+if (currSteps <= entry.processedIndex) { continue; }
+// statusChanged 永远执行不到
+```
+
+**Bug 2 — stepCount 回退未被处理**：
+回退/重发时 LS 可能删除旧步骤后生成新步骤，导致 stepCount 暂时减少。
+旧 `processedIndex` 仍指向已不存在的位置，增量比较失效。
+
+**修复**：
+1. `statusChanged` 检测移到**所有跳过逻辑之前**
+2. 检测 stepCount 减少 → 重置 `processedIndex = Math.min(processedIndex, currSteps)`
+3. 所有跳过条件加 `&& !statusChanged` 保护
+4. 当 statusChanged 但 processedIndex 不变时，注入最近 20 步 timeline 事件
+
+### 20. 推理步骤 response 字段可为空
+
+**现象**：部分 `PLANNER_RESPONSE` 步骤的 `modifiedResponse` 和 `response` 均为空字符串，导致时间线行只有模型名，没有内容预览
+**原因**：LS 在推理中途被轮询捕获时，response 尚未填充；或纯思考步骤没有文本输出
+**策略**：当 response 为空且 `thinkingDuration` 存在时，显示"正在思考"作为回退文本（不显示具体秒数，因 3 秒轮询中断导致时间不准确）

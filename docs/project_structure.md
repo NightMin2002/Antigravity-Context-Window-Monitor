@@ -181,8 +181,9 @@ Tracks model activity: reasoning count, tool call breakdown, token consumption, 
 |---|---|
 | 步骤分类 / Step classification | 21 种步骤类型 → reasoning / tool / user / system |
 | 独立轮询 / Independent poll | 3 秒独立循环，不受全局 poll 影响 |
-| 预热 / Warm-up | 首次轮询处理所有对话的全部历史步骤 |
-| 增量更新 / Incremental | 后续只对 RUNNING 对话拉取新增步骤 |
+| 预热 / Warm-up | 首次轮询处理所有对话历史步骤，RUNNING 对话注入最近 30 步到时间线 |
+| 增量更新 / Incremental | RUNNING 对话拉取新增步骤；检测 status 变化（IDLE→RUNNING）触发注入 |
+| 回退/重发 / Rollback/Resend | 检测 stepCount 减少 → 重置 processedIndex 以跟踪被替换的步骤 |
 | 工具详情 / Tool detail | 提取工具名（gh/search_issues、view_file 等）+ 参数摘要 |
 | 归档 / Archive | `archiveAndReset()` 在额度重置时保存快照 |
 | 序列化 / Serialization | `serialize()` / `restore()` 支持跨会话持久化 |
@@ -259,12 +260,44 @@ Antigravity Language Server (localhost)
 
 ---
 
-## 测试 / Testing
+## 构建与安装 / Build & Install
+
+### 1. 编译 / Compile
 
 ```bash
-npm test           # vitest run
-npm run test:watch # vitest (watch mode)
+npm run compile    # tsc -p ./ → 输出到 out/
 ```
+
+> 编译错误会在终端中显示，0 错误即成功。
+
+### 2. 测试 / Test
+
+```bash
+npm test           # vitest run（一次性）
+npm run test:watch # vitest（监视模式）
+```
+
+### 3. 打包 / Package
+
+```bash
+npx vsce package --no-dependencies
+```
+
+> 输出 `antigravity-context-monitor-{version}.vsix`（约 3–4MB）。
+> `--no-dependencies` 跳过 npm 依赖安装（已编译的 `out/` 目录包含所有逻辑）。
+
+### 4. 安装 / Install
+
+1. 在 VS Code / Antigravity IDE 中按 `Ctrl+Shift+P`
+2. 输入 `Extensions: Install from VSIX...`
+3. 选择生成的 `.vsix` 文件
+4. 重载窗口（`Developer: Reload Window`）
+
+> 安装后扩展会自动发现本地 LS 进程并开始轮询。
+
+---
+
+## 测试详情 / Test Details
 
 | 测试文件 / Test File | 覆盖范围 / Coverage |
 |---|---|

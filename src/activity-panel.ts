@@ -166,6 +166,17 @@ export function getActivityTabStyles(): string {
     .act-badge { font-size: 0.75em; opacity: 0.7; }
     .act-checkpoint-model { border-color: rgba(255,255,255,0.06); opacity: 0.85; }
 
+    /* ─── Activity Tab: Distribution Note ─── */
+    .act-dist-note {
+        font-size: 0.8em;
+        color: var(--color-warn);
+        opacity: 0.7;
+        margin-top: var(--space-2);
+        padding: var(--space-1) var(--space-2);
+        border-left: 2px solid var(--color-warn);
+        line-height: 1.4;
+    }
+
     /* ─── Activity Tab: Archive History ─── */
     .act-archive-item {
         background: var(--color-surface);
@@ -268,7 +279,18 @@ function buildModelCards(s: ActivitySummary): string {
     const fmt = (n: number) => n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n);
     const fmtMs = (ms: number) => ms <= 0 ? '-' : ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`;
 
-    let html = `<h2 class="act-section-title">${tBi('Model Stats', '模型统计')}</h2><div class="act-cards-grid">`;
+    let html = `<h2 class="act-section-title">${tBi('Model Stats', '模型统计')}</h2>`;
+
+    // Accuracy note: shown when estimated steps exist
+    const totalEst = entries.reduce((a, [, ms]) => a + ms.estSteps, 0);
+    if (totalEst > 0) {
+        html += `<div class="act-dist-note">${tBi(
+            `Reasoning, tool calls, and error counts are precisely recorded. ${totalEst} steps beyond API window are estimated — see 📊 Est. above.`,
+            `推理回复、工具调用、错误等数据为精准记录；其中 ${totalEst} 步超出 API 窗口范围，为估算值（详见上方 📊 推算）。`
+        )}</div>`;
+    }
+
+    html += `<div class="act-cards-grid">`;
     for (const [name, ms] of entries) {
         const isCheckpointOnly = ms.reasoning === 0 && ms.toolCalls === 0 && ms.checkpoints > 0 && ms.estSteps === 0;
         const avgThink = ms.reasoning > 0 ? fmtMs(Math.round(ms.thinkingTimeMs / ms.reasoning)) : '-';
@@ -384,7 +406,9 @@ function buildDistribution(s: ActivitySummary): string {
         const pct = ((usage / total) * 100).toFixed(1);
         html += `<div class="act-legend-item"><span class="act-legend-dot" style="background:${colors[i % colors.length]}"></span>${esc(name)} <span class="act-legend-pct">${pct}% (${usage})</span></div>`;
     }
-    html += `</div></div>`;
+    html += `</div>`;
+
+    html += `</div>`;
     return html;
 }
 
