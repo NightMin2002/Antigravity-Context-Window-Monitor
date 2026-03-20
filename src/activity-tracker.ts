@@ -363,10 +363,12 @@ export class ActivityTracker {
                         const s = this._getOrCreateStats(entry.dominantModel);
                         s.totalSteps += beyondApi;
                         s.estSteps += beyondApi;
+                        const estStart = Math.max(fetchedSteps.length, entry.stepCount);
                         this._pushEvent({
                             timestamp: new Date().toISOString(),
-                            icon: '🧠', category: 'reasoning', model: entry.dominantModel,
+                            icon: '📊', category: 'reasoning', model: entry.dominantModel,
                             detail: `+${beyondApi} steps (estimated)`, durationMs: 0,
+                            stepIndex: estStart,
                         });
                         hasChanges = true;
                     }
