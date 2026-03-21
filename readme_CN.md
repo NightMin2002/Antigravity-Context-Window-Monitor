@@ -15,7 +15,7 @@
 >
 > 🪟 **Windows**: 完全支持（v1.8.0+）。通过 `wmic` 缓存和 PowerShell 回退机制优化了发现逻辑。
 >
-> 🐧🪟 **WSL**: 完全支持（v1.12.0+）。通过 `/proc/version` 检测 WSL 环境，利用 WSL 互操作调用 Windows 端工具（`WMIC.exe`、`powershell.exe`、`netstat.exe`）进行 LS 发现。
+> 🐧🪟 **WSL**: 完全支持（v1.12.0+）。通过 `/proc/version` 检测 WSL 环境，利用 WSL 互操作调用 Windows 端工具（`WMIC.exe`、`powershell.exe`、`netstat.exe`）进行 LS 发现。v1.12.1 新增 `extensionKind: ["ui", "workspace"]`，通过 Remote-WSL 或 Remote SSH 连接时扩展自动运行在本地 Windows 宿主机上——无需额外配置。
 
 ---
 
@@ -167,4 +167,4 @@
 
 ---
 **作者**: AGI-is-going-to-arrive
-**Version**: 1.12.0
+**Version**: 1.12.1

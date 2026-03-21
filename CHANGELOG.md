@@ -1,5 +1,17 @@
 # 变更日志 / Changelog
 
+## [1.12.1] - 2026-03-21
+
+### Fixed / 修复
+
+- **Remote WSL "LS not found" Fix / 远程 WSL「LS 未找到」修复**: Added `extensionKind: ["ui", "workspace"]` to `package.json`, telling VS Code to prefer running the extension on the **local (UI) side** where the Antigravity Language Server process lives. Previously, when connecting to WSL via VS Code Remote-WSL or Remote SSH, the extension defaulted to running on the remote side (`extensionKind` was missing, defaulting to `["workspace"]`), where no LS process exists — causing perpetual "LS not found" status. Users only need to reinstall the updated VSIX; no additional configuration required.
+  在 `package.json` 中添加 `extensionKind: ["ui", "workspace"]`，告知 VS Code 优先在**本地（UI 端）**运行扩展——即 Antigravity 语言服务器进程所在的一侧。此前通过 VS Code Remote-WSL 或 Remote SSH 连接 WSL 时，扩展默认运行在远程端（`extensionKind` 缺失，默认为 `["workspace"]`），远程端没有 LS 进程，导致持续显示"LS not found"。用户只需重装新版 VSIX，无需额外配置。
+
+### Improved / 改进
+
+- **Remote Workspace URI Logging / 远程工作区 URI 日志**: `getWorkspaceUri()` now logs when a `vscode-remote://` workspace URI is detected, aiding diagnostics for remote connection scenarios.
+  `getWorkspaceUri()` 现在在检测到 `vscode-remote://` 工作区 URI 时记录日志，便于远程连接场景的诊断排查。
+
 ## [1.12.0] - 2026-03-21
 
 ### Added / 新增
