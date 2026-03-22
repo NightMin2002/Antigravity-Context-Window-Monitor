@@ -28,6 +28,21 @@ export function getScript(): string {
             }
             // Restore active tab from state
             if (activeTab !== 'monitor') { switchTab(activeTab); }
+
+            // ─── Calendar: Restore expanded date after refresh ───
+            var calSelectedDate = savedState.calendarSelectedDate || '';
+            if (calSelectedDate) {
+                var restorePanel = document.querySelector('[data-cal-detail="' + calSelectedDate + '"]');
+                var restoreCell = document.querySelector('.cal-cell.has-data[data-cal-date="' + calSelectedDate + '"]');
+                if (restorePanel) {
+                    restorePanel.style.display = 'block';
+                    restorePanel.style.animation = 'none'; // Skip fade-in on restore
+                    restorePanel.classList.add('cal-detail-open');
+                }
+                if (restoreCell) {
+                    restoreCell.classList.add('selected');
+                }
+            }
             for (var ti = 0; ti < tabBtns.length; ti++) {
                 tabBtns[ti].addEventListener('click', function() {
                     switchTab(this.dataset.tab);
@@ -360,6 +375,62 @@ export function getScript(): string {
                 s.scrollY = window.scrollY;
                 vscode.setState(s);
             });
+            // ─── Calendar: Event Delegation ───
+            document.body.addEventListener('click', function(e) {
+                var target = e.target;
+
+                // ── Date Cell Click: expand/collapse detail panel ──
+                var cell = target.closest && target.closest('.cal-cell.has-data');
+                if (cell) {
+                    var date = cell.getAttribute('data-cal-date');
+                    if (!date) return;
+                    var newSelected = '';
+                    var allPanels = document.querySelectorAll('[data-cal-detail]');
+                    for (var pi = 0; pi < allPanels.length; pi++) {
+                        var p = allPanels[pi];
+                        if (p.getAttribute('data-cal-detail') === date) {
+                            var isHidden = !p.classList.contains('cal-detail-open');
+                            p.classList.toggle('cal-detail-open', isHidden);
+                            p.style.display = isHidden ? 'block' : 'none';
+                            cell.classList.toggle('selected', isHidden);
+                            if (isHidden) { newSelected = date; }
+                        } else {
+                            p.classList.remove('cal-detail-open');
+                            p.style.display = 'none';
+                        }
+                    }
+                    // Deselect other cells
+                    var allCells = document.querySelectorAll('.cal-cell.has-data');
+                    for (var oi = 0; oi < allCells.length; oi++) {
+                        if (allCells[oi] !== cell) {
+                            allCells[oi].classList.remove('selected');
+                        }
+                    }
+                    // Persist selected date across refreshes
+                    var cs = vscode.getState() || {};
+                    cs.calendarSelectedDate = newSelected;
+                    vscode.setState(cs);
+                    return;
+                }
+
+                // ── Clear History Button ──
+                if (target.closest && target.closest('#clearCalendarBtn')) {
+                    vscode.postMessage({ command: 'clearCalendarHistory' });
+                    return;
+                }
+
+                // ── Month Navigation Buttons ──
+                var navBtn = target.closest && target.closest('.cal-nav-btn');
+                if (navBtn) {
+                    var yr = navBtn.getAttribute('data-cal-year');
+                    var mo = navBtn.getAttribute('data-cal-month');
+                    if (yr && mo) {
+                        vscode.postMessage({ command: 'switchCalendarMonth', year: parseInt(yr,10), month: parseInt(mo,10) });
+                    }
+                    return;
+                }
+            });
+
             // ─── Listen for extension messages ───
             window.addEventListener('message', function(event) {
                 var msg = event.data;

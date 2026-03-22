@@ -1,5 +1,32 @@
 # 变更日志 / Changelog
 
+## [1.13.0] - 2026-03-22
+
+### Added / 新增
+
+- **Calendar Tab — Daily History / 日历标签页 — 每日历史**: New 8th tab in WebView panel. Displays a 7×6 calendar grid with data indicators (dots on days with activity). Click any day to expand and view per-cycle details including Activity stats (reasoning/tools/tokens), GM data (calls/credits), and cost estimates. Month navigation with ◀/▶ buttons. All-time summary card with aggregated stats.
+  WebView 面板新增第 8 个「日历」标签页。7×6 日历网格，有活动的日期显示圆点指示器。点击日期展开查看逐周期详情：活动统计、GM 数据、费用估算。支持月份前后导航。历史汇总卡片。
+
+- **`daily-store.ts` — Daily Store Data Layer / 每日存储数据层**: New module managing per-day aggregation of Activity + GM + Pricing snapshots. Persisted via globalState. Auto-trims records older than 90 days. Snapshots captured automatically at quota reset (archiveAndReset hook).
+  新增每日存储数据层：按天聚合 Activity + GM + Pricing 快照，globalState 持久化，90 天自动清理，配额重置时自动捕获。
+
+- **`webview-calendar-tab.ts` — Calendar UI Builder / 日历 UI 构建器**: New module rendering Calendar tab HTML: month navigation, calendar grid, expandable day detail panels, cycle cards, overall summary.
+  新增日历标签页 UI：月份导航、日历网格、可展开日期详情面板、周期卡片、历史汇总。
+
+- **Retroactive Archive Import / 历史归档回溯导入**: `DailyStore.importArchives()` method imports existing `ActivityArchive` history into the calendar on startup. Uses `startTime`-based dedup for idempotent re-import across restarts. Also snapshots the current active session into today.
+  新增 `importArchives()` 方法，启动时回溯导入已有活动归档到日历。按 `startTime` 去重，重启幂等。同时快照当前活跃会话到今天。
+
+### Changed / 变更
+
+- **`extension.ts`**: Added DailyStore initialization and integration with quota reset hook to capture daily snapshots alongside activity archives. Added retroactive import of existing archives and live session snapshot on startup.
+  新增 DailyStore 初始化及配额重置钩子集成。启动时回溯导入历史归档 + 快照活跃会话。
+
+- **`webview-panel.ts`**: Registered Calendar as 8th tab, added calendar CSS, DailyStore parameter, month navigation and clear history message handlers.
+  注册日历为第 8 个标签页，集成 CSS、DailyStore 参数、月份导航和清空历史消息处理。
+
+- **`webview-script.ts`**: Replaced per-element click handlers with event delegation on `document.body` using `target.closest()` for robust child-element detection. Added `calendarSelectedDate` to `vscode.setState()` persistence — expanded panel and cell highlight now survive auto-refresh. Restored panels skip `calFadeIn` animation to prevent visual flicker.
+  使用 `document.body` 事件委托替代逐元素绑定，`closest()` 精确匹配。展开日期存入 `vscode.setState()` — 面板自动刷新不再丢失展开状态。恢复时跳过淡入动画避免闪烁。
+
 ## [1.12.4] - 2026-03-22
 
 ### Added / 新增
