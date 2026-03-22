@@ -766,18 +766,7 @@ async function pollActivity(): Promise<void> {
 
         if (activityChanged || gmChanged || !activityTracker.isReady) {
             const summary = activityTracker.getSummary();
-
-            // Inject GM global aggregates (full precision, replaces per-step aggregation)
-            if (lastGMSummary) {
-                summary.gmTotalInputTokens = lastGMSummary.totalInputTokens;
-                summary.gmTotalOutputTokens = lastGMSummary.totalOutputTokens;
-                summary.gmTotalCacheRead = lastGMSummary.totalCacheRead;
-                summary.gmTotalCredits = lastGMSummary.totalCredits;
-                summary.gmTotalRetries = Object.values(lastGMSummary.modelBreakdown)
-                    .reduce((sum, m) => sum + m.totalRetries, 0);
-                // Pass GM model breakdown for per-card enhancement
-                (summary as any).gmModelBreakdown = lastGMSummary.modelBreakdown;
-            }
+            // GM data is now embedded in getSummary() via cached _gmTotals — no override needed
 
             // Refresh WebView immediately when activity changes
             if (isMonitorPanelVisible() && currentUsage) {

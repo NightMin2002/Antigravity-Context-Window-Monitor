@@ -30,6 +30,15 @@
 
 ### Fixed / 修复
 
+- **🔥 GM Data Flickering Between Poll Paths / GM 数据在双轮询路径间闪烁**: Fixed critical bug where GM data in the model statistics panel flickered on/off every few seconds. Root cause: `pollContextUsage` (5s) called `updateMonitorPanel` *without* GM overrides, while `pollActivity` (3s) called it *with* GM data — the context poll overwrote the activity poll's GM data. Fix: `getSummary()` now uses persistent `_gmTotals`/`_gmModelBreakdown` caches populated by `injectGMData()`, and the redundant global override in `pollActivity()` was removed.
+  修复严重 Bug：模型统计面板中的 GM 数据每隔几秒闪烁消失。根因：`pollContextUsage`（5s）和 `pollActivity`（3s）分别调用 `updateMonitorPanel`，前者不带 GM 数据，覆盖了后者注入的 GM 数据。修复：`getSummary()` 使用 `injectGMData()` 填充的持久缓存，移除 `pollActivity()` 中的冗余全局覆盖。
+
+- **🔥 Sub-Agent Data Stale After Reload / 重载后子智能体数据过时**: Fixed critical bug where sub-agent data (FLASH_LITE) only showed data for the first checkpoint or went missing entirely after extension reload. `restore()` migration logic was too lenient — it didn't trigger re-warm-up when `subAgentTokens` contained stale data or when new GM persistence fields were absent. Now checks `subAgentTotalCount < totalCheckpoints * 0.5` and `!data.gmTotals` as additional nuclear reset triggers.
+  修复严重 Bug：子智能体数据（FLASH_LITE）在扩展重载后仅显示第一个 checkpoint 数据或完全消失。`restore()` 迁移逻辑过于宽松。现在额外检查子智能体计数比和 GM 持久化字段缺失作为 nuclear reset 触发条件。
+
+- **Nuclear Reset Missing `_sampleDist` Cleanup / Nuclear Reset 遗漏清理采样分布**: Fixed anti-intuitive bug where `archiveAndReset()` and the nuclear reset path in `restore()` did not clear `_sampleDist` and `_sampleTotal`. Stale sampling distribution ratios from before the reset could pollute step type estimation after re-warm-up.
+  修复反直觉 Bug：`archiveAndReset()` 和 `restore()` 的 nuclear reset 路径未清理 `_sampleDist`/`_sampleTotal` 采样分布，导致旧的采样比例可能影响 re-warm-up 后的步骤类型估算。
+
 - **🔥 GM Data Duplication on Quota Reset / 额度重置时 GM 数据重复**: Fixed critical bug where `gmTracker` and `lastGMSummary` were never reset during quota cycles. This caused the same full GM dataset and associated per-model costs to be archived into `dailyStore` on every quota reset, producing duplicate entries in the calendar. Now `gmTracker.reset()` + `lastGMSummary = null` are called after `dailyStore.addCycle()`, ensuring each cycle archives its own GM data and starts fresh.
   修复严重 Bug：`gmTracker` 和 `lastGMSummary` 在额度周期中从不清零，导致每次额度重置都将相同的完整 GM 数据和费用写入日历，产生重复记录。现在在 `dailyStore.addCycle()` 后调用 `gmTracker.reset()` + `lastGMSummary = null`，确保每个周期独立归档、从零开始。
 
@@ -43,6 +52,9 @@
   新增 12 个测试覆盖：安全边界、stepIndex 注入匹配、虚拟事件生成（窗口外/部分/全内）、去重/排序/span/duration、压力测试。
 
 ### Changed / 变更
+
+- **Sub-Agent Card Enhancement / 子智能体卡片增强**: `SubAgentTokenEntry` interface extended with `cacheReadTokens`, `compressionEvents`, and `lastInputTokens` fields. Activity panel sub-agent card now displays: Cache Read tokens, Avg Input per Checkpoint (computed), and compression event count (when > 0, shown in orange). Compression detection uses ≥30% inputTokens drop between consecutive checkpoints.
+  `SubAgentTokenEntry` 接口新增 `cacheReadTokens`、`compressionEvents`、`lastInputTokens` 字段。活动面板子智能体卡片新增显示：缓存读取 token、每检查点平均输入（计算值）、压缩次数（>0 时橙色高亮）。压缩检测标准：相邻检查点 inputTokens 下降 ≥30%。
 
 - **`daily-store.ts`**: Added `GMModelCycleStats` interface with `estimatedCost` field. `addCycle()` now accepts `costPerModel` parameter to archive per-model cost breakdown alongside GM model breakdown.
   新增 `GMModelCycleStats` 接口（含 `estimatedCost` 字段）。`addCycle()` 新增 `costPerModel` 参数，归档逐模型费用明细。

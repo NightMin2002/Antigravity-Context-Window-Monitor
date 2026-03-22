@@ -512,7 +512,7 @@ function buildModelCards(s: ActivitySummary): string {
 
     html += `<div class="act-cards-grid">`;
     // Get GM model breakdown if available
-    const gmBreak = (s as any).gmModelBreakdown as Record<string, GMModelStats> | undefined;
+    const gmBreak = s.gmModelBreakdown;
     for (const [name, ms] of entries) {
         const isCheckpointOnly = ms.reasoning === 0 && ms.toolCalls === 0 && ms.checkpoints > 0 && ms.estSteps === 0;
         const avgThink = ms.reasoning > 0 ? fmtMs(Math.round(ms.thinkingTimeMs / ms.reasoning)) : '-';
@@ -572,12 +572,16 @@ function buildModelCards(s: ActivitySummary): string {
         html += `<h2 class="act-section-title"><svg class="act-icon" viewBox="0 0 24 24" fill="none" stroke="#fb923c" stroke-width="2"><path d="M12 2a4 4 0 0 1 4 4v2h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2h2V6a4 4 0 0 1 4-4z"/><circle cx="12" cy="15" r="2"/></svg>${tBi('Sub-Agent Tokens', '子智能体消耗')}</h2>`;
         html += `<div class="act-cards-grid">`;
         for (const sa of s.subAgentTokens) {
+            const avgInput = sa.count > 0 ? Math.round(sa.inputTokens / sa.count) : 0;
             html += `
             <div class="act-model-card act-checkpoint-model">
                 <div class="act-card-header"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><path d="M12 2a4 4 0 0 1 4 4v2h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2h2V6a4 4 0 0 1 4-4z"/><circle cx="12" cy="15" r="2"/></svg>${esc(sa.displayName)} <span class="act-badge">${tBi(`${sa.count} checkpoints`, `${sa.count} 检查点`)}</span></div>
                 <div class="act-card-body">
                     <div class="act-card-row"><span>${ICONS.coin} <span>${tBi('In', '输入')}</span></span><span class="val">${fmt(sa.inputTokens)}</span></div>
                     <div class="act-card-row"><span>${ICONS.coin} <span>${tBi('Out', '输出')}</span></span><span class="val">${fmt(sa.outputTokens)}</span></div>
+                    <div class="act-card-row"><span>${ICONS.coin} <span>${tBi('Cache Read', '缓存读取')}</span></span><span class="val">${fmt(sa.cacheReadTokens)}</span></div>
+                    <div class="act-card-row"><span>${ICONS.tool} <span>${tBi('Avg In/CP', '均值输入/CP')}</span></span><span class="val">${fmt(avgInput)}</span></div>${sa.compressionEvents > 0 ? `
+                    <div class="act-card-row"><span><svg class="act-icon" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg> <span>${tBi('Compressions', '压缩次数')}</span></span><span class="val" style="color:var(--color-warning,#f97316)">${sa.compressionEvents}</span></div>` : ''}
                 </div>
             </div>`;
         }

@@ -5,7 +5,7 @@
 import { LSInfo } from './discovery';
 import { rpcCall } from './rpc-client';
 import { getModelDisplayName } from './models';
-import type { GMSummary, GMCallEntry } from './gm-tracker';
+import type { GMSummary, GMCallEntry, GMModelStats } from './gm-tracker';
 
 // ─── Step Type Classification ────────────────────────────────────────────────
 
@@ -100,6 +100,8 @@ export interface ActivityArchive {
     summary: ActivitySummary;
     /** Model IDs whose quota reset triggered this archive */
     triggeredBy?: string[];
+    /** Preserved timeline events from the archived period */
+    recentSteps?: StepEvent[];
 }
 
 /** Sub-agent token consumption (e.g. FLASH_LITE for checkpoint summaries) */
@@ -108,7 +110,10 @@ export interface SubAgentTokenEntry {
     displayName: string;
     inputTokens: number;
     outputTokens: number;
-    count: number;  // how many checkpoints used this sub-agent
+    cacheReadTokens: number;     // cache read tokens consumed
+    count: number;               // how many checkpoints used this sub-agent
+    compressionEvents: number;   // times inputTokens dropped ≥30% vs previous (context compression)
+    lastInputTokens: number;     // last checkpoint inputTokens (for compression detection, not displayed)
 }
 
 /** Per-checkpoint snapshot for context growth trend */
@@ -148,13 +153,15 @@ export interface ActivitySummary {
     checkpointHistory: CheckpointSnapshot[];
     /** Per-conversation stats */
     conversationBreakdown: ConversationBreakdown[];
-    // ── GM precision aggregates (computed from StepEvent.gm* fields) ──
+    // ── GM precision aggregates (cached from injectGMData) ──
     gmTotalInputTokens?: number;
     gmTotalOutputTokens?: number;
     gmTotalCacheRead?: number;
     gmTotalCredits?: number;
     gmCoverageRate?: number;    // 0-1 fraction of steps with GM data
     gmTotalRetries?: number;
+    /** GM per-model breakdown for model cards */
+    gmModelBreakdown?: Record<string, GMModelStats>;
 }
 
 /** Serialized form for globalState persistence */
@@ -164,6 +171,16 @@ export interface ActivityTrackerState {
     trajectoryBaselines: Record<string, { stepCount: number; processedIndex: number; dominantModel?: string }>;
     warmedUp: boolean;
     archives?: ActivityArchive[];
+    /** Cached GM global totals (persisted to prevent flicker on restore) */
+    gmTotals?: {
+        inputTokens: number;
+        outputTokens: number;
+        cacheRead: number;
+        credits: number;
+        retries: number;
+    };
+    /** Cached GM per-model breakdown */
+    gmModelBreakdown?: Record<string, GMModelStats>;
 }
 
 // ─── Helper Functions ────────────────────────────────────────────────────────
@@ -301,6 +318,16 @@ export class ActivityTracker {
     // Archive history
     private _archives: ActivityArchive[] = [];
 
+    // ── Cached GM global aggregates (prevents flicker between poll paths) ──
+    private _gmTotals: {
+        inputTokens: number;
+        outputTokens: number;
+        cacheRead: number;
+        credits: number;
+        retries: number;
+    } | null = null;
+    private _gmModelBreakdown: Record<string, GMModelStats> | null = null;
+
     constructor() {
         this._sessionStartTime = new Date().toISOString();
     }
@@ -328,8 +355,10 @@ export class ActivityTracker {
 
         // Warm-up: process ALL conversations' steps for full quota-cycle stats
         if (!this._warmedUp) {
-            // Collect RUNNING conversations' steps for post-warm-up timeline injection
-            const runningSteps: { steps: Record<string, unknown>[]; status: string; totalSteps: number }[] = [];
+            // Collect ALL conversations' steps for post-warm-up timeline injection
+            // BUG FIX: previously only RUNNING conversations got timeline events,
+            // causing IDLE conversations' history to be permanently lost.
+            const allConvSteps: { steps: Record<string, unknown>[]; totalSteps: number }[] = [];
 
             for (const [id, info] of trajMap) {
                 const sc = info.stepCount || 0;
@@ -351,10 +380,9 @@ export class ActivityTracker {
                     // Track per-conversation breakdown
                     this._updateConversationBreakdown(id, allSteps);
 
-                    // Keep RUNNING conversations' steps for timeline injection
-                    // Include total step count for absolute index calculation
-                    if (info.status === 'CASCADE_RUN_STATUS_RUNNING' && allSteps.length > 0) {
-                        runningSteps.push({ steps: allSteps, status: info.status, totalSteps: sc });
+                    // Collect steps from ALL conversations for timeline injection
+                    if (allSteps.length > 0) {
+                        allConvSteps.push({ steps: allSteps, totalSteps: sc });
                     }
                 } catch {
                     this._trajectories.set(id, { stepCount: sc, processedIndex: 0, dominantModel: '', lastStatus: info.status });
@@ -362,16 +390,31 @@ export class ActivityTracker {
             }
             this._warmedUp = true;
 
-            // Post-warm-up: inject recent timeline events from RUNNING conversations
+            // Post-warm-up: inject recent timeline events from ALL conversations
             // Stats already counted above — this only creates StepEvent objects.
-            // stepIndex uses ABSOLUTE index (offset-based) to align with GM stepIndices
-            for (const { steps, totalSteps: ts } of runningSteps) {
+            // stepIndex uses ABSOLUTE index (offset-based) to align with GM stepIndices.
+            // Collect all candidate events, then sort by timestamp and take the most recent.
+            const maxEvents = getMaxRecentSteps();
+            const candidateEvents: { step: Record<string, unknown>; absIdx: number; createdAt: string }[] = [];
+            for (const { steps, totalSteps: ts } of allConvSteps) {
                 const offset = ts - steps.length; // absolute index offset
                 const tail = steps.slice(-30);
                 const startIdx = steps.length - tail.length;
                 for (let i = 0; i < tail.length; i++) {
-                    this._injectTimelineEvent(tail[i], startIdx + i + offset);
+                    const step = tail[i];
+                    const meta = (step.metadata || {}) as Record<string, unknown>;
+                    const createdAt = (meta.createdAt as string) || '';
+                    candidateEvents.push({ step, absIdx: startIdx + i + offset, createdAt });
                 }
+            }
+            // Sort by timestamp descending, take the most recent maxEvents
+            candidateEvents.sort((a, b) => {
+                if (!a.createdAt || !b.createdAt) { return 0; }
+                return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+            });
+            const toInject = candidateEvents.slice(0, maxEvents).reverse(); // oldest first for chronological order
+            for (const { step, absIdx } of toInject) {
+                this._injectTimelineEvent(step, absIdx);
             }
 
             return true;
@@ -537,20 +580,29 @@ export class ActivityTracker {
                 // Track sub-agent: when modelUsage.model differs from attrModel
                 const rawModel = mu.model || '';
                 const rawDisplay = rawModel ? getModelDisplayName(rawModel) : '';
+                const cacheTok = parseInt(mu.cacheReadTokens || '0', 10);
                 if (rawModel && rawDisplay && rawDisplay !== attrModel) {
                     const key = rawModel;
                     const existing = this._subAgentTokens.get(key);
                     if (existing) {
+                        // Detect compression: inputTokens dropped ≥30% vs previous checkpoint
+                        const isCompression = existing.lastInputTokens > 0 && inTok < existing.lastInputTokens * 0.7;
                         existing.inputTokens += inTok;
                         existing.outputTokens += outTok;
+                        existing.cacheReadTokens += cacheTok;
                         existing.count++;
+                        if (isCompression) { existing.compressionEvents++; }
+                        existing.lastInputTokens = inTok;
                     } else {
                         this._subAgentTokens.set(key, {
                             modelId: rawModel,
                             displayName: rawDisplay,
                             inputTokens: inTok,
                             outputTokens: outTok,
+                            cacheReadTokens: cacheTok,
                             count: 1,
+                            compressionEvents: 0,
+                            lastInputTokens: inTok,
                         });
                     }
                 }
@@ -609,7 +661,11 @@ export class ActivityTracker {
             if (!resp && tdStr) {
                 resp = '正在思考';
             }
-            if (emitEvent) {
+            // BUG FIX: skip empty PLANNER_RESPONSE events (no response, no thinking,
+            // no toolCalls). These are LS internal decision steps that clutter the timeline.
+            // Stats are still counted above — only the StepEvent is skipped.
+            const hasContent = resp || (Array.isArray(toolCalls) && toolCalls.length > 0);
+            if (emitEvent && hasContent) {
                 // durationMs=0 for timeline: per-step thinking time is unreliable with 3s polling
                 this._pushEvent({ timestamp, icon: cls.icon, category: 'reasoning', model, detail, durationMs: 0, aiResponse: resp ? truncate(resp, 80) : undefined, stepIndex });
             }
@@ -670,6 +726,9 @@ export class ActivityTracker {
             if (!aiResp && tdStr) {
                 aiResp = '正在思考';
             }
+            // BUG FIX: skip empty PLANNER_RESPONSE (no response, no toolCalls)
+            const hasContent = aiResp || (Array.isArray(toolCalls) && toolCalls.length > 0);
+            if (!hasContent) { return; }
             this._pushEvent({ timestamp, icon: cls.icon, category: 'reasoning', model, detail, durationMs: 0, aiResponse: aiResp ? truncate(aiResp, 80) : undefined, stepIndex });
         } else if (cls.category === 'tool') {
             const dur = stepDurationTool(meta);
@@ -744,6 +803,19 @@ export class ActivityTracker {
      * Uses stepIndex matching to correlate GM calls → StepEvents.
      */
     injectGMData(gmSummary: GMSummary | null): void {
+        // Cache global aggregates — getSummary() will always return these
+        // regardless of which poll path triggers the panel update
+        if (gmSummary) {
+            this._gmTotals = {
+                inputTokens: gmSummary.totalInputTokens,
+                outputTokens: gmSummary.totalOutputTokens,
+                cacheRead: gmSummary.totalCacheRead,
+                credits: gmSummary.totalCredits,
+                retries: Object.values(gmSummary.modelBreakdown)
+                    .reduce((sum, m) => sum + m.totalRetries, 0),
+            };
+            this._gmModelBreakdown = { ...gmSummary.modelBreakdown };
+        }
         if (!gmSummary || this._recentSteps.length === 0) { return; }
 
         // Build stepIndex → GMCallEntry lookup from all conversations
@@ -896,12 +968,14 @@ export class ActivityTracker {
             subAgentTokens,
             checkpointHistory: [...this._checkpointHistory],
             conversationBreakdown,
-            gmTotalInputTokens: gmIn || undefined,
-            gmTotalOutputTokens: gmOut || undefined,
-            gmTotalCacheRead: gmCache || undefined,
-            gmTotalCredits: gmCredits || undefined,
+            // Use cached GM totals (full precision) when available; fall back to per-step aggregation
+            gmTotalInputTokens: this._gmTotals?.inputTokens || gmIn || undefined,
+            gmTotalOutputTokens: this._gmTotals?.outputTokens || gmOut || undefined,
+            gmTotalCacheRead: this._gmTotals?.cacheRead || gmCache || undefined,
+            gmTotalCredits: this._gmTotals?.credits || gmCredits || undefined,
             gmCoverageRate: gmEligible > 0 ? gmAnnotated / gmEligible : undefined,
-            gmTotalRetries: gmRetries || undefined,
+            gmTotalRetries: this._gmTotals?.retries || gmRetries || undefined,
+            gmModelBreakdown: this._gmModelBreakdown || undefined,
         };
     }
 
@@ -954,6 +1028,8 @@ export class ActivityTracker {
     archiveAndReset(modelIds?: string[]): void {
         const summary = this.getSummary();
         const maxArchives = getMaxArchives();
+        // BUG FIX: preserve timeline events into archive before clearing
+        const archivedSteps = [...this._recentSteps];
         // Only archive if there's meaningful activity
         if (summary.totalReasoning > 0 || summary.totalToolCalls > 0) {
             const now = Date.now();
@@ -965,6 +1041,7 @@ export class ActivityTracker {
                 // Debounce: merge into the most recent archive
                 lastArchive.endTime = new Date().toISOString();
                 lastArchive.summary = summary;
+                lastArchive.recentSteps = archivedSteps;
                 if (modelIds) {
                     lastArchive.triggeredBy = [
                         ...new Set([...(lastArchive.triggeredBy || []), ...modelIds]),
@@ -976,6 +1053,7 @@ export class ActivityTracker {
                     endTime: new Date().toISOString(),
                     summary,
                     triggeredBy: modelIds,
+                    recentSteps: archivedSteps,
                 });
                 // Trim to max
                 if (this._archives.length > maxArchives) {
@@ -989,10 +1067,14 @@ export class ActivityTracker {
         this._checkpointHistory = [];
         this._conversationBreakdown.clear();
         this._globalToolStats.clear();
+        this._sampleDist.clear();
+        this._sampleTotal = 0;
         this._totalUserInputs = 0;
         this._totalCheckpoints = 0;
         this._totalErrors = 0;
         this._recentSteps = [];
+        this._gmTotals = null;
+        this._gmModelBreakdown = null;
         this._sessionStartTime = new Date().toISOString();
         // DO NOT clear _trajectories or set _warmedUp=false!
         // Existing processedIndex values serve as baselines — only new steps after this point are counted.
@@ -1013,6 +1095,8 @@ export class ActivityTracker {
         this._totalErrors = 0;
         this._recentSteps = [];
         this._archives = [];
+        this._gmTotals = null;
+        this._gmModelBreakdown = null;
         this._sessionStartTime = new Date().toISOString();
     }
 
@@ -1027,6 +1111,8 @@ export class ActivityTracker {
             trajectoryBaselines: baselines,
             warmedUp: this._warmedUp,
             archives: this._archives,
+            gmTotals: this._gmTotals || undefined,
+            gmModelBreakdown: this._gmModelBreakdown || undefined,
         };
     }
 
@@ -1087,6 +1173,14 @@ export class ActivityTracker {
         // Restore recent steps (timeline)
         tracker._recentSteps = [...s.recentSteps];
 
+        // Restore cached GM totals (prevents flicker on startup)
+        if (data.gmTotals) {
+            tracker._gmTotals = { ...data.gmTotals };
+        }
+        if (data.gmModelBreakdown) {
+            tracker._gmModelBreakdown = { ...data.gmModelBreakdown };
+        }
+
         // Restore trajectory baselines (including dominantModel)
         if (data.trajectoryBaselines) {
             for (const [id, baseline] of Object.entries(data.trajectoryBaselines)) {
@@ -1100,8 +1194,14 @@ export class ActivityTracker {
         }
 
         // ── Migration: sub-agent token tracking ──
+        // Trigger nuclear reset when:
+        //   (a) subAgentTokens entirely missing (old format), OR
+        //   (b) subAgentTokens.count sum is far below totalCheckpoints (stale data from partial warm-up)
+        const subAgentTotalCount = Array.isArray(s.subAgentTokens)
+            ? s.subAgentTokens.reduce((sum, e) => sum + (e.count || 0), 0) : 0;
         const needsSubAgentMigration = s.totalCheckpoints > 0
-            && (!Array.isArray(s.subAgentTokens) || s.subAgentTokens.length === 0);
+            && (!Array.isArray(s.subAgentTokens) || s.subAgentTokens.length === 0
+                || (s.totalCheckpoints > 2 && subAgentTotalCount < s.totalCheckpoints * 0.5));
 
         // ── Migration: checkpoint history & conversation breakdown ──
         // Also triggers when conversationBreakdown was populated with bad data (all zeros)
@@ -1110,7 +1210,10 @@ export class ActivityTracker {
         const needsHistoryMigration = s.totalCheckpoints > 0
             && (tracker._checkpointHistory.length === 0 || cbAllZero);
 
-        if (needsSubAgentMigration || needsHistoryMigration) {
+        // ── Migration: GM data persistence (new field added) ──
+        const needsGMMigration = !data.gmTotals && s.totalCheckpoints > 0;
+
+        if (needsSubAgentMigration || needsHistoryMigration || needsGMMigration) {
             // Nuclear reset: clear all stats, reset trajectory processedIndex to 0
             // so warm-up re-scans all existing steps and builds sub-agent map
             tracker._modelStats.clear();
@@ -1118,6 +1221,8 @@ export class ActivityTracker {
             tracker._checkpointHistory = [];
             tracker._conversationBreakdown.clear();
             tracker._globalToolStats.clear();
+            tracker._sampleDist.clear();
+            tracker._sampleTotal = 0;
             tracker._totalUserInputs = 0;
             tracker._totalCheckpoints = 0;
             tracker._totalErrors = 0;
