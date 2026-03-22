@@ -1,6 +1,6 @@
 # LS Monitor 技术实现文档
 
-> **v1.13.0** — 2026-03-22
+> **v1.12.3** — 2026-03-22
 
 > [!NOTE]
 > 本文档所描述的监控数据**完全依赖 LS（Language Server）的 gRPC-over-HTTP API** 返回的数据进行统计和展示。受限于 API 的约 5MB 响应大小限制（约 500 步），超出此窗口的步骤只能通过 `stepCount` 差值进行推算（标注为 📊 推算步数），无法获取精确分类。如有估算偏差或数据不完整，敬请谅解。
@@ -682,7 +682,7 @@ export const DEFAULT_PRICING: Record<string, ModelPricing> = {
 
 **问题**：`gmTracker` 和 `lastGMSummary` 在额度重置时从不清零。每次 `onQuotaReset` → `dailyStore.addCycle()` 都写入相同的完整 GM 数据，导致日历中出现重复记录。
 
-**修复**（v1.13.0）：
+**修复**（v1.12.3）：
 
 ```
 额度重置触发 (onQuotaReset)

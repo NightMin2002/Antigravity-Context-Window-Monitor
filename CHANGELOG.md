@@ -1,6 +1,6 @@
 # 变更日志 / Changelog
 
-## [1.13.0] - 2026-03-22
+## [1.12.3] - 2026-03-22
 
 ### Added / 新增
 
@@ -95,7 +95,7 @@
 - **`webview-script.ts`**: Replaced per-element click handlers with event delegation on `document.body` using `target.closest()` for robust child-element detection. Added `calendarSelectedDate` to `vscode.setState()` persistence — expanded panel and cell highlight now survive auto-refresh. Restored panels skip `calFadeIn` animation to prevent visual flicker.
   使用 `document.body` 事件委托替代逐元素绑定，`closest()` 精确匹配。展开日期存入 `vscode.setState()` — 面板自动刷新不再丢失展开状态。恢复时跳过淡入动画避免闪烁。
 
-## [1.12.4] - 2026-03-22
+
 
 ### Added / 新增
 
@@ -119,7 +119,7 @@
 - **Removed built-in pricing reference section**: Deleted `buildBuiltInReference()` collapsible table from `pricing-panel.ts`. Default prices now shown inline in the editable table with "Built-in" source indicator.
   删除内置价格参考折叠区块。默认价格现在在可编辑表格中内联显示，标注「内置」来源。
 
-## [1.12.3] - 2026-03-22
+
 
 ### Added / 新增
 
