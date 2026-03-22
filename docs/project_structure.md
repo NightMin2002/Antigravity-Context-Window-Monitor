@@ -37,8 +37,6 @@ antigravity-context-monitor/
 │   ├── i18n.ts                   # 国际化系统（中 / 英 / 双语）
 │   ├── quota-tracker.ts          # 模型额度消费时间线追踪（批量回调 + 按模型组归档）
 │   ├── activity-tracker.ts       # 模型活动追踪（推理、工具、Token、防抖归档）
-│   ├── diag-verify.ts            # LS 数据静态诊断脚本
-│   ├── diag-monitor.ts           # LS 数据实时监视脚本
 │   ├── discovery.test.ts         # discovery 单元测试
 │   ├── statusbar.test.ts         # statusbar 单元测试
 │   ├── tracker.test.ts           # tracker 单元测试

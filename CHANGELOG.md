@@ -69,8 +69,6 @@
 - **Timeline GM Tags Reasoning-Only / 时间线 GM 标签仅 reasoning 显示**: GM precision tags (IN/OUT/TTFT/cache) now only display on 🧠 reasoning steps. Tool steps sharing the same LLM call no longer show duplicate GM data, reducing visual noise.
   GM 精确数据标签（IN/OUT/TTFT/cache）现在仅在 🧠 reasoning 步骤显示。共享同一 LLM 调用的工具步骤不再重复显示。
 
-- **`activity-gm.test.ts` — GM Injection Unit Tests / GM 注入单元测试**: New test file with 12 tests covering: null/empty safety, stepIndex annotation matching, virtual event generation (window-outside/partial/all-inside), executionId dedup, sort order, step span labels, duration calculation, and 34+10 stress test.
-  新增 12 个测试覆盖：安全边界、stepIndex 注入匹配、虚拟事件生成（窗口外/部分/全内）、去重/排序/span/duration、压力测试。
 
 ### Changed / 变更
 
