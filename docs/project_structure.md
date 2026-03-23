@@ -45,7 +45,6 @@ antigravity-context-monitor/
 │   └── vscode.ts                 # VS Code API mock（Vitest 用）
 ├── docs/
 │   ├── technical_implementation.md   # 技术实现指南
-│   ├── ls-monitor-technical-notes.md # LS Monitor 技术笔记
 │   └── project_structure.md          # 本文件
 
 ├── out/                          # tsc 编译输出（JS）
