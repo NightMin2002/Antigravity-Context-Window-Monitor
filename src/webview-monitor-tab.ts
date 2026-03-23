@@ -32,7 +32,21 @@ interface GMSessionStats {
     hasData: boolean;
 }
 
-function aggregateGMForSession(gmSummary: GMSummary | null, cascadeId: string): GMSessionStats {
+function getConversationData(
+    gmSummary: GMSummary | null,
+    gmConversations: Record<string, GMConversationData> | undefined,
+    cascadeId: string,
+): GMConversationData | null {
+    return gmSummary?.conversations.find(c => c.cascadeId === cascadeId)
+        || gmConversations?.[cascadeId]
+        || null;
+}
+
+function aggregateGMForSession(
+    gmSummary: GMSummary | null,
+    gmConversations: Record<string, GMConversationData> | undefined,
+    cascadeId: string,
+): GMSessionStats {
     const empty: GMSessionStats = {
         calls: 0, totalInput: 0, totalOutput: 0,
         thinkingTokens: 0, responseTokens: 0,
@@ -41,8 +55,7 @@ function aggregateGMForSession(gmSummary: GMSummary | null, cascadeId: string): 
         avgTTFT: 0, avgStreaming: 0, cacheHitRate: 0,
         stopReasons: {}, hasData: false,
     };
-    if (!gmSummary) { return empty; }
-    const conv = gmSummary.conversations.find(c => c.cascadeId === cascadeId);
+    const conv = getConversationData(gmSummary, gmConversations, cascadeId);
     if (!conv || conv.calls.length === 0) { return empty; }
 
     let totalInput = 0, totalOutput = 0, thinking = 0, response = 0;
@@ -104,12 +117,13 @@ export function buildMonitorSections(
     configs: ModelConfig[],
     userInfo: UserStatusInfo | null,
     gmSummary?: GMSummary | null,
+    gmConversations?: Record<string, GMConversationData>,
 ): string {
     const sections: string[] = [];
 
     buildMiniQuotaBar(sections, configs);
-    buildCurrentSessionSection(sections, usage, gmSummary ?? null);
-    buildOtherSessionsSection(sections, usage, allUsages, gmSummary ?? null);
+    buildCurrentSessionSection(sections, usage, gmSummary ?? null, gmConversations);
+    buildOtherSessionsSection(sections, usage, allUsages, gmSummary ?? null, gmConversations);
 
     if (sections.length === 0) {
         sections.push(`
@@ -149,7 +163,12 @@ function buildMiniQuotaBar(sections: string[], configs: ModelConfig[]): void {
         </section>`);
 }
 
-function buildCurrentSessionSection(sections: string[], usage: ContextUsage | null, gm: GMSummary | null): void {
+function buildCurrentSessionSection(
+    sections: string[],
+    usage: ContextUsage | null,
+    gm: GMSummary | null,
+    gmConversations?: Record<string, GMConversationData>,
+): void {
     if (!usage) {
         sections.push(`
             <section class="card empty">
@@ -181,7 +200,7 @@ function buildCurrentSessionSection(sections: string[], usage: ContextUsage | nu
     }
 
     // GM precision data
-    const gs = aggregateGMForSession(gm, usage.cascadeId);
+    const gs = aggregateGMForSession(gm, gmConversations, usage.cascadeId);
 
     // Output token split (GM precise or fallback)
     let outputSplitHtml = '';
@@ -287,19 +306,19 @@ function buildCurrentSessionSection(sections: string[], usage: ContextUsage | nu
     }
 
     // Token breakdown X-ray
-    const breakdownHtml = buildTokenBreakdownSection(gs, gm, usage.cascadeId);
+    const breakdownHtml = buildTokenBreakdownSection(gs, gm, gmConversations, usage.cascadeId);
 
     // CHECKPOINT growth curve
-    const growthHtml = buildGrowthCurveSection(gs, gm, usage.cascadeId);
+    const growthHtml = buildGrowthCurveSection(gs, gm, gmConversations, usage.cascadeId);
 
     // Model distribution
-    const modelDistHtml = buildModelDistSection(gs, gm, usage.cascadeId);
+    const modelDistHtml = buildModelDistSection(gs, gm, gmConversations, usage.cascadeId);
 
     // Compression history
-    const compressionHistoryHtml = buildCompressionHistorySection(gs, gm, usage.cascadeId);
+    const compressionHistoryHtml = buildCompressionHistorySection(gs, gm, gmConversations, usage.cascadeId);
 
     // Per-call details
-    const callDetailsHtml = buildCallDetailsSection(gs, gm, usage.cascadeId);
+    const callDetailsHtml = buildCallDetailsSection(gs, gm, gmConversations, usage.cascadeId);
 
     // Delta hint
     let deltaHtml = '';
@@ -384,7 +403,13 @@ function buildCurrentSessionSection(sections: string[], usage: ContextUsage | nu
             </section>`);
 }
 
-function buildOtherSessionsSection(sections: string[], currentUsage: ContextUsage | null, allUsages: ContextUsage[], gm: GMSummary | null): void {
+function buildOtherSessionsSection(
+    sections: string[],
+    currentUsage: ContextUsage | null,
+    allUsages: ContextUsage[],
+    gm: GMSummary | null,
+    gmConversations?: Record<string, GMConversationData>,
+): void {
     const others = allUsages.filter(u => u.cascadeId !== currentUsage?.cascadeId);
     if (others.length === 0) { return; }
 
@@ -399,7 +424,7 @@ function buildOtherSessionsSection(sections: string[], currentUsage: ContextUsag
             : `<span class="badge ok-badge">${tBi('✓', '精')}</span>`;
 
         // GM mini stats for this session
-        const gs = aggregateGMForSession(gm, u.cascadeId);
+        const gs = aggregateGMForSession(gm, gmConversations, u.cascadeId);
         let gmMiniHtml = '';
         if (gs.hasData) {
             const parts: string[] = [];
@@ -492,9 +517,14 @@ function buildOtherSessionsSection(sections: string[], currentUsage: ContextUsag
 
 // ─── Builder: Token Breakdown X-ray ──────────────────────────────────────────
 
-function buildTokenBreakdownSection(gs: GMSessionStats, gm: GMSummary | null, cascadeId: string): string {
-    if (!gm || !gs.hasData) { return ''; }
-    const conv = gm.conversations.find(c => c.cascadeId === cascadeId);
+function buildTokenBreakdownSection(
+    gs: GMSessionStats,
+    gm: GMSummary | null,
+    gmConversations: Record<string, GMConversationData> | undefined,
+    cascadeId: string,
+): string {
+    if (!gs.hasData) { return ''; }
+    const conv = getConversationData(gm, gmConversations, cascadeId);
     if (!conv) { return ''; }
 
     // Get the latest call's tokenBreakdown (most recent context composition)
@@ -539,9 +569,14 @@ function buildTokenBreakdownSection(gs: GMSessionStats, gm: GMSummary | null, ca
 
 // ─── Builder: Growth Curve ───────────────────────────────────────────────────
 
-function buildGrowthCurveSection(gs: GMSessionStats, gm: GMSummary | null, cascadeId: string): string {
-    if (!gm || !gs.hasData) { return ''; }
-    const conv = gm.conversations.find(c => c.cascadeId === cascadeId);
+function buildGrowthCurveSection(
+    gs: GMSessionStats,
+    gm: GMSummary | null,
+    gmConversations: Record<string, GMConversationData> | undefined,
+    cascadeId: string,
+): string {
+    if (!gs.hasData) { return ''; }
+    const conv = getConversationData(gm, gmConversations, cascadeId);
     if (!conv || conv.calls.length < 2) { return ''; }
 
     // Build growth data from per-call contextTokensUsed
@@ -576,9 +611,14 @@ function buildGrowthCurveSection(gs: GMSessionStats, gm: GMSummary | null, casca
 
 // ─── Builder: Model Distribution ─────────────────────────────────────────────
 
-function buildModelDistSection(gs: GMSessionStats, gm: GMSummary | null, cascadeId: string): string {
-    if (!gm || !gs.hasData) { return ''; }
-    const conv = gm.conversations.find(c => c.cascadeId === cascadeId);
+function buildModelDistSection(
+    gs: GMSessionStats,
+    gm: GMSummary | null,
+    gmConversations: Record<string, GMConversationData> | undefined,
+    cascadeId: string,
+): string {
+    if (!gs.hasData) { return ''; }
+    const conv = getConversationData(gm, gmConversations, cascadeId);
     if (!conv || conv.calls.length === 0) { return ''; }
 
     // Aggregate by model within this session
@@ -621,9 +661,14 @@ function buildModelDistSection(gs: GMSessionStats, gm: GMSummary | null, cascade
 
 // ─── Builder: Compression History ────────────────────────────────────────────
 
-function buildCompressionHistorySection(gs: GMSessionStats, gm: GMSummary | null, cascadeId: string): string {
-    if (!gm || !gs.hasData) { return ''; }
-    const conv = gm.conversations.find(c => c.cascadeId === cascadeId);
+function buildCompressionHistorySection(
+    gs: GMSessionStats,
+    gm: GMSummary | null,
+    gmConversations: Record<string, GMConversationData> | undefined,
+    cascadeId: string,
+): string {
+    if (!gs.hasData) { return ''; }
+    const conv = getConversationData(gm, gmConversations, cascadeId);
     if (!conv || conv.calls.length < 2) { return ''; }
 
     // Detect compression events: contextTokensUsed drops by > 10% between consecutive calls
@@ -661,9 +706,14 @@ function buildCompressionHistorySection(gs: GMSessionStats, gm: GMSummary | null
 
 // ─── Builder: Per-Call Details ────────────────────────────────────────────────
 
-function buildCallDetailsSection(gs: GMSessionStats, gm: GMSummary | null, cascadeId: string): string {
-    if (!gm || !gs.hasData) { return ''; }
-    const conv = gm.conversations.find(c => c.cascadeId === cascadeId);
+function buildCallDetailsSection(
+    gs: GMSessionStats,
+    gm: GMSummary | null,
+    gmConversations: Record<string, GMConversationData> | undefined,
+    cascadeId: string,
+): string {
+    if (!gs.hasData) { return ''; }
+    const conv = getConversationData(gm, gmConversations, cascadeId);
     if (!conv || conv.calls.length === 0) { return ''; }
 
     const NORMAL_STOPS = new Set(['STOP_PATTERN', 'END_TURN', 'MAX_TOKENS', '']);

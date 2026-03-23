@@ -155,6 +155,11 @@ export function getScript(): string {
                     var feedbackMap = {
                         'pollingInterval': 'pollingFeedback',
                         'contextLimits': 'modelLimitsFeedback',
+                        'quotaNotificationThreshold': 'quotaNotifyFeedback',
+                        'activity.maxRecentSteps': 'maxRecentStepsFeedback',
+                        'activity.maxArchives': 'maxArchivesFeedback',
+                        'quotaMaxHistory': 'maxHistoryFeedback',
+                        'statePath': 'statePathFeedback'
                     };
                     var fbId = feedbackMap[msg.key];
                     if (fbId) {
@@ -334,6 +339,26 @@ export function getScript(): string {
             if (devClearGMBtn) {
                 devClearGMBtn.addEventListener('click', function() {
                     vscode.postMessage({ command: 'devClearGM' });
+                });
+            }
+
+            // ─── Persistent State File Helpers ───
+            var copyStatePathBtn = document.getElementById('copyStatePath');
+            if (copyStatePathBtn) {
+                copyStatePathBtn.addEventListener('click', function() {
+                    vscode.postMessage({ command: 'copyStatePath' });
+                });
+            }
+            var openStateFileBtn = document.getElementById('openStateFile');
+            if (openStateFileBtn) {
+                openStateFileBtn.addEventListener('click', function() {
+                    vscode.postMessage({ command: 'openStateFile' });
+                });
+            }
+            var revealStateFileBtn = document.getElementById('revealStateFile');
+            if (revealStateFileBtn) {
+                revealStateFileBtn.addEventListener('click', function() {
+                    vscode.postMessage({ command: 'revealStateFile' });
                 });
             }
 

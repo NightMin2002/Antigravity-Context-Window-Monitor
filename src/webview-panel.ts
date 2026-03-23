@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 import { tBi, getLanguage, setLanguage, Language } from './i18n';
 import { ContextUsage } from './tracker';
 import { ModelConfig, UserStatusInfo } from './models';
@@ -7,11 +8,11 @@ import { ActivityTracker, ActivitySummary, ActivityArchive } from './activity-tr
 import { buildGMDataTabContent, getGMDataTabStyles } from './activity-panel';
 import { buildPricingTabContent, getPricingTabStyles } from './pricing-panel';
 import { PricingStore, ModelPricing } from './pricing-store';
-import { GMSummary } from './gm-tracker';
+import { GMSummary, GMConversationData } from './gm-tracker';
 import { ICON } from './webview-icons';
 import { buildMonitorSections } from './webview-monitor-tab';
 import { buildProfileContent } from './webview-profile-tab';
-import { buildSettingsContent } from './webview-settings-tab';
+import { buildSettingsContent, StorageDiagnostics } from './webview-settings-tab';
 import { buildHistoryHtml } from './webview-history-tab';
 import { buildCalendarTabContent, getCalendarTabStyles } from './webview-calendar-tab';
 import { DailyStore } from './daily-store';
@@ -33,8 +34,65 @@ let lastActivitySummary: ActivitySummary | null = null;
 let lastActivityTracker: ActivityTracker | undefined;
 let lastArchives: ActivityArchive[] = [];
 let lastGMSummary: GMSummary | null = null;
+let lastGMConversations: Record<string, GMConversationData> = {};
 let lastPricingStore: PricingStore | undefined;
 let lastDailyStore: DailyStore | undefined;
+let lastStorageDiagnostics: StorageDiagnostics | undefined;
+
+function clamp(value: number, min: number, max: number): number {
+    return Math.min(Math.max(value, min), max);
+}
+
+function sanitizeConfigValue(key: string, value: unknown): unknown {
+    switch (key) {
+        case 'statusBar.showContext':
+        case 'statusBar.showQuota':
+        case 'statusBar.showResetCountdown':
+        case 'privacy.defaultMask':
+            return !!value;
+        case 'quotaNotificationThreshold':
+            return clamp(Number(value) || 0, 0, 99);
+        case 'activity.maxRecentSteps':
+            return clamp(Number(value) || 100, 10, 500);
+        case 'activity.maxArchives':
+            return clamp(Number(value) || 20, 1, 100);
+        case 'contextLimits': {
+            const raw = (value && typeof value === 'object') ? value as Record<string, unknown> : {};
+            const normalized: Record<string, number> = {};
+            for (const [model, limit] of Object.entries(raw)) {
+                normalized[model] = Math.max(1000, Math.round(Number(limit) || 1000));
+            }
+            return normalized;
+        }
+        default:
+            return value;
+    }
+}
+
+function refreshLocalStorageDiagnostics(): void {
+    if (!lastStorageDiagnostics) { return; }
+    let calendarCycleCount = 0;
+    if (lastDailyStore) {
+        for (const date of lastDailyStore.getDatesWithData()) {
+            const record = lastDailyStore.getRecord(date);
+            if (record) {
+                calendarCycleCount += record.cycles.length;
+            }
+        }
+    }
+    lastStorageDiagnostics = {
+        ...lastStorageDiagnostics,
+        monitorSnapshotCount: lastAllUsages.length,
+        monitorGMConversationCount: Object.keys(lastGMConversations).length,
+        gmConversationCount: lastGMSummary?.conversations.length || 0,
+        gmCallCount: lastGMSummary?.totalCalls || 0,
+        quotaHistoryCount: lastQuotaTracker?.getHistory().length || 0,
+        activityArchiveCount: lastArchives.length,
+        calendarDayCount: lastDailyStore?.totalDays || 0,
+        calendarCycleCount,
+        pricingOverrideCount: Object.keys(lastPricingStore?.getCustom() || {}).length,
+    };
+}
 
 /** When true, auto-refresh updates are buffered but not rendered. */
 let isPaused = false;
@@ -61,8 +119,10 @@ export function showMonitorPanel(
     archives?: ActivityArchive[],
     activityTracker?: ActivityTracker,
     gmSummary?: GMSummary | null,
+    gmConversations?: Record<string, GMConversationData>,
     pricingStore?: PricingStore,
     dailyStore?: DailyStore,
+    storageDiagnostics?: StorageDiagnostics,
 ): void {
     lastUsage = currentUsage;
     lastAllUsages = allTrajectoryUsages;
@@ -74,8 +134,10 @@ export function showMonitorPanel(
     if (archives) { lastArchives = archives; }
     if (activityTracker) { lastActivityTracker = activityTracker; }
     if (gmSummary !== undefined) { lastGMSummary = gmSummary; }
+    if (gmConversations) { lastGMConversations = gmConversations; }
     if (pricingStore) { lastPricingStore = pricingStore; }
     if (dailyStore) { lastDailyStore = dailyStore; }
+    if (storageDiagnostics) { lastStorageDiagnostics = storageDiagnostics; }
 
     if (panel) {
         panel.webview.html = buildHtml(currentUsage, allTrajectoryUsages, modelConfigs, userInfo, isPaused, lastQuotaTracker);
@@ -136,23 +198,42 @@ export function showMonitorPanel(
                 'privacy.defaultMask',
             ];
             if (allowedKeys.includes(msg.key)) {
+                const normalizedValue = sanitizeConfigValue(msg.key, msg.value);
                 await vscode.workspace.getConfiguration('antigravityContextMonitor')
-                    .update(msg.key, msg.value, vscode.ConfigurationTarget.Global);
+                    .update(msg.key, normalizedValue, vscode.ConfigurationTarget.Global);
                 if (panel) {
                     panel.webview.postMessage({ command: 'configSaved', key: msg.key });
                 }
             }
+        } else if (msg.command === 'copyStatePath' && lastStorageDiagnostics?.stateFilePath) {
+            await vscode.env.clipboard.writeText(lastStorageDiagnostics.stateFilePath);
+            panel?.webview.postMessage({ command: 'configSaved', key: 'statePath' });
+        } else if (msg.command === 'openStateFile' && lastStorageDiagnostics?.stateFilePath) {
+            const uri = vscode.Uri.file(lastStorageDiagnostics.stateFilePath);
+            const exists = await vscode.workspace.fs.stat(uri).then(() => true, () => false);
+            if (!exists) {
+                void vscode.window.showWarningMessage(tBi('State file has not been created yet.', '状态文件尚未生成。'));
+                return;
+            }
+            const doc = await vscode.workspace.openTextDocument(uri);
+            await vscode.window.showTextDocument(doc, { preview: false, preserveFocus: true });
+        } else if (msg.command === 'revealStateFile' && lastStorageDiagnostics?.stateFilePath) {
+            const uri = vscode.Uri.file(lastStorageDiagnostics.stateFilePath);
+            const exists = await vscode.workspace.fs.stat(uri).then(() => true, () => false);
+            const target = exists ? uri : vscode.Uri.file(path.dirname(lastStorageDiagnostics.stateFilePath));
+            await vscode.commands.executeCommand('revealFileInOS', target);
         } else if (msg.command === 'clearQuotaHistory') {
             if (lastQuotaTracker) {
                 lastQuotaTracker.resetTrackingStates();
                 lastQuotaTracker.clearHistory();
+                refreshLocalStorageDiagnostics();
                 if (panel) {
                     panel.webview.html = buildHtml(lastUsage, lastAllUsages, lastConfigs, lastUserInfo, isPaused, lastQuotaTracker);
                 }
             }
         } else if (msg.command === 'setQuotaMaxHistory' && typeof msg.value === 'number') {
             if (lastQuotaTracker) {
-                lastQuotaTracker.setMaxHistory(Math.max(1, msg.value));
+                lastQuotaTracker.setMaxHistory(clamp(msg.value, 1, 100));
                 if (panel) {
                     panel.webview.postMessage({ command: 'configSaved', key: 'quotaMaxHistory' });
                 }
@@ -181,6 +262,8 @@ export function showMonitorPanel(
             }
             // Clear GM cached data so it matches the reset activity state
             lastGMSummary = null;
+            lastGMConversations = {};
+            refreshLocalStorageDiagnostics();
             await vscode.commands.executeCommand('antigravity-context-monitor.devClearGM');
             // Persist cleared activity state to globalState — prevents restore from
             // resurrecting old archives after reinstall → importArchives re-populating calendar
@@ -192,6 +275,7 @@ export function showMonitorPanel(
             const data = msg.value as Record<string, ModelPricing>;
             if (data && typeof data === 'object') {
                 lastPricingStore.setAll(data).then(() => {
+                    refreshLocalStorageDiagnostics();
                     if (panel) {
                         panel.webview.html = buildHtml(lastUsage, lastAllUsages, lastConfigs, lastUserInfo, isPaused, lastQuotaTracker);
                         panel.webview.postMessage({ command: 'pricingSaved' });
@@ -200,6 +284,7 @@ export function showMonitorPanel(
             }
         } else if (msg.command === 'resetPricing' && lastPricingStore) {
             lastPricingStore.reset().then(() => {
+                refreshLocalStorageDiagnostics();
                 if (panel) {
                     panel.webview.html = buildHtml(lastUsage, lastAllUsages, lastConfigs, lastUserInfo, isPaused, lastQuotaTracker);
                     panel.webview.postMessage({ command: 'pricingReset' });
@@ -207,6 +292,7 @@ export function showMonitorPanel(
             });
         } else if (msg.command === 'clearCalendarHistory' && lastDailyStore) {
             lastDailyStore.clear();
+            refreshLocalStorageDiagnostics();
             if (panel) {
                 panel.webview.html = buildHtml(lastUsage, lastAllUsages, lastConfigs, lastUserInfo, isPaused, lastQuotaTracker);
             }
@@ -219,12 +305,15 @@ export function showMonitorPanel(
         } else if (msg.command === 'devSimulateReset') {
             await vscode.commands.executeCommand('antigravity-context-monitor.devSimulateReset');
             lastGMSummary = null;
+            refreshLocalStorageDiagnostics();
             if (panel) {
                 panel.webview.html = buildHtml(lastUsage, lastAllUsages, lastConfigs, lastUserInfo, isPaused, lastQuotaTracker);
             }
         } else if (msg.command === 'devClearGM') {
             await vscode.commands.executeCommand('antigravity-context-monitor.devClearGM');
             lastGMSummary = null;
+            lastGMConversations = {};
+            refreshLocalStorageDiagnostics();
             if (panel) {
                 panel.webview.html = buildHtml(lastUsage, lastAllUsages, lastConfigs, lastUserInfo, isPaused, lastQuotaTracker);
             }
@@ -251,6 +340,8 @@ export function updateMonitorPanel(
     activitySummary?: ActivitySummary | null,
     archives?: ActivityArchive[],
     gmSummary?: GMSummary | null,
+    gmConversations?: Record<string, GMConversationData>,
+    storageDiagnostics?: StorageDiagnostics,
 ): void {
     lastUsage = currentUsage;
     lastAllUsages = allTrajectoryUsages;
@@ -260,6 +351,8 @@ export function updateMonitorPanel(
     if (activitySummary !== undefined) { lastActivitySummary = activitySummary; }
     if (archives) { lastArchives = archives; }
     if (gmSummary !== undefined) { lastGMSummary = gmSummary; }
+    if (gmConversations) { lastGMConversations = gmConversations; }
+    if (storageDiagnostics) { lastStorageDiagnostics = storageDiagnostics; }
     if (panel && !isPaused) {
         // Incremental update: send tab contents via postMessage — no DOM teardown
         panel.webview.postMessage({
@@ -279,7 +372,7 @@ function buildTabContents(
     tracker?: QuotaTracker,
 ): Record<string, string> {
     return {
-        monitor: buildMonitorSections(usage, allUsages, configs, userInfo, lastGMSummary),
+        monitor: buildMonitorSections(usage, allUsages, configs, userInfo, lastGMSummary, lastGMConversations),
         profile: buildProfileContent(userInfo, configs),
         gmdata: buildGMDataTabContent(lastActivitySummary, lastGMSummary),
         pricing: lastPricingStore
@@ -308,9 +401,9 @@ function buildHtml(
     paused = false,
     tracker?: QuotaTracker,
 ): string {
-    const monitorHtml = buildMonitorSections(usage, allUsages, configs, userInfo, lastGMSummary);
+    const monitorHtml = buildMonitorSections(usage, allUsages, configs, userInfo, lastGMSummary, lastGMConversations);
     const profileHtml = buildProfileContent(userInfo, configs);
-    const settingsHtml = buildSettingsContent(configs, tracker);
+    const settingsHtml = buildSettingsContent(configs, tracker, lastStorageDiagnostics);
     const historyHtml = buildHistoryHtml(tracker);
     const gmDataHtml = buildGMDataTabContent(lastActivitySummary, lastGMSummary);
     const pricingHtml = lastPricingStore

@@ -160,6 +160,201 @@ export interface GMTrackerState {
     archivedCallIds?: string[];
 }
 
+export function filterGMSummaryByModels(
+    summary: GMSummary | null | undefined,
+    modelIds: string[],
+): GMSummary | null {
+    if (!summary || modelIds.length === 0) {
+        return null;
+    }
+
+    const modelSet = new Set(modelIds);
+    const conversations: GMConversationData[] = [];
+    const modelBreakdown: Record<string, GMModelStats> = {};
+    const stopReasonCounts: Record<string, number> = {};
+    const contextGrowth: { step: number; tokens: number; model: string }[] = [];
+
+    let totalCalls = 0;
+    let totalStepsCovered = 0;
+    let totalCredits = 0;
+    let totalInputTokens = 0;
+    let totalOutputTokens = 0;
+    let totalCacheRead = 0;
+    let totalCacheCreation = 0;
+    let totalThinkingTokens = 0;
+    let totalRetryTokens = 0;
+    let totalRetryCredits = 0;
+    let totalRetryCount = 0;
+    let latestTokenBreakdown: TokenBreakdownGroup[] = [];
+
+    for (const conversation of summary.conversations) {
+        const calls = conversation.calls.filter(call => modelSet.has(call.model));
+        if (calls.length === 0) {
+            continue;
+        }
+
+        const coveredSteps = calls.reduce((sum, call) => sum + call.stepIndices.length, 0);
+        conversations.push({
+            ...conversation,
+            calls,
+            coveredSteps,
+            coverageRate: conversation.totalSteps > 0 ? coveredSteps / conversation.totalSteps : 0,
+        });
+
+        for (const call of calls) {
+            totalCalls++;
+            totalStepsCovered += call.stepIndices.length;
+            totalCredits += call.credits;
+            totalInputTokens += call.inputTokens;
+            totalOutputTokens += call.outputTokens;
+            totalCacheRead += call.cacheReadTokens;
+            totalCacheCreation += call.cacheCreationTokens;
+            totalThinkingTokens += call.thinkingTokens;
+            totalRetryTokens += call.retryTokensIn + call.retryTokensOut;
+            totalRetryCredits += call.retryCredits;
+            if (call.retries > 0) {
+                totalRetryCount++;
+            }
+            if (call.contextTokensUsed > 0 && call.stepIndices.length > 0) {
+                contextGrowth.push({
+                    step: call.stepIndices[0],
+                    tokens: call.contextTokensUsed,
+                    model: call.modelDisplay,
+                });
+            }
+            if (call.stopReason) {
+                const stopReason = call.stopReason.replace('STOP_REASON_', '');
+                stopReasonCounts[stopReason] = (stopReasonCounts[stopReason] || 0) + 1;
+            }
+            if (call.tokenBreakdownGroups.length > 0) {
+                latestTokenBreakdown = call.tokenBreakdownGroups;
+            }
+
+            const key = call.modelDisplay || call.model;
+            const existing = modelBreakdown[key];
+            if (existing) {
+                const ttftSamples = existing.callCount;
+                existing.callCount += 1;
+                existing.stepsCovered += call.stepIndices.length;
+                existing.totalInputTokens += call.inputTokens;
+                existing.totalOutputTokens += call.outputTokens;
+                existing.totalThinkingTokens += call.thinkingTokens;
+                existing.totalCacheRead += call.cacheReadTokens;
+                existing.totalCacheCreation += call.cacheCreationTokens;
+                existing.totalCredits += call.credits;
+                existing.avgTTFT = call.ttftSeconds > 0
+                    ? ((existing.avgTTFT * ttftSamples) + call.ttftSeconds) / (ttftSamples + 1)
+                    : existing.avgTTFT;
+                existing.minTTFT = existing.minTTFT > 0
+                    ? Math.min(existing.minTTFT, call.ttftSeconds || existing.minTTFT)
+                    : call.ttftSeconds;
+                existing.maxTTFT = Math.max(existing.maxTTFT, call.ttftSeconds);
+                existing.avgStreaming = call.streamingSeconds > 0
+                    ? ((existing.avgStreaming * ttftSamples) + call.streamingSeconds) / (ttftSamples + 1)
+                    : existing.avgStreaming;
+                const cacheHitCalls = Math.round(existing.cacheHitRate * ttftSamples) + (call.cacheReadTokens > 0 ? 1 : 0);
+                existing.cacheHitRate = existing.callCount > 0 ? cacheHitCalls / existing.callCount : 0;
+                if (call.responseModel) {
+                    existing.responseModel = call.responseModel;
+                }
+                if (call.apiProvider) {
+                    existing.apiProvider = call.apiProvider;
+                }
+                if (call.completionConfig) {
+                    existing.completionConfig = call.completionConfig;
+                }
+                existing.hasSystemPrompt = existing.hasSystemPrompt || !!call.systemPromptSnippet;
+                existing.toolCount = Math.max(existing.toolCount, call.toolCount);
+                if (call.promptSectionTitles.length > existing.promptSectionTitles.length) {
+                    existing.promptSectionTitles = call.promptSectionTitles;
+                }
+                existing.totalRetries += call.retries;
+                if (call.hasError) {
+                    existing.errorCount += 1;
+                }
+                continue;
+            }
+
+            modelBreakdown[key] = {
+                callCount: 1,
+                stepsCovered: call.stepIndices.length,
+                totalInputTokens: call.inputTokens,
+                totalOutputTokens: call.outputTokens,
+                totalThinkingTokens: call.thinkingTokens,
+                totalCacheRead: call.cacheReadTokens,
+                totalCacheCreation: call.cacheCreationTokens,
+                totalCredits: call.credits,
+                avgTTFT: call.ttftSeconds,
+                minTTFT: call.ttftSeconds,
+                maxTTFT: call.ttftSeconds,
+                avgStreaming: call.streamingSeconds,
+                cacheHitRate: call.cacheReadTokens > 0 ? 1 : 0,
+                responseModel: call.responseModel,
+                apiProvider: call.apiProvider,
+                completionConfig: call.completionConfig,
+                hasSystemPrompt: !!call.systemPromptSnippet,
+                toolCount: call.toolCount,
+                promptSectionTitles: call.promptSectionTitles,
+                totalRetries: call.retries,
+                errorCount: call.hasError ? 1 : 0,
+            };
+        }
+    }
+
+    if (totalCalls === 0) {
+        return null;
+    }
+
+    conversations.sort((a, b) => b.totalSteps - a.totalSteps);
+    contextGrowth.sort((a, b) => a.step - b.step);
+
+    return {
+        conversations,
+        modelBreakdown,
+        totalCalls,
+        totalStepsCovered,
+        totalCredits,
+        totalInputTokens,
+        totalOutputTokens,
+        totalCacheRead,
+        totalCacheCreation,
+        totalThinkingTokens,
+        contextGrowth,
+        fetchedAt: summary.fetchedAt,
+        totalRetryTokens,
+        totalRetryCredits,
+        totalRetryCount,
+        latestTokenBreakdown,
+        stopReasonCounts,
+    };
+}
+
+function cloneTokenBreakdownGroups(groups: TokenBreakdownGroup[]): TokenBreakdownGroup[] {
+    return groups.map(group => ({
+        ...group,
+        children: group.children.map(child => ({ ...child })),
+    }));
+}
+
+function cloneGMCallEntry(call: GMCallEntry): GMCallEntry {
+    return {
+        ...call,
+        stepIndices: [...call.stepIndices],
+        toolNames: [...call.toolNames],
+        promptSectionTitles: [...call.promptSectionTitles],
+        retryErrors: [...call.retryErrors],
+        tokenBreakdownGroups: cloneTokenBreakdownGroups(call.tokenBreakdownGroups),
+        completionConfig: call.completionConfig ? { ...call.completionConfig } : null,
+    };
+}
+
+function cloneConversationData(conversation: GMConversationData): GMConversationData {
+    return {
+        ...conversation,
+        calls: conversation.calls.map(cloneGMCallEntry),
+    };
+}
+
 // ─── Parser Helpers ──────────────────────────────────────────────────────────
 
 function parseDuration(s: string | undefined): number {
@@ -593,8 +788,7 @@ export class GMTracker {
                     }
                 }
             }
-            this._lastSummary = null;
-            this._lastFetchedAt = '';
+            this._lastSummary = this._buildSummary();
             return;
         }
         // ── Global reset (fallback) ──
@@ -643,6 +837,29 @@ export class GMTracker {
      */
     getCachedSummary(): GMSummary | null {
         return this._lastSummary;
+    }
+
+    /** Full current-cycle summary for UI persistence (retains per-call data). */
+    getDetailedSummary(): GMSummary | null {
+        const summary = this._lastSummary || this._buildSummary();
+        if (!summary) { return null; }
+        return {
+            ...summary,
+            conversations: summary.conversations.map(cloneConversationData),
+            contextGrowth: summary.contextGrowth.map(point => ({ ...point })),
+            latestTokenBreakdown: cloneTokenBreakdownGroups(summary.latestTokenBreakdown),
+            modelBreakdown: Object.fromEntries(
+                Object.entries(summary.modelBreakdown).map(([name, stats]) => [name, { ...stats }]),
+            ),
+            stopReasonCounts: { ...summary.stopReasonCounts },
+        };
+    }
+
+    /** Raw conversation cache for monitor persistence (ignores quota-cycle filtering). */
+    getAllConversationData(): GMConversationData[] {
+        return [...this._cache.values()]
+            .map(cloneConversationData)
+            .sort((a, b) => b.totalSteps - a.totalSteps);
     }
 
     /** Export state for globalState persistence */

@@ -1678,6 +1678,85 @@ export function getStyles(): string {
             width: 120px;
         }
 
+        .storage-path-box {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            padding: var(--space-2) var(--space-3);
+            margin-bottom: var(--space-2);
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+        }
+
+        .storage-path-text {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-family: var(--vscode-editor-font-family, monospace);
+            font-size: 0.8em;
+            color: var(--color-text);
+        }
+
+        .storage-path-state {
+            flex-shrink: 0;
+            padding: 2px var(--space-2);
+            border-radius: var(--radius-full);
+            font-size: 0.72em;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            text-transform: uppercase;
+        }
+
+        .storage-path-state.is-ready {
+            background: rgba(74,222,128,0.12);
+            color: var(--color-ok);
+        }
+
+        .storage-path-state.is-missing {
+            background: rgba(248,113,113,0.12);
+            color: var(--color-danger);
+        }
+
+        .storage-actions {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: var(--space-2);
+            margin-bottom: var(--space-3);
+        }
+
+        .storage-stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: var(--space-2);
+        }
+
+        .storage-stat {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            padding: var(--space-2);
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+        }
+
+        .storage-stat-val {
+            font-size: 1.05em;
+            font-weight: 700;
+            color: var(--color-text);
+        }
+
+        .storage-stat-label {
+            font-size: 0.72em;
+            color: var(--color-text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
         /* ─── Pause Button ────────────── */
         .action-btn.paused {
             color: var(--color-ok);
