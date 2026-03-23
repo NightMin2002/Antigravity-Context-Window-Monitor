@@ -1,5 +1,36 @@
 # 变更日志 / Changelog
 
+## [1.13.3] - 2026-03-23
+
+### Fixed / 修复
+
+- **🔥 WebView Disposed → Status Bar IDLE Loop / WebView 关闭后状态栏陷入 IDLE 循环**: Fixed critical bug where closing the Monitor Panel caused `panel.webview.postMessage()` to throw `Error: Webview is disposed`, which propagated to the `pollContextUsage()` catch block and triggered `handleLsFailure()` — creating an infinite backoff loop showing "不可用" in the status bar. Fix: introduced `safePostMessage()` wrapper that catches disposed errors at the source and calls `clearDisposedPanel()` to clean up state. All 11 `postMessage` call sites replaced.
+  修复关键 Bug：关闭监控面板后 `panel.webview.postMessage()` 抛出 `Webview is disposed` 异常，异常冒泡到 `pollContextUsage()` 的 catch 块触发 `handleLsFailure()`，导致状态栏无限循环显示"不可用"。修复：引入 `safePostMessage()` 包装器在源头捕获 disposed 错误，并调用 `clearDisposedPanel()` 清理状态。全部 11 处 `postMessage` 调用已替换。
+
+- **🔥 Multi-Workspace LS Cross-Binding / 多工作区 LS 错误绑定**: Fixed critical bug where multiple VS Code windows with different workspaces could bind to the same Language Server process. Root cause: three discovery functions (WSL, Windows, macOS/Linux) silently fell back to `lines[0]` (the first discovered LS) when no exact `workspace_id` match was found. Fix: introduced `selectMatchingProcessLine()` with fail-closed behavior — when a `workspaceUri` is provided but no matching LS process exists, returns `null` instead of falling back. Three inline matching blocks replaced.
+  修复关键 Bug：多个 VS Code 窗口打开不同工作区时可能绑定到同一个语言服务器进程。根因：WSL、Windows、macOS/Linux 三个发现函数在找不到精确 `workspace_id` 匹配时静默回退到 `lines[0]`（第一个发现的 LS）。修复：引入 `selectMatchingProcessLine()`，失败关闭策略——提供了 `workspaceUri` 但无匹配 LS 时返回 `null`，不再回退。三处内联匹配替换。
+
+### Added / 新增
+
+- **`safePostMessage()` / 安全消息发送**: Sync try-catch wrapper for `panel.webview.postMessage()`. Catches disposed errors silently, re-throws non-disposed errors to preserve call stacks.
+  `panel.webview.postMessage()` 的同步 try-catch 包装器。静默处理 disposed 错误，非 disposed 错误保留原调用栈重新抛出。
+
+- **`selectMatchingProcessLine()` / 精确进程匹配**: New function for workspace-aware LS process selection. Without URI, falls back to first process (backward compat). With URI, performs exact `workspace_id` match and fails closed on mismatch.
+  新增工作区感知的 LS 进程选择函数。无 URI 时回退到第一个进程（向后兼容）。有 URI 时执行精确 `workspace_id` 匹配，不匹配时返回 null。
+
+- **`decodeURIComponent` defense in `buildExpectedWorkspaceId()` / 百分号解码防御**: Percent-encoded workspace URIs (e.g., `file:///c%3A/...`) are now decoded before workspace ID construction, preventing match failures when VS Code sends encoded paths.
+  百分号编码的工作区 URI（如 `file:///c%3A/...`）现在在构建工作区 ID 前解码，防止 VS Code 发送编码路径时匹配失败。
+
+### Tests / 测试
+
+- Added 7 new tests for `selectMatchingProcessLine()` (6 branch tests) and `buildExpectedWorkspaceId()` (percent-encoded path test) in `discovery.test.ts`.
+  在 `discovery.test.ts` 中新增 7 个测试：`selectMatchingProcessLine()` 6 个分支测试 + `buildExpectedWorkspaceId()` 百分号编码测试。
+
+### Contributors / 贡献者
+
+- Thanks to [@NightMin2002](https://github.com/NightMin2002) for identifying both bugs and proposing fixes ([PR #27](https://github.com/AGI-is-going-to-arrive/Antigravity-Context-Window-Monitor/pull/27)).
+  感谢 [@NightMin2002](https://github.com/NightMin2002) 发现两个 Bug 并提出修复方案（[PR #27](https://github.com/AGI-is-going-to-arrive/Antigravity-Context-Window-Monitor/pull/27)）。
+
 ## [1.13.2] - 2026-03-23
 
 ### Added / 新增
