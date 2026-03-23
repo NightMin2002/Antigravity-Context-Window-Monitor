@@ -606,14 +606,31 @@ export function getScript(): string {
                         });
                     }
 
-                    // Re-apply privacy mask if active
+                    // Re-apply privacy mask if active AND re-bind toggle button
                     var privState = vscode.getState() || {};
-                    if (privState.privacyMasked) {
+                    var isMasked = !!privState.privacyMasked;
+                    if (isMasked) {
                         var targets = document.querySelectorAll('[data-real][data-masked]');
                         for (var pj = 0; pj < targets.length; pj++) {
                             var el = targets[pj];
                             el.textContent = el.getAttribute('data-masked');
                         }
+                    }
+                    // Re-bind privacy toggle button (old button destroyed by innerHTML swap)
+                    var newPrivBtn = document.getElementById('privacyToggle');
+                    if (newPrivBtn) {
+                        if (isMasked) { newPrivBtn.classList.add('active'); }
+                        newPrivBtn.addEventListener('click', function() {
+                            var st = vscode.getState() || {};
+                            var m = !st.privacyMasked;
+                            st.privacyMasked = m;
+                            vscode.setState(st);
+                            var tgts = document.querySelectorAll('[data-real][data-masked]');
+                            for (var k = 0; k < tgts.length; k++) {
+                                tgts[k].textContent = m ? tgts[k].getAttribute('data-masked') : tgts[k].getAttribute('data-real');
+                            }
+                            newPrivBtn.classList.toggle('active', m);
+                        });
                     }
                 }
             });

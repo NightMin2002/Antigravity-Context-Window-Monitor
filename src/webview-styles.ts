@@ -831,6 +831,142 @@ export function getStyles(): string {
             font-size: 0.9em;
         }
 
+        /* ─── Profile: Subscription Hint ── */
+        .subscription-hint {
+            font-size: 0.78em;
+            color: var(--color-text-dim);
+            opacity: 0.7;
+            font-style: italic;
+            margin-bottom: var(--space-3);
+        }
+
+        /* ─── Profile: Google AI Credits ── */
+        .gai-credits {
+            display: flex;
+            gap: var(--space-3);
+            margin-top: var(--space-2);
+            padding: var(--space-2) var(--space-3);
+            background: rgba(192,132,252,0.06);
+            border: 1px solid rgba(192,132,252,0.12);
+            border-radius: var(--radius-md);
+        }
+
+        .gai-credit-item {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            font-size: 0.8em;
+        }
+
+        .gai-label {
+            color: var(--color-text-dim);
+        }
+
+        .gai-value {
+            font-weight: 600;
+            color: #c084fc;
+        }
+
+        /* ─── Profile: Model Grid ───────── */
+        .model-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--space-2);
+        }
+
+        @media (max-width: 480px) {
+            .model-grid { grid-template-columns: 1fr; }
+        }
+
+        .model-card {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            padding: var(--space-2) var(--space-3);
+            transition: border-color 0.2s cubic-bezier(.4,0,.2,1), background 0.2s cubic-bezier(.4,0,.2,1);
+        }
+
+        @media (hover: hover) {
+            .model-card:hover {
+                border-color: rgba(255,255,255,0.18);
+                background: rgba(255,255,255,0.04);
+            }
+        }
+
+        .model-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--space-1);
+        }
+
+        .model-card-name {
+            font-size: 0.82em;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: var(--space-1);
+        }
+
+        .model-card-pct {
+            font-size: 0.82em;
+            font-weight: 700;
+        }
+
+        .model-tag-badge {
+            font-size: 0.65em;
+            padding: 1px 5px;
+            border-radius: var(--radius-sm);
+            background: rgba(96, 165, 250, 0.15);
+            color: var(--color-info);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            margin-left: var(--space-1);
+        }
+
+        .model-card-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: var(--space-1);
+        }
+
+        .model-card-reset {
+            font-size: 0.7em;
+            color: var(--color-text-dim);
+            opacity: 0.7;
+        }
+
+        /* ─── Profile: MIME Chips ────────── */
+        .mime-chips {
+            display: flex;
+            gap: var(--space-1);
+            flex-wrap: wrap;
+        }
+
+        .mime-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            font-size: 0.65em;
+            padding: 1px 5px;
+            border-radius: var(--radius-sm);
+            background: rgba(255,255,255,0.05);
+            color: var(--color-text-dim);
+            border: 1px solid var(--color-border);
+        }
+
+        .mime-chip-none {
+            opacity: 0.4;
+            font-style: italic;
+        }
+
+        .mime-icon {
+            flex-shrink: 0;
+        }
+
+
         /* ─── Session Detail (overrides) ── */
         .session-detail:first-child {
             margin-top: 0;
