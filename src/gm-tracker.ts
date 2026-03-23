@@ -22,6 +22,14 @@ export interface GMCompletionConfig {
     stopPatternCount: number;
 }
 
+/** Token source breakdown group from chatStartMetadata.contextWindowMetadata.tokenBreakdown */
+export interface TokenBreakdownGroup {
+    name: string;     // e.g. "System Prompt", "Chat Messages"
+    type: string;     // e.g. TOKEN_TYPE_SYSTEM_PROMPT
+    tokens: number;
+    children: { name: string; tokens: number }[];
+}
+
 /** A single LLM invocation entry from generatorMetadata */
 export interface GMCallEntry {
     stepIndices: number[];
@@ -56,6 +64,20 @@ export interface GMCallEntry {
     promptSectionTitles: string[];
     /** Number of retries for this call */
     retries: number;
+    /** Stop reason from plannerResponse (e.g. STOP_REASON_STOP_PATTERN) */
+    stopReason: string;
+    /** Retry overhead: total input tokens wasted across all retries */
+    retryTokensIn: number;
+    /** Retry overhead: total output tokens wasted across all retries */
+    retryTokensOut: number;
+    /** Retry overhead: total credits consumed by retries */
+    retryCredits: number;
+    /** Retry error messages */
+    retryErrors: string[];
+    /** Seconds since last LLM invocation */
+    timeSinceLastInvocation: number;
+    /** Token breakdown groups: context composition at call time */
+    tokenBreakdownGroups: TokenBreakdownGroup[];
 }
 
 /** Aggregated per-model statistics */
@@ -114,6 +136,16 @@ export interface GMSummary {
     /** Context growth data points: step → tokens */
     contextGrowth: { step: number; tokens: number; model: string }[];
     fetchedAt: string;
+    /** Global retry overhead: total tokens wasted (input + output) */
+    totalRetryTokens: number;
+    /** Global retry overhead: credits consumed */
+    totalRetryCredits: number;
+    /** Global retry count */
+    totalRetryCount: number;
+    /** Latest token breakdown snapshot (from most recent GM entry) */
+    latestTokenBreakdown: TokenBreakdownGroup[];
+    /** Stop reason distribution: reason → count */
+    stopReasonCounts: Record<string, number>;
 }
 
 /** Serialized form for globalState persistence */
@@ -188,6 +220,47 @@ function parseGMEntry(gm: Record<string, unknown>): GMCallEntry {
     const retries = parseInt0(cm.retries as string);
     const errorMessage = (gm.error as string) || '';
 
+    // ── retryInfos aggregation ─────────────────────────────────────────────
+    let retryTokensIn = 0, retryTokensOut = 0, retryCredits = 0;
+    const retryErrors: string[] = [];
+    const retryInfos = cm.retryInfos as Record<string, unknown>[] | undefined;
+    if (Array.isArray(retryInfos)) {
+        for (const ri of retryInfos) {
+            const ru = (ri.usage || {}) as Record<string, unknown>;
+            retryTokensIn += parseInt0(ru.inputTokens as string);
+            retryTokensOut += parseInt0(ru.outputTokens as string);
+            const rCredits = ri.consumedCredits as Record<string, string>[] | undefined;
+            if (Array.isArray(rCredits)) {
+                for (const rc of rCredits) { retryCredits += parseInt0(rc.creditAmount); }
+            }
+            const errMsg = ri.error as string;
+            if (errMsg) { retryErrors.push(errMsg.substring(0, 120)); }
+        }
+    }
+
+    // ── stopReason ─────────────────────────────────────────────────────────
+    const stopReason = (cm.stopReason as string) || '';
+
+    // ── timeSinceLastInvocation ────────────────────────────────────────────
+    const timeSinceLastInvocation = parseDuration(csm.timeSinceLastInvocation as string);
+
+    // ── tokenBreakdown groups ─────────────────────────────────────────────
+    const tokenBreakdownGroups: TokenBreakdownGroup[] = [];
+    const tb = (cwm.tokenBreakdown || {}) as Record<string, unknown>;
+    const tbGroups = (tb.groups || []) as Record<string, unknown>[];
+    for (const g of tbGroups) {
+        const children = ((g.children || []) as Record<string, unknown>[]).map(c => ({
+            name: (c.name as string) || '',
+            tokens: typeof c.numTokens === 'number' ? c.numTokens : parseInt0(c.numTokens as string),
+        }));
+        tokenBreakdownGroups.push({
+            name: (g.name as string) || '',
+            type: (g.type as string) || '',
+            tokens: typeof g.numTokens === 'number' ? g.numTokens : parseInt0(g.numTokens as string),
+            children,
+        });
+    }
+
     return {
         stepIndices: (gm.stepIndices as number[]) || [],
         executionId: (gm.executionId as string) || '',
@@ -214,6 +287,13 @@ function parseGMEntry(gm: Record<string, unknown>): GMCallEntry {
         toolNames,
         promptSectionTitles,
         retries,
+        stopReason,
+        retryTokensIn,
+        retryTokensOut,
+        retryCredits,
+        retryErrors,
+        timeSinceLastInvocation,
+        tokenBreakdownGroups,
     };
 }
 
@@ -328,6 +408,11 @@ export class GMTracker {
         let totalCache = 0;
         let totalCacheCreation = 0;
         let totalThinking = 0;
+        let totalRetryTokens = 0;
+        let totalRetryCredits = 0;
+        let totalRetryCount = 0;
+        let latestTokenBreakdown: TokenBreakdownGroup[] = [];
+        const stopReasonCounts: Record<string, number> = {};
         const contextGrowth: { step: number; tokens: number; model: string }[] = [];
 
         for (const [, conv] of this._cache) {
@@ -405,6 +490,25 @@ export class GMTracker {
                 }
                 agg.totalRetries += c.retries;
                 if (c.hasError) { agg.errorCount++; }
+
+                // Retry overhead aggregation
+                const retryTok = c.retryTokensIn + c.retryTokensOut;
+                if (retryTok > 0) {
+                    totalRetryTokens += retryTok;
+                    totalRetryCredits += c.retryCredits;
+                    totalRetryCount++;
+                }
+
+                // Stop reason distribution
+                if (c.stopReason) {
+                    const sr = c.stopReason.replace('STOP_REASON_', '');
+                    stopReasonCounts[sr] = (stopReasonCounts[sr] || 0) + 1;
+                }
+
+                // Keep latest tokenBreakdown snapshot
+                if (c.tokenBreakdownGroups.length > 0) {
+                    latestTokenBreakdown = c.tokenBreakdownGroups;
+                }
             }
         }
 
@@ -456,6 +560,11 @@ export class GMTracker {
             totalThinkingTokens: totalThinking,
             contextGrowth,
             fetchedAt: this._lastFetchedAt,
+            totalRetryTokens,
+            totalRetryCredits,
+            totalRetryCount,
+            latestTokenBreakdown,
+            stopReasonCounts,
         };
     }
 

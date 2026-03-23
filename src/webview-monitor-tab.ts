@@ -24,7 +24,6 @@ export function buildMonitorSections(
     buildMiniQuotaBar(sections, configs);
     buildCurrentSessionSection(sections, usage);
     buildOtherSessionsSection(sections, usage, allUsages);
-    buildRawDataSection(sections, userInfo);
 
     if (sections.length === 0) {
         sections.push(`
@@ -280,31 +279,6 @@ function buildOtherSessionsSection(sections: string[], currentUsage: ContextUsag
             </section>`);
 }
 
-function buildRawDataSection(sections: string[], userInfo: UserStatusInfo | null): void {
-    if (!userInfo?._rawResponse) { return; }
-
-    const rawJson = JSON.stringify(userInfo._rawResponse, null, 2);
-    const truncated = rawJson.length > 200_000;
-    const displayJson = truncated ? rawJson.substring(0, 200_000) + '\n\n... (truncated)' : rawJson;
-
-    sections.push(`
-            <section class="card">
-                <h2>
-                    ${ICON.shield} ${tBi('Raw LS Data', 'LS 原始数据')}
-                    <button class="copy-btn" id="copyRawJson" aria-label="Copy JSON">${ICON.copy} ${tBi('Copy', '复制')}</button>
-                </h2>
-                <p class="raw-desc">${tBi(
-                    'Full GetUserStatus response from LS — if schema changes, new fields appear here first.',
-                    'LS GetUserStatus 完整响应 — 如果 schema 变更，新字段会最先出现在这里。',
-                )}</p>
-                <details class="collapsible" id="d-raw-data">
-                    <summary>${tBi('Show JSON', '展示 JSON')} (${(rawJson.length / 1024).toFixed(1)} KB)</summary>
-                    <div class="details-body">
-                        <pre class="raw-json" id="rawJsonContent"><code>${esc(displayJson)}</code></pre>
-                    </div>
-                </details>
-            </section>`);
-}
 
 // ─── Helper: Git Info ────────────────────────────────────────────────────────
 

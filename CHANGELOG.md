@@ -16,6 +16,14 @@
 - **Profile Panel Merged Sections / 个人面板合并区块**: Feature Flags and Team Config merged into a single "Features & Team" collapsible section for reduced clutter.
   功能开关和团队配置合并为单个可折叠区块。
 
+- **Probe Data: Retry Overhead Tracking / 探针数据：重试开销追踪**: `GMCallEntry` now captures `retryTokensIn`, `retryTokensOut`, `retryCredits`, `retryErrors` from `retryInfos[]` in GeneratorMetadata. `GMSummary` aggregates `totalRetryTokens`, `totalRetryCredits`, `totalRetryCount`. A new "Retry" card in the Summary Bar and a dedicated Retry Overhead section display retry token waste, credit loss, and retry count. Stop reason distribution (`stopReasonCounts`) also tracked and visualized.
+  `GMCallEntry` 新增从 `retryInfos[]` 提取的 `retryTokensIn/Out`、`retryCredits`、`retryErrors`。`GMSummary` 聚合 `totalRetryTokens/Credits/Count`。Summary Bar 新增"重试"卡片，独立重试开销区域展示 token 浪费、积分损失和重试次数。`stopReason` 分布也被追踪和可视化。
+
+- **Probe Data: Token Breakdown Donut Chart / 探针数据：上下文组成环形图**: New `buildTokenBreakdownChart()` function renders a CSS donut chart visualizing the latest token composition (System Prompt, Chat Messages, MCP Tools, Rules, Skills, Native Tools, etc.) from `tokenBreakdown.groups[]`. Each segment has a distinct color from a predefined palette.
+  新增 `buildTokenBreakdownChart()` 函数，渲染 CSS 环形图可视化最新的 token 组成（系统提示、对话消息、MCP 工具、规则、技能、原生工具等），每段使用预定义调色板的不同颜色。
+
+- **Probe Data: stopReason & timeSinceLastInvocation / 探针数据：停止原因与调用间隔**: `GMCallEntry` now captures `stopReason` (from `plannerResponse.stopReason`) and `timeSinceLastInvocation` for richer per-call diagnostics.
+  `GMCallEntry` 新增 `stopReason`（来自 `plannerResponse.stopReason`）和 `timeSinceLastInvocation` 字段，提供更丰富的逐调用诊断信息。
 
 ### Fixed / 修复
 
@@ -23,6 +31,12 @@
   修复严重 Bug：隐私护盾按钮（遮罩姓名/邮箱）在任意自动刷新周期后停止工作。根因：`updateTabs` 增量刷新替换 Profile 标签 `innerHTML`，销毁旧 `#privacyToggle` 按钮及其 click 事件监听器。原有恢复逻辑仅重新应用了遮罩文本状态，未重新绑定 click 处理器。修复：`updateTabs` 中完整重建 click 监听器 + 恢复 `.active` 样式 + 正确切换 `privacyMasked` 状态。
 
 ### Changed / 变更
+
+- **Monitor Tab: LS Raw Data Section Removed / 监控标签页：LS 原始数据移除**: Removed `buildRawDataSection()` from `webview-monitor-tab.ts`. Raw LS data is now fully represented by enriched GM Data tab components, making the redundant raw dump unnecessary.
+  从 `webview-monitor-tab.ts` 移除 `buildRawDataSection()`。LS 原始数据已被 GM Data 标签页的增强组件完全覆盖，冗余的原始转储不再需要。
+
+- **Daily Store: Retry Archiving / 日历归档：重试数据**: `DailyCycleEntry` now includes `gmRetryTokens`, `gmRetryCredits`, `gmRetryCount` optional fields. `addCycle()` populates them from `GMSummary` during quota reset archiving, ensuring retry overhead is preserved in calendar history.
+  `DailyCycleEntry` 新增 `gmRetryTokens`、`gmRetryCredits`、`gmRetryCount` 可选字段。`addCycle()` 在额度重置归档时从 `GMSummary` 填充，确保重试开销保留在日历历史中。
 
 - **Profile Tab UI Overhaul / 个人面板 UI 全面重构**: Complete rewrite of `buildProfileContent()` in `webview-profile-tab.ts`. Account section integrates Google AI Credits inline. Model quota switches from flat list to card grid with MIME chips. Features and Team merged. New CSS classes added to `webview-styles.ts`: `.subscription-hint`, `.gai-credits`, `.model-grid`, `.model-card`, `.mime-chips`, `.mime-chip`.
   完全重写 `webview-profile-tab.ts` 的 `buildProfileContent()`。账户区内联 Credits。模型配额从平铺列表改为卡片网格 + MIME 分类。功能和团队合并。`webview-styles.ts` 新增 6 个 CSS 类。
