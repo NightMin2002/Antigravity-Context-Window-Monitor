@@ -142,6 +142,10 @@ function buildAccountSection(userInfo: UserStatusInfo): string {
                 <span class="account-name" data-real="${esc(userInfo.name)}" data-masked="${esc(userInfo.name.charAt(0))}***">${esc(userInfo.name)}</span>
                 <span class="account-email" data-real="${esc(userInfo.email)}" data-masked="${esc(maskedEmail)}">${esc(userInfo.email)}</span>
             </div>
+            <p class="privacy-hint">${tBi(
+                'Privacy mask is ON by default. Click the shield button above to reveal sensitive data.',
+                '隐私遮罩默认开启。点击上方 🛡️ 按钮可显示/隐藏真实信息。',
+            )}</p>
             ${userInfo.defaultModelLabel ? `<div class="default-model">${tBi('Default Model', '默认模型')}: <strong>${esc(userInfo.defaultModelLabel)}</strong></div>` : ''}
             ${subHint}
             <div class="credits-section">

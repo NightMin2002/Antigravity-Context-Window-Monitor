@@ -85,8 +85,8 @@ export function getScript(): string {
             }
 
             // ─── Settings: Status Bar Toggles ───
-            var toggleIds = ['toggleContext', 'toggleQuota', 'toggleCountdown', 'togglePrivacyDefault'];
-            var toggleKeys = ['statusBar.showContext', 'statusBar.showQuota', 'statusBar.showResetCountdown', 'privacy.defaultMask'];
+            var toggleIds = ['toggleContext', 'toggleQuota', 'toggleCountdown'];
+            var toggleKeys = ['statusBar.showContext', 'statusBar.showQuota', 'statusBar.showResetCountdown'];
             for (var tgi = 0; tgi < toggleIds.length; tgi++) {
                 (function(idx) {
                     var cb = document.getElementById(toggleIds[idx]);
@@ -667,7 +667,7 @@ export function getScript(): string {
 
                     // Re-apply privacy mask if active AND re-bind toggle button
                     var privState = vscode.getState() || {};
-                    var isMasked = !!privState.privacyMasked;
+                    var isMasked = privState.privacyMasked !== undefined ? !!privState.privacyMasked : (document.body.getAttribute('data-privacy-default') === 'true');
                     if (isMasked) {
                         var targets = document.querySelectorAll('[data-real][data-masked]');
                         for (var pj = 0; pj < targets.length; pj++) {

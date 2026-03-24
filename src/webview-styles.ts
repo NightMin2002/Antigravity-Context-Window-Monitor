@@ -912,6 +912,17 @@ export function getStyles(): string {
             border-color: var(--color-ok);
         }
 
+        .privacy-hint {
+            font-size: 0.75em;
+            color: var(--color-text-dim);
+            margin: var(--space-1) 0 var(--space-2);
+            padding: var(--space-1) var(--space-2);
+            background: var(--color-surface);
+            border-radius: var(--radius-sm);
+            border-left: 2px solid var(--color-ok);
+            line-height: 1.5;
+        }
+
         /* ─── Default Model ───────────── */
         .default-model {
             font-size: 0.8em;
@@ -1452,7 +1463,6 @@ export function getStyles(): string {
         .stg-card[data-accent="display"]  { --stg-accent: #38bdf8; }
         .stg-card[data-accent="model"]    { --stg-accent: #f472b6; }
         .stg-card[data-accent="activity"] { --stg-accent: #fb923c; }
-        .stg-card[data-accent="privacy"]  { --stg-accent: #a78bfa; }
         .stg-card[data-accent="history"]  { --stg-accent: #2dd4bf; }
         .stg-card[data-accent="debug"]    { --stg-accent: var(--color-danger); }
 

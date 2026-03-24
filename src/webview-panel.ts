@@ -48,7 +48,6 @@ function sanitizeConfigValue(key: string, value: unknown): unknown {
         case 'statusBar.showContext':
         case 'statusBar.showQuota':
         case 'statusBar.showResetCountdown':
-        case 'privacy.defaultMask':
             return !!value;
         case 'quotaNotificationThreshold':
             return clamp(Number(value) || 0, 0, 99);
@@ -221,7 +220,7 @@ export function showMonitorPanel(
                 'quotaNotificationThreshold',
                 'activity.maxRecentSteps',
                 'activity.maxArchives',
-                'privacy.defaultMask',
+
             ];
             if (allowedKeys.includes(msg.key)) {
                 const normalizedValue = sanitizeConfigValue(msg.key, msg.value);
@@ -450,7 +449,7 @@ ${getPricingTabStyles()}
 ${getCalendarTabStyles()}
 </style>
 </head>
-<body data-privacy-default="${vscode.workspace.getConfiguration('antigravityContextMonitor').get('privacy.defaultMask', false)}">
+<body data-privacy-default="true">
     <header class="panel-header">
         <h1>
             ${ICON.chart}

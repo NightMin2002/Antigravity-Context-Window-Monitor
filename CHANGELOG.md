@@ -36,6 +36,9 @@
 - **Settings Panel UI Redesign / 设置面板 UI 重设计**: Introduced `.stg-card` card system replacing generic `.card` in Settings: colored left accent border (`::before`, 3px gradient), per-section data-accent attributes (10 colors: storage/warn/quota/poll/display/model/activity/privacy/history/debug), `.stg-header` with 28px circular icon background, `.storage-stat` upgrade (centered layout, hover translateY(-1px) + box-shadow, `--color-info` numerals), `.danger-action` refinement (font-weight 700, larger padding, border-radius). Full light-theme overrides for new components.
   新增 `.stg-card` 卡片系统替换设置面板的通用 `.card`：3px 彩色左边框装饰、10 种分区 accent 配色（data-accent 属性驱动）、28px 圆形图标背景 header、storage 统计卡片升级（居中 + hover 上浮 + 蓝色数值）、danger 按钮精修（更粗字重 + 更大内距 + 圆角）。浅色主题全面覆盖。
 
+- **Privacy Mask Default-ON / 隐私遮罩默认开启**: Privacy mask now defaults to ON. Removed the Settings panel Privacy card and `privacy.defaultMask` configuration property from `package.json`. Hardcoded `data-privacy-default="true"` in panel body. Added `.privacy-hint` visible text below account info in Profile tab explaining how to toggle. Fixed incremental update (`updateTabs`) privacy restore bug: `!!privState.privacyMasked` returned `false` when state was `undefined` (user never clicked); now falls back to `data-privacy-default` attribute, matching initial-load logic.
+  隐私遮罩现在默认开启。删除设置面板隐私卡片及 `package.json` 中 `privacy.defaultMask` 配置项。`data-privacy-default` 硬编码为 `"true"`。个人面板账户信息下方新增 `.privacy-hint` 常驻提示文字。修复增量刷新时遮罩丢失的 bug：`privacyMasked` 为 `undefined` 时 `!!undefined` = `false` 导致遮罩被移除，现在回退到 `data-privacy-default` 属性值，与初始加载逻辑一致。
+
 ### Changed / 变更
 
 - **Sticky Current-Conversation Selection / 当前对话粘性保持**: `extension.ts` now keeps the already tracked cascade stable as long as it still exists, instead of letting unrelated conversations with step-count changes or newer timestamps steal the GM Data view. This reduces cross-conversation jumps in the monitor panel during parallel or resumed sessions.

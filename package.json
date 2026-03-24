@@ -105,11 +105,6 @@
           "minimum": 1,
           "maximum": 100,
           "description": "Maximum number of activity archives to keep / 活动归档最多保留份数"
-        },
-        "antigravityContextMonitor.privacy.defaultMask": {
-          "type": "boolean",
-          "default": false,
-          "description": "Enable privacy mask by default when opening the monitor panel / 打开面板时默认启用隐私遮罩"
         }
       }
     }

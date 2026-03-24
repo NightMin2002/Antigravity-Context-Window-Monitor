@@ -41,7 +41,6 @@ export function buildSettingsContent(
     const quotaNotifyThreshold = cfg.get<number>('quotaNotificationThreshold', 20);
     const maxRecentSteps = cfg.get<number>('activity.maxRecentSteps', 100);
     const maxArchives = cfg.get<number>('activity.maxArchives', 20);
-    const privacyDefault = cfg.get<boolean>('privacy.defaultMask', false);
 
     const modelLimitRows = configs.map(c => {
         const customLimit = contextLimits[c.model];
@@ -284,23 +283,6 @@ export function buildSettingsContent(
             </div>
         </section>
 
-        <section class="stg-card" data-accent="privacy">
-            <div class="stg-header">
-                <span class="stg-header-icon">${ICON.shield}</span>
-                <h2>${tBi('Privacy', '隐私')}</h2>
-            </div>
-            <div class="toggle-group">
-                <label class="toggle-row">
-                    <input type="checkbox" id="togglePrivacyDefault" class="toggle-cb" ${privacyDefault ? 'checked' : ''} />
-                    <span class="toggle-track"><span class="toggle-thumb"></span></span>
-                    <span>${tBi('Enable privacy mask by default', '默认启用隐私遮罩')}</span>
-                </label>
-            </div>
-            <p class="raw-desc" style="margin-top: var(--space-2);">${tBi(
-                'When enabled, sensitive data (account ID, email, etc.) will be masked by default when opening the monitor panel.',
-                '启用后，打开监控面板时会默认遮住敏感数据（账户 ID、邮箱等）。',
-            )}</p>
-        </section>
 
         <section class="stg-card" data-accent="history">
             <div class="stg-header">
