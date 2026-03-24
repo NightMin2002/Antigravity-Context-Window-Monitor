@@ -24,6 +24,9 @@
 - **Inline Style Cleanup / 内联样式清理**: Migrated remaining inline `style="..."` attributes to dedicated CSS classes (`.cal-clear-section`, `.cal-cycle-stats-spaced`, `.cal-day-total-danger`, `.cal-cycles-details`, `.cal-cycles-summary`).
   内联样式提取为 CSS class。
 
+- **WebView Theme Color Refactoring / WebView 主题配色重构**: Full removal of hardcoded purple (`#a78bfa`, `#8b5cf6`, etc.) across 5 source files (~30 sites). Replaced with functional semantic colors: Output→teal (`#2dd4bf`), Thinking/Context Growth→orange (`#f97316`), neutral labels→`var(--color-text-dim)`. Added comprehensive `body.vscode-light` overrides in `webview-styles.ts` (~25 selectors) and `webview-calendar-tab.ts` (~12 selectors) ensuring all GM chips, timeline tags, calendar chips, and disclaimer banner use high-contrast dark text (e.g., `#1d4ed8`, `#15803d`, `#92400e`) on light backgrounds. Dark theme AI response previews changed from blue `var(--color-accent)` to warm orange `#fb923c`.
+  全面清除 5 个源文件中约 30 处硬编码紫色。替换为功能语义色：输出→青绿、思考/上下文增长→橙色、中性标签→灰色。在 `webview-styles.ts`（~25 选择器）和 `webview-calendar-tab.ts`（~12 选择器）中新增完整的 `body.vscode-light` 浅色主题覆盖，确保所有 GM chips、时间线标签、日历 chips 和数据声明在浅色背景上使用高对比度深色文字。深色主题 AI 回复预览从蓝色改为暖橙色。
+
 
 ### Changed / 变更
 

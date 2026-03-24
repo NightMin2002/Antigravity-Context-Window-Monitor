@@ -57,7 +57,7 @@ export function getPricingTabStyles(): string {
         left: 0;
         right: 0;
         height: 3px;
-        background: linear-gradient(90deg, var(--color-accent, #8b5cf6), var(--color-info, #60a5fa));
+        background: linear-gradient(90deg, var(--color-accent, #007fd4), var(--color-info, #60a5fa));
         border-radius: var(--radius-md) var(--radius-md) 0 0;
     }
     .prc-dna-header {
@@ -118,8 +118,8 @@ export function getPricingTabStyles(): string {
         font-size: 0.78em;
         padding: 2px var(--space-2);
         border-radius: var(--radius-sm);
-        background: rgba(139,92,246,0.1);
-        color: #a78bfa;
+        background: rgba(255,255,255,0.06);
+        color: var(--color-text-dim);
     }
     .prc-tool-tag {
         display: inline-block;
@@ -199,7 +199,7 @@ export function getPricingTabStyles(): string {
         transition: width 0.3s cubic-bezier(.4,0,.2,1);
     }
     .prc-bar-seg-input { background: #60a5fa; }
-    .prc-bar-seg-output { background: #a78bfa; }
+    .prc-bar-seg-output { background: #2dd4bf; }
     .prc-bar-seg-cache { background: #22d3ee; }
     .prc-bar-seg-thinking { background: #fb923c; }
     .prc-bar-val {
@@ -386,10 +386,11 @@ export function getPricingTabStyles(): string {
         color: inherit;
         transition: border-color 0.2s cubic-bezier(.4,0,.2,1), background 0.2s cubic-bezier(.4,0,.2,1);
     }
-    .prc-edit-input:focus {
+    .prc-edit-input:focus-visible {
         outline: none;
-        border-color: var(--color-accent, #8b5cf6);
-        background: rgba(139,92,246,0.08);
+        border-color: var(--color-accent);
+        background: rgba(255,255,255,0.08);
+        box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 35%, transparent);
     }
     @media (hover: hover) {
         .prc-edit-input:hover {
@@ -429,16 +430,16 @@ export function getPricingTabStyles(): string {
         transform: scale(0.98);
     }
     .prc-btn:focus-visible {
-        box-shadow: 0 0 0 2px var(--color-accent, #8b5cf6);
+        box-shadow: 0 0 0 2px var(--color-accent);
     }
     .prc-btn-primary {
-        background: rgba(139,92,246,0.15);
-        border-color: rgba(139,92,246,0.3);
-        color: #c4b5fd;
+        background: color-mix(in srgb, var(--color-accent) 18%, transparent);
+        border-color: color-mix(in srgb, var(--color-accent) 35%, transparent);
+        color: var(--color-accent);
     }
     @media (hover: hover) {
         .prc-btn-primary:hover {
-            background: rgba(139,92,246,0.25);
+            background: color-mix(in srgb, var(--color-accent) 28%, transparent);
         }
     }
     .prc-feedback {
@@ -491,7 +492,7 @@ function buildCostVisualization(
         <div class="prc-viz-hl-label">${tBi('Total Cost', '总费用')}</div>
     </div>`;
     html += `<div class="prc-viz-highlight">
-        <div class="prc-viz-hl-val" style="color:#a78bfa">${esc(topModel.name)}</div>
+        <div class="prc-viz-hl-val" style="color:#2dd4bf">${esc(topModel.name)}</div>
         <div class="prc-viz-hl-label">${tBi('Top Spender', '最高消费')}</div>
     </div>`;
     html += `<div class="prc-viz-highlight">
@@ -529,7 +530,7 @@ function buildCostVisualization(
     // Legend
     html += `<div class="prc-bar-legend">
         <span class="prc-bar-legend-item"><span class="prc-bar-legend-dot" style="background:#60a5fa"></span> ${tBi('Input', '输入')}</span>
-        <span class="prc-bar-legend-item"><span class="prc-bar-legend-dot" style="background:#a78bfa"></span> ${tBi('Output', '输出')}</span>
+        <span class="prc-bar-legend-item"><span class="prc-bar-legend-dot" style="background:#2dd4bf"></span> ${tBi('Output', '输出')}</span>
         <span class="prc-bar-legend-item"><span class="prc-bar-legend-dot" style="background:#22d3ee"></span> ${tBi('Cache', '缓存')}</span>
         <span class="prc-bar-legend-item"><span class="prc-bar-legend-dot" style="background:#fb923c"></span> ${tBi('Thinking', '思考')}</span>
     </div>`;
@@ -664,7 +665,7 @@ function buildCostSummary(rows: import('./pricing-store').ModelCostRow[], grandT
                     `${fmt(r.outputTokens)} tok × $${r.pricing.output}/M`,
                     `${fmt(r.outputTokens)} 令牌 × $${r.pricing.output}/百万`,
                 )}">
-                    <span class="prc-cost-item-label"><span class="prc-cost-item-dot" style="background:#a78bfa"></span>${tBi('Output', '输出')}</span>
+                    <span class="prc-cost-item-label"><span class="prc-cost-item-dot" style="background:#2dd4bf"></span>${tBi('Output', '输出')}</span>
                     <span class="prc-cost-item-val">${fmtUsd(r.outputCost)}</span>
                 </div>
                 <div class="prc-cost-item" data-tooltip="${tBi(

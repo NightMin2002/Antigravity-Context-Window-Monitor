@@ -101,7 +101,7 @@ function buildAccountSection(userInfo: UserStatusInfo): string {
         'TEAMS_TIER_FREE': { bg: 'rgba(156,163,175,0.15)', color: '#9ca3af' },
         'TEAMS_TIER_PRO': { bg: 'rgba(74,222,128,0.15)', color: 'var(--color-ok)' },
         'TEAMS_TIER_TEAMS': { bg: 'rgba(96,165,250,0.15)', color: 'var(--color-info)' },
-        'TEAMS_TIER_ENTERPRISE_SAAS': { bg: 'rgba(192,132,252,0.15)', color: '#c084fc' },
+        'TEAMS_TIER_ENTERPRISE_SAAS': { bg: 'rgba(156,163,175,0.15)', color: '#9ca3af' },
         'TEAMS_TIER_PRO_ULTIMATE': { bg: 'rgba(250,204,21,0.15)', color: 'var(--color-warn)' },
     };
     const tier = tierMap[userInfo.teamsTier] || tierMap['TEAMS_TIER_PRO'];
@@ -135,7 +135,7 @@ function buildAccountSection(userInfo: UserStatusInfo): string {
                 ${ICON.user}
                 ${tBi('Account', '账户')}
                 <span class="tier-badge" style="background:${tier.bg};color:${tier.color}">${esc(userInfo.planName)}</span>
-                ${userInfo.userTierName ? `<span class="tier-badge tier-sub" style="background:rgba(192,132,252,0.12);color:#c084fc">${esc(userInfo.userTierName)}</span>` : ''}
+                ${userInfo.userTierName ? `<span class="tier-badge tier-sub" style="background:rgba(255,255,255,0.06);color:var(--color-text-dim)">${esc(userInfo.userTierName)}</span>` : ''}
                 <button class="privacy-btn" id="privacyToggle" aria-label="${tBi('Toggle privacy mask', '切换隐私遮罩')}">${ICON.shield}</button>
             </h2>
             <div class="account-info">

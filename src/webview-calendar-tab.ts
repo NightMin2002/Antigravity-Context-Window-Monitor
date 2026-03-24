@@ -498,9 +498,9 @@ export function getCalendarTabStyles(): string {
         }
 
         .cal-chip-reasoning {
-            background: rgba(139, 92, 246, 0.1);
-            color: #a78bfa;
-            border: 1px solid rgba(139, 92, 246, 0.2);
+            background: rgba(251, 146, 60, 0.1);
+            color: #fb923c;
+            border: 1px solid rgba(251, 146, 60, 0.2);
         }
 
         .cal-chip-tools {
@@ -534,9 +534,9 @@ export function getCalendarTabStyles(): string {
         }
 
         .cal-chip-ttft {
-            background: rgba(168, 85, 247, 0.08);
-            color: #c084fc;
-            border: 1px solid rgba(168, 85, 247, 0.2);
+            background: rgba(255,255,255,0.06);
+            color: var(--color-text-dim);
+            border: 1px solid rgba(255,255,255,0.1);
         }
 
         .cal-chip-cache {
@@ -604,6 +604,20 @@ export function getCalendarTabStyles(): string {
         @media (prefers-reduced-motion: reduce) {
             .cal-detail { animation: none; }
         }
+
+        /* ─── Light Theme: Calendar Chips ──── */
+        body.vscode-light .cal-model-chip { background: rgba(37,99,235,0.08); color: #1d4ed8; border-color: rgba(37,99,235,0.2); }
+        body.vscode-light .cal-chip-reasoning { background: rgba(234,88,12,0.08); color: #c2410c; border-color: rgba(234,88,12,0.2); }
+        body.vscode-light .cal-chip-tools { background: rgba(37,99,235,0.08); color: #1e40af; border-color: rgba(37,99,235,0.2); }
+        body.vscode-light .cal-chip-errors { background: rgba(220,38,38,0.08); color: #991b1b; border-color: rgba(220,38,38,0.2); }
+        body.vscode-light .cal-chip-est { background: rgba(202,138,4,0.08); color: #92400e; border-color: rgba(202,138,4,0.2); }
+        body.vscode-light .cal-chip-tokens { background: rgba(22,163,74,0.06); color: #15803d; border-color: rgba(22,163,74,0.2); }
+        body.vscode-light .cal-chip-cost { background: rgba(202,138,4,0.06); color: #92400e; border-color: rgba(202,138,4,0.2); }
+        body.vscode-light .cal-chip-ttft { background: rgba(0,0,0,0.04); color: rgba(0,0,0,0.55); border-color: rgba(0,0,0,0.1); }
+        body.vscode-light .cal-chip-cache { background: rgba(13,148,136,0.06); color: #0f766e; border-color: rgba(13,148,136,0.2); }
+        body.vscode-light .cal-cell.has-data { background: rgba(0,0,0,0.03); }
+        body.vscode-light .cal-cycle { background: rgba(0,0,0,0.015); }
+        body.vscode-light .cal-detail { background: rgba(37,99,235,0.03); border-color: rgba(37,99,235,0.15); }
     `;
 }
 

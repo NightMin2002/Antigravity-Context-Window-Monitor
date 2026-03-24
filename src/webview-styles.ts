@@ -9,6 +9,7 @@ export function getStyles(): string {
             --color-warn: #facc15;
             --color-danger: #f87171;
             --color-info: #60a5fa;
+            --color-accent: var(--vscode-focusBorder, #007fd4);
             --color-surface: rgba(255,255,255,0.04);
             --color-border: rgba(255,255,255,0.08);
             --color-text: var(--vscode-foreground, #ccc);
@@ -39,15 +40,20 @@ export function getStyles(): string {
         }
 
         ::selection {
-            background: var(--color-info);
-            color: #fff;
+            background: var(--vscode-editor-selectionBackground, rgba(0,127,212,0.35));
         }
 
-        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb {
-            background: rgba(255,255,255,0.15);
-            border-radius: var(--radius-sm);
+            background: var(--color-border);
+            border-radius: var(--radius-full, 9999px);
+            transition: background 0.15s cubic-bezier(.4,0,.2,1);
+        }
+        @media (hover: hover) {
+            ::-webkit-scrollbar-thumb:hover {
+                background: var(--color-text-dim);
+            }
         }
 
         body {
@@ -313,8 +319,8 @@ export function getStyles(): string {
         }
 
         .pool-badge {
-            background: rgba(192, 132, 252, 0.12);
-            color: #c084fc;
+            background: rgba(255,255,255,0.06);
+            color: var(--color-text-dim);
             font-size: 0.65em;
             font-weight: 500;
             text-transform: none;
@@ -455,7 +461,7 @@ export function getStyles(): string {
         }
 
         .split-thinking {
-            background: linear-gradient(90deg, #a78bfa, #8b5cf6);
+            background: linear-gradient(90deg, #fb923c, #f97316);
             transition: width 0.3s cubic-bezier(.4,0,.2,1);
         }
 
@@ -480,7 +486,7 @@ export function getStyles(): string {
             margin-right: var(--space-1);
         }
 
-        .thinking-dot { background: #a78bfa; }
+        .thinking-dot { background: #fb923c; }
         .response-dot { background: #60a5fa; }
 
         /* ─── GM Precision: Cache Ring ──── */
@@ -608,8 +614,8 @@ export function getStyles(): string {
         }
 
         .call-chip.thinking {
-            border-color: rgba(167,139,250,0.3);
-            color: #a78bfa;
+            border-color: rgba(251,146,60,0.3);
+            color: #fb923c;
         }
 
         .call-chip.cache {
@@ -1198,7 +1204,7 @@ export function getStyles(): string {
 
         .gai-value {
             font-weight: 600;
-            color: #c084fc;
+            color: var(--color-text);
         }
 
         /* ─── Profile: Model Grid ───────── */
@@ -2261,6 +2267,51 @@ export function getStyles(): string {
             font-size: 0.7em;
             color: var(--color-text-dim);
             opacity: 0.6;
+        }
+
+        /* ─── Light Theme Overrides ────── */
+        body.vscode-light {
+            --color-ok: #16a34a;
+            --color-warn: #ca8a04;
+            --color-danger: #dc2626;
+            --color-info: #2563eb;
+            --color-surface: rgba(0,0,0,0.03);
+            --color-border: rgba(0,0,0,0.1);
+        }
+
+        /* ─── Light Theme: Activity GM Chips ──── */
+        body.vscode-light .act-tl-gm-in  { background: rgba(37,99,235,0.1); color: #1d4ed8; }
+        body.vscode-light .act-tl-gm-out { background: rgba(22,163,74,0.1); color: #15803d; }
+        body.vscode-light .act-tl-gm-ttft { background: rgba(202,138,4,0.1); color: #a16207; }
+        body.vscode-light .act-tl-gm-cache { background: rgba(13,148,136,0.1); color: #0f766e; }
+        body.vscode-light .act-tl-gm-retry { background: rgba(220,38,38,0.1); color: #b91c1c; }
+
+        /* ─── Light Theme: Activity Timeline Tags ──── */
+        body.vscode-light .act-tl-tag-alias { background: rgba(202,138,4,0.1); color: #92400e; border-color: rgba(202,138,4,0.2); }
+        body.vscode-light .act-tl-tag-struct { background: rgba(37,99,235,0.1); color: #1e40af; border-color: rgba(37,99,235,0.2); }
+        body.vscode-light .act-tl-tag-est { background: rgba(220,38,38,0.08); color: #991b1b; border-color: rgba(220,38,38,0.2); }
+        body.vscode-light .act-tl-tag-basis { background: rgba(13,148,136,0.1); color: #0f766e; border-color: rgba(13,148,136,0.2); }
+        body.vscode-light .act-tl-tag-model { background: rgba(0,0,0,0.04); color: rgba(0,0,0,0.5); border-color: rgba(0,0,0,0.08); }
+        body.vscode-light .act-tl-ai-preview { color: #c2410c; }
+
+        /* ─── Light Theme: Activity Misc ──── */
+        body.vscode-light .act-tl-segment { border-color: rgba(0,0,0,0.06); background: rgba(0,0,0,0.015); }
+        body.vscode-light .act-tl-segment-caption { background: rgba(0,0,0,0.02); border-color: rgba(0,0,0,0.06); }
+        body.vscode-light .act-tl-segment-body .act-tl-item::before { background: rgba(0,0,0,0.16); }
+        body.vscode-light .act-tl-item { border-bottom-color: rgba(0,0,0,0.04); }
+        body.vscode-light .act-tool-tag { background: rgba(0,0,0,0.05); }
+        body.vscode-light .act-tl-tool-name { background: rgba(0,0,0,0.05); }
+        body.vscode-light .act-tl-expand { background: rgba(0,0,0,0.03); }
+        body.vscode-light .act-dist-note { color: #92400e; opacity: 1; border-left-color: #b45309; }
+        body.vscode-light .disclaimer-banner { border-color: rgba(180,83,9,0.25); background: rgba(180,83,9,0.04); }
+        body.vscode-light .disclaimer-banner summary { color: #92400e; }
+        body.vscode-light .disclaimer-banner[open] { border-color: rgba(180,83,9,0.35); background: rgba(180,83,9,0.06); }
+        body.vscode-light .disclaimer-body { color: rgba(0,0,0,0.7); border-top-color: rgba(180,83,9,0.15); }
+        body.vscode-light .disclaimer-body strong { color: #92400e; }
+
+        /* ─── High Contrast Overrides ──── */
+        body.vscode-high-contrast {
+            --color-border: rgba(255,255,255,0.25);
         }
     `;
 }
