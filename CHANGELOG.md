@@ -1,5 +1,175 @@
 # 变更日志 / Changelog
 
+## [1.13.4] - 2026-03-24
+
+### Changed / 变更
+
+- **Sticky Current-Conversation Selection / 当前对话粘性保持**: `extension.ts` now keeps the already tracked cascade stable as long as it still exists, instead of letting unrelated conversations with step-count changes or newer timestamps steal the GM Data view. This reduces cross-conversation jumps in the monitor panel during parallel or resumed sessions.
+  `extension.ts` 现在会尽量保持当前已跟踪对话，只要该对话仍然存在，就不会因为其他对话的步数变化或更新时间更近而轻易抢占 GM Data 视图，减少并行 / 恢复场景下的串对话问题。
+
+- **Window-Outside Attribution Cleanup on Pool Reset / pool reset 时清理窗口外归属账本**: `activity-tracker.ts` now trims `_windowOutsideAttribution` during per-pool archival, removing or shrinking only the affected models' outside-window step attribution. This prevents archived pool data from leaking stale estimated steps back into active cycles after a reset.
+  `activity-tracker.ts` 在 per-pool 归档时会同步清理 `_windowOutsideAttribution`，仅移除或收缩受影响模型的窗口外步数归属，避免已归档池的数据在下一周期继续污染活动统计。
+
+- **Timeline Three-Zone Layout / 时间线三区布局**: Refactored timeline rows into fixed-left (time+stepIdx) / elastic-center (model+detail) / fixed-right (meta+GM+duration) layout with `text-overflow: ellipsis`. User rows now have a green dot indicator matching AI rows for visual alignment.
+  重构时间线行为三区布局，用户行加绿色小圆点与 AI 行对齐。
+
+- **Timeline Legend / 时间线图例**: Replaced `act-dist-note` with a collapsible `<details id="d-tl-legend">` table legend explaining 9 timeline elements. State persisted via existing `details[id]` restoration logic in webview-script.
+  用可折叠表格图例替代静态说明，展开状态通过 webview 现有机制在 poll 刷新间保持。
+
+- **Removed "Exact" Label / 移除"精确"标签**: Removed `act-tl-tag-exact` CSS and `buildMetaTags` rendering. Precision is conveyed through the legend.
+  删除精确标签 CSS 和渲染逻辑。
+
+- **Cache Token Label / 缓存 Token 标签**: Changed GM cache-read token suffix from `$` to `缓存` / `cache`.
+  将缓存读取 token 后缀从 `$` 改为 `缓存`。
+
+### Bug Fixes / 修复
+
+- **Estimated Event Placeholder / 估算事件占位符**: Replaced hardcoded `等待 GM...` with `estimatedModel` variable.
+  将硬编码占位符替换为 `estimatedModel` 变量。
+
+- **Estimated Event Deduplication / 估算事件去重**: Resolved estimated events are now removed from `_recentSteps` after GM data covers them (`estimatedResolved` flag).
+  GM 覆盖后通过 `estimatedResolved` 标志移除已解析的 estimated 事件。
+
+- **GM User Anchor Deduplication / GM 用户锚点去重**: Added text-based deduplication for `gm_user` anchors (trimmed first 120 chars) preventing duplicate user message rows from different GM calls with different `stepIndex` offsets. Also filters anchors whose text matches existing `step`-source user events.
+  添加基于文本的 anchor 去重和 step 用户消息去重。
+
+- **GM Data Resolution Latency / GM 数据解析延迟**: `injectGMData()` now returns `boolean` indicating whether it modified the timeline (estimated resolution or virtual event injection). `pollActivity()` in `extension.ts` uses this return value in its UI refresh condition (`activityChanged || gmChanged || timelineChanged`), ensuring the panel updates immediately when GM data resolves estimated events — previously required the next user message to trigger a refresh.
+  `injectGMData()` 现在返回 `boolean` 表示是否修改了 timeline。`pollActivity()` 将此返回值加入 UI 刷新条件，确保 GM 数据解析 estimated 事件后立即刷新面板 —— 之前需等下一条用户消息才能触发。
+
+- **User Message Text Extraction / 用户消息文本提取**: Fixed critical bug where `_processStep()` and `_injectTimelineEvent()` extracted user text from `userInput.items[0].text` (always empty in current API) instead of `userInput.userResponse`. User message rows were always blank. Added `userResponse` as fallback.
+  修复严重 Bug：用户文本从 `userInput.items[0].text`（当前 API 始终为空）提取，导致用户消息行始终空白。增加 `userResponse` 作为 fallback。
+
+- **User Message Expand Logic / 用户消息展开逻辑**: Replaced fixed character threshold (80/96) with "truncation implies expandable" logic. `fullUserInput` now always stores original text; `hasExpand` is naturally determined by `fullText.length > previewText.length` — if truncation happened, expand is available.
+  移除固定字符门槛（80/96），改为「截断即可展开」：`fullUserInput` 始终存原始文本，`hasExpand` 由长度比较自然决定。
+
+- **User Message Expand CSS Priority / 用户消息展开样式优先级**: Added `.act-tl-user.act-tl-expandable` CSS rule to override `.act-tl-user`'s `cursor: default`, enabling pointer cursor on expandable user messages.
+  增加高优先级 CSS 规则覆盖 `.act-tl-user` 的 `cursor: default`。
+
+- **GM Nearest-Neighbor Matching / GM 就近匹配**: Some `PLANNER_RESPONSE` steps share an LLM call with adjacent steps but are not listed in GM's `stepIndices`. Added ±3 step range fallback in `injectGMData()` so these "continuation" reasoning steps still receive token annotations.
+  某些 `PLANNER_RESPONSE` 步骤与相邻步骤共享 LLM 调用但不在 GM `stepIndices` 中。增加 ±3 步范围 fallback，让这些「延续」推理步骤也获得 token 注解。
+
+- **Expand Indicator False Positive / 展开指示器误显示**: `hasExpand` now strictly checks `fullText.length > previewText.length` rather than just `!!fullText`, eliminating dotted underlines on short messages that have no hidden content.
+  `hasExpand` 严格比较完整文本与预览文本长度，消除短消息上的虚假展开指示器。
+
+### Documentation / 文档
+
+- **Project Structure Sync / 项目结构文档同步**: Updated `docs/project_structure.md` to reflect the current repository layout, refreshed `activity-tracker.ts` / `gm-tracker.ts` responsibilities, and aligned the Vitest count to **88 tests**.
+  更新 `docs/project_structure.md`，同步当前仓库结构、刷新 `activity-tracker.ts` / `gm-tracker.ts` 的职责说明，并将 Vitest 数量更新为 **88 个测试**。
+
+### Quality / 质量
+
+- **Codebase Health Check / 代码库体检**: Re-ran `npm run compile` and `npm test` against the current workspace state. Result: compile passes, **88/88** tests pass. During this review the primary desync found was documentation drift (test counts / structure description lagging behind code), which is now synchronized in `docs/project_structure.md`.
+  重新对当前工作区执行 `npm run compile` 与 `npm test`。结果：编译通过，**88/88** 测试通过。本轮体检发现的主要问题是文档与代码不同步（测试数、结构描述滞后），现已在 `docs/project_structure.md` 中同步。
+
+### Fixed / 修复
+
+- **🔥 Sub-Agent Data Loss on Restore — Key Mismatch / 恢复时子智能体数据丢失 — Key 不匹配**: Fixed critical bug where `restore()` used `entry.modelId` as the Map key when restoring `_subAgentTokens`, but creation used composite key `${rawModel}::${ownerModel}`. When the same sub-agent model served multiple parent models (e.g., Flash Lite for both Sonnet and Opus), restoration collapsed entries via last-write-wins, permanently losing data.
+  修复严重 Bug：`restore()` 恢复 `_subAgentTokens` 时使用 `entry.modelId` 作为 Map key，但创建时使用复合 key `${rawModel}::${ownerModel}`。当同一子智能体模型服务多个父模型时（如 Flash Lite 同时服务 Sonnet 和 Opus），恢复时后者覆盖前者，数据永久丢失。
+
+- **🔥 Sub-Agent Migration False Trigger — Ratio Threshold Too Aggressive / 子智能体迁移误触发 — 比例阈值过于激进**: Fixed bug where `needsSubAgentMigration` check used `subAgentTotalCount < totalCheckpoints * 0.5` — a ratio-based threshold that falsely triggered nuclear reset when sub-agent activity was legitimately low relative to checkpoints. Nuclear reset cleared all restored data and forced re-warm-up, which could only see ~500 steps per conversation via API window, permanently losing older historical sub-agent data. Now only triggers when sub-agent data is entirely absent (old format migration).
+  修复 Bug：`needsSubAgentMigration` 使用 `subAgentTotalCount < totalCheckpoints * 0.5` 比例阈值，在子智能体活动合法偏低时误触发核弹重置。核弹重置清空所有已恢复数据并强制 re-warm-up，但 API 窗口每对话仅可见 ~500 步，导致更早的历史子智能体数据永久丢失。现仅在数据完全缺失（旧格式迁移）时触发。
+
+- **Timeline Model Name Truncation / 时间线模型名被截断**: Fixed `.act-tl-model` CSS that used `white-space: nowrap; overflow: hidden; text-overflow: ellipsis` to truncate long model names. Changed to `word-break: break-word; overflow-wrap: anywhere` to allow natural wrapping, consistent with `.act-card-header` behavior.
+  修复 `.act-tl-model` CSS 使用 `nowrap + ellipsis` 截断长模型名的问题。改为 `break-word + anywhere` 允许自然换行，与 `.act-card-header` 行为一致。
+
+- **Conversation Breakdown Key Mismatch on Restore / 恢复时对话细分 Map key 不匹配**: Fixed bug where `restore()` used `ConversationBreakdown.id` (short 8-char ID) as Map key, but `_updateConversationBreakdown()` uses full `cascadeId` UUID. After restore, GM-based corrections in `injectGMData()` couldn't find entries. Now uses trajectory baselines to reconstruct full cascadeId keys on restore.
+  修复 Bug：`restore()` 使用 `cb.id`（8 字符短 ID）作为 `_conversationBreakdown` Map key，但创建时使用完整 `cascadeId` UUID。恢复后 `injectGMData()` 的 GM 修正无法匹配条目。现通过 trajectory baselines 反查完整 cascadeId 重建 key。
+
+### Added / 新增
+
+- **Sub-Agent Conversation Attribution / 子智能体对话归属**: `SubAgentTokenEntry` interface extended with `cascadeIds?: string[]` field tracking which conversations generated the sub-agent consumption. `_processStep()` now receives `cascadeId` parameter, transparently passed from all 4 call sites in `processTrajectories()`. Activity panel sub-agent cards now display: conversation count row, owner model badge (`→ ownerModel`), and footer with conversation ID short tags.
+  `SubAgentTokenEntry` 接口新增 `cascadeIds` 字段追踪消耗来源对话。`_processStep()` 新增 `cascadeId` 参数，从 `processTrajectories()` 的全部 4 个调用点透传。子智能体卡片新增：对话数量行、ownerModel 标签、底部对话短 ID 标签。
+
+- **🚀 GM-Powered Sub-Agent Window Bypass / GM驱动的子智能体窗口突破**: `GetCascadeTrajectorySteps` API has a hard ~500 step window — sub-agent data from earlier steps is permanently lost on re-warm-up. New `injectGMData()` supplement uses `GetCascadeTrajectoryGeneratorMetadata` (no window limit) to extract sub-agent calls from OUTSIDE the step API window. Separate `_gmSubAgentTokens` Map (runtime-only, rebuilt each poll) is merged with CP-based `_subAgentTokens` in `getSummary()`. Dominant model is determined from trajectory cache or GM call frequency fallback. Pool resets and full resets correctly clear both Maps.
+  `GetCascadeTrajectorySteps` API 有 ~500 步硬窗口限制——超出窗口的子智能体数据在 re-warm-up 后永久丢失。新增 `injectGMData()` 补充逻辑，利用 `GetCascadeTrajectoryGeneratorMetadata`（无窗口限制）提取步骤窗口外的子智能体调用。独立 `_gmSubAgentTokens` Map（仅运行时，每次 poll 重建）在 `getSummary()` 中与 CP 数据合并。主导模型从 trajectory 缓存或 GM 调用频率推断。Pool/全局 reset 正确清理两个 Map。
+
+- **GM Conversation Steps Correction / GM对话步数修正**: `_conversationBreakdown.steps` was limited by the Steps API ~500 window — always capped at the number of steps returned. Now `injectGMData()` corrects step counts using `GMConversationData.totalSteps` which reflects the actual total without window limitation.
+  `_conversationBreakdown.steps` 受 Steps API ~500 窗口限制，始终上限为 API 返回步数。现在 `injectGMData()` 使用 `GMConversationData.totalSteps`（无窗口限制的真实总数）修正步数。
+
+- **GM Context Growth History Supplement / GM上下文增长历史补充**: `_checkpointHistory` was built only from CHECKPOINT steps within the API window, missing context growth from earlier steps. Now `injectGMData()` prepends virtual `CheckpointSnapshot` entries from `GMSummary.contextGrowth` data points that fall outside the step window, including compression detection. One-time injection guard prevents duplicate prepends across poll cycles.
+  `_checkpointHistory` 仅从 API 窗口内的 CHECKPOINT 步骤构建，丢失更早步骤的上下文增长数据。现在 `injectGMData()` 将步骤窗口外的 `GMSummary.contextGrowth` 数据点转换为虚拟 `CheckpointSnapshot` 前置注入，包含压缩检测。一次性注入保护机制防止跨 poll 周期重复注入。
+
+## [1.13.3] - 2026-03-23
+
+### Added / 新增
+
+- **Profile Panel Data Mining / 个人面板深度挖掘**: Deep analysis of `GetUserStatus` response uncovered 227 leaf nodes and 3 previously unused fields: `userTier.description` (subscription status text), `upgradeSubscriptionText` (upgrade hint), and `clientModelSorts` (LS-recommended model ordering). Added `userTierDescription`, `upgradeSubscriptionText`, `modelSortOrder` to `UserStatusInfo` interface.
+  深度分析 `GetUserStatus` 响应发现 227 个叶子节点和 3 个未使用字段：`userTier.description`（订阅状态描述）、`upgradeSubscriptionText`（升级提示）、`clientModelSorts`（LS 推荐模型排序）。在 `UserStatusInfo` 接口新增对应字段。
+
+- **Profile Panel Model Card Grid / 个人面板模型卡片网格**: Model quota section redesigned as a responsive 2-column grid of `.model-card` components. Each card displays: model name with `tagTitle` badge (e.g., "New"), quota progress bar, MIME type categories (Docs/Code/Image/Media) with counts as `.mime-chip` tags, reset countdown, and full MIME list in collapsible section. Models sorted by LS-recommended `clientModelSorts` order.
+  模型配额区重设计为响应式 2 列卡片网格。每张卡片展示：模型名 + `tagTitle` 标签、配额进度条、MIME 类型分类计数、重置倒计时、可折叠完整 MIME 列表。按 LS 推荐排序。
+
+- **Profile Panel Subscription Hint / 个人面板订阅提示**: Account section now displays `upgradeSubscriptionText` as a `.subscription-hint` styled prompt, and Google AI Credits are inlined as `.gai-credits` badge.
+  账户区新增 `upgradeSubscriptionText` 订阅提示和内联 Google AI Credits 显示。
+
+- **Profile Panel Merged Sections / 个人面板合并区块**: Feature Flags and Team Config merged into a single "Features & Team" collapsible section for reduced clutter.
+  功能开关和团队配置合并为单个可折叠区块。
+
+- **Probe Data: Retry Overhead Tracking / 探针数据：重试开销追踪**: `GMCallEntry` now captures `retryTokensIn`, `retryTokensOut`, `retryCredits`, `retryErrors` from `retryInfos[]` in GeneratorMetadata. `GMSummary` aggregates `totalRetryTokens`, `totalRetryCredits`, `totalRetryCount`. A new "Retry" card in the Summary Bar and a dedicated Retry Overhead section display retry token waste, credit loss, and retry count. Stop reason distribution (`stopReasonCounts`) also tracked and visualized.
+  `GMCallEntry` 新增从 `retryInfos[]` 提取的 `retryTokensIn/Out`、`retryCredits`、`retryErrors`。`GMSummary` 聚合 `totalRetryTokens/Credits/Count`。Summary Bar 新增"重试"卡片，独立重试开销区域展示 token 浪费、积分损失和重试次数。`stopReason` 分布也被追踪和可视化。
+
+- **Probe Data: Token Breakdown Donut Chart / 探针数据：上下文组成环形图**: New `buildTokenBreakdownChart()` function renders a CSS donut chart visualizing the latest token composition (System Prompt, Chat Messages, MCP Tools, Rules, Skills, Native Tools, etc.) from `tokenBreakdown.groups[]`. Each segment has a distinct color from a predefined palette.
+  新增 `buildTokenBreakdownChart()` 函数，渲染 CSS 环形图可视化最新的 token 组成（系统提示、对话消息、MCP 工具、规则、技能、原生工具等），每段使用预定义调色板的不同颜色。
+
+- **Probe Data: stopReason & timeSinceLastInvocation / 探针数据：停止原因与调用间隔**: `GMCallEntry` now captures `stopReason` (from `plannerResponse.stopReason`) and `timeSinceLastInvocation` for richer per-call diagnostics.
+  `GMCallEntry` 新增 `stopReason`（来自 `plannerResponse.stopReason`）和 `timeSinceLastInvocation` 字段，提供更丰富的逐调用诊断信息。
+
+- **Durable External Persistence / 扩展外部持久化**: Added `durable-state.ts`, an external JSON-file persistence layer mirrored with VS Code state. Key Monitor / GM Data / Pricing / Calendar / Quota History state is now recoverable after uninstall/reinstall as long as the state file remains.
+  新增 `durable-state.ts` 扩展外部 JSON 持久化层，并与 VS Code state 镜像。关键的 Monitor / GM Data / Pricing / Calendar / Quota History 数据在卸载 / 重装后可恢复。
+
+- **Monitor Snapshot Store / 监控快照存储**: Added `monitor-store.ts` to persist `ContextUsage` plus per-conversation `GMConversationData` snapshots. The Monitor tab can now restore call counts, cache, retry, model distribution, compression history, and recent call details even when live `gmSummary` is unavailable.
+  新增 `monitor-store.ts`，按对话持久化 `ContextUsage` 与 `GMConversationData` 快照。Monitor 标签页在实时 `gmSummary` 缺失时，也能恢复调用次数、缓存、重试、模型分布、压缩历史和最近调用明细。
+
+- **Settings Storage Diagnostics / 设置中的持久化诊断**: The Settings tab now includes a "Persistent Storage" card showing the external state file path, existence status, and counters for Monitor / GM / Calendar / Pricing data. Added copy/open/reveal file actions for direct verification.
+  设置标签页新增「持久化存储」诊断卡片，显示外部状态文件路径、存在状态，以及 Monitor / GM / Calendar / Pricing 相关计数，并提供复制路径、打开文件、定位文件按钮。
+
+### Fixed / 修复
+
+- **🔥 Privacy Toggle Broken After Refresh / 隐私按钮刷新后失效**: Fixed critical bug where the privacy shield button (name/email masking) stopped working after any auto-refresh cycle. Root cause: `updateTabs` incremental refresh replaced Profile tab `innerHTML`, destroying the old `#privacyToggle` button and its click event listener. The re-apply logic (line 609-617) only restored mask text state but never re-bound the click handler. Fix: `updateTabs` handler now re-creates the full click listener on the new `#privacyToggle` button, restores `.active` class, and properly toggles `privacyMasked` state via `vscode.setState()`.
+  修复严重 Bug：隐私护盾按钮（遮罩姓名/邮箱）在任意自动刷新周期后停止工作。根因：`updateTabs` 增量刷新替换 Profile 标签 `innerHTML`，销毁旧 `#privacyToggle` 按钮及其 click 事件监听器。原有恢复逻辑仅重新应用了遮罩文本状态，未重新绑定 click 处理器。修复：`updateTabs` 中完整重建 click 监听器 + 恢复 `.active` 样式 + 正确切换 `privacyMasked` 状态。
+
+- **🔥 Per-Pool Quota Reset Clears All Models' Data / 单池额度重置清空所有模型数据**: Fixed critical bug where a single model pool's quota reset (e.g., Gemini Pro) wiped GM data (call counts, tokens, credits) and Activity data (reasoning, tool calls, timeline events) for ALL models including unrelated ones (e.g., Claude). Root causes: (1) `gmTracker.reset()` was called globally without model IDs, clearing all call baselines; `dailyStore.addCycle()` archived all GM data regardless of pool. (2) `activityTracker.archiveAndReset()` cleared all `_modelStats`, timeline events, and GM breakdown even when `modelIds` were provided. Fix: (1) `GMTracker.reset(modelIds?)` now uses `_archivedCallIds` Set to track per-pool archived calls; `_buildSummary()` filters them out. (2) `ActivityTracker.archiveAndReset(modelIds?)` now converts model IDs to display names, builds filtered archive containing only pool models' stats/events, and preserves non-pool data. (3) `extension.ts` adds `expandToPool()` helper that groups models by `resetTime` and passes full pool member lists to both trackers.
+  修复严重 Bug：单个模型池的额度重置（如 Gemini Pro）将所有模型（包括无关的 Claude）的 GM 数据（调用次数、token、积分）和 Activity 数据（推理、工具调用、时间线事件）全部清空。根因：① `gmTracker.reset()` 无模型 ID 参数全局清空基线；`dailyStore.addCycle()` 归档全部 GM 数据。② `activityTracker.archiveAndReset()` 即使传入 modelIds 也清空所有 `_modelStats`、时间线和 GM breakdown。修复：① `GMTracker.reset(modelIds?)` 新增 `_archivedCallIds` Set 按池追踪已归档调用，`_buildSummary()` 过滤。② `ActivityTracker.archiveAndReset(modelIds?)` 转换 modelId 为显示名，仅归档+清空匹配 pool 的数据。③ `extension.ts` 新增 `expandToPool()` 按 resetTime 分组扩展 pool 成员。
+
+- **🔥 Pool Archival Boundary & Cross-Tab Pollution / 池级归档边界与跨标签页污染**: Fixed follow-up issues where one pool reset still leaked unrelated models' data into Calendar / Pricing archives, and some Activity-derived Monitor / GM Data metrics could appear mixed after pool resets. `extension.ts` now splits reset callbacks by reset-time pool, archives each pool independently using the matching `QuotaSession` time window, filters GM snapshots before cost calculation, and recalculates tool rankings from surviving per-model stats. `subAgentTokens` now carry `ownerModel` so pool resets only clear matching entries.
+  修复后续问题：单池重置后，Calendar / Pricing 归档仍可能混入其他池数据，且部分 Activity 派生指标在 Monitor / GM Data 中可能出现混池。`extension.ts` 现按共享 resetTime 将回调拆成独立 pool，使用对应 `QuotaSession` 的时间边界逐池归档，在计算费用前先过滤 GM 快照；工具排行改为从剩余 per-model stats 即时重算。`subAgentTokens` 新增 `ownerModel`，池重置时仅清理对应条目。
+
+- **🔥 Monitor Detail Loss After Restart/Reinstall / 重启或重装后监控细节丢失**: Fixed issue where Monitor tab could still show the session list but lose per-conversation GM details (calls, thinking split, cache, retry, model distribution, recent call rows) after reconnect, restart, or reinstall. `monitor-store.ts` now persists conversation-level GM snapshots, and `webview-monitor-tab.ts` falls back to them automatically when live GM data is not yet available.
+  修复 Monitor 标签页在重连、重启或重装后虽然还能显示会话列表，但会丢失每对话 GM 细节（调用次数、思考拆分、缓存、重试、模型分布、最近调用明细）的问题。`monitor-store.ts` 现持久化对话级 GM 快照，`webview-monitor-tab.ts` 在实时 GM 数据尚未可用时自动回退到这些快照。
+
+- **Settings Schema / UI Mismatch / 设置 Schema 与界面不一致**: Fixed anti-intuitive mismatch where UI text said `quotaNotificationThreshold=0` disables notifications, but `package.json` schema still enforced minimum `1`. Minimum is now `0`, and `setConfig` applies explicit normalization/clamping for quota notification, activity limits, privacy toggle, and context limit overrides.
+  修复反直觉问题：界面文案说明 `quotaNotificationThreshold=0` 可禁用通知，但 `package.json` 的 schema 最小值仍为 `1`。现已改为 `0`，并在 `setConfig` 中对额度通知、活动限制、隐私开关、上下文覆盖值统一做归一化 / 限幅。
+
+### Changed / 变更
+
+- **Monitor Tab: LS Raw Data Section Removed / 监控标签页：LS 原始数据移除**: Removed `buildRawDataSection()` from `webview-monitor-tab.ts`. Raw LS data is now fully represented by enriched GM Data tab components, making the redundant raw dump unnecessary.
+  从 `webview-monitor-tab.ts` 移除 `buildRawDataSection()`。LS 原始数据已被 GM Data 标签页的增强组件完全覆盖，冗余的原始转储不再需要。
+
+- **Daily Store: Retry Archiving / 日历归档：重试数据**: `DailyCycleEntry` now includes `gmRetryTokens`, `gmRetryCredits`, `gmRetryCount` optional fields. `addCycle()` populates them from `GMSummary` during quota reset archiving, ensuring retry overhead is preserved in calendar history.
+  `DailyCycleEntry` 新增 `gmRetryTokens`、`gmRetryCredits`、`gmRetryCount` 可选字段。`addCycle()` 在额度重置归档时从 `GMSummary` 填充，确保重试开销保留在日历历史中。
+
+- **Profile Tab UI Overhaul / 个人面板 UI 全面重构**: Complete rewrite of `buildProfileContent()` in `webview-profile-tab.ts`. Account section integrates Google AI Credits inline. Model quota switches from flat list to card grid with MIME chips. Features and Team merged. New CSS classes added to `webview-styles.ts`: `.subscription-hint`, `.gai-credits`, `.model-grid`, `.model-card`, `.mime-chips`, `.mime-chip`.
+  完全重写 `webview-profile-tab.ts` 的 `buildProfileContent()`。账户区内联 Credits。模型配额从平铺列表改为卡片网格 + MIME 分类。功能和团队合并。`webview-styles.ts` 新增 6 个 CSS 类。
+
+- **Per-Pool Quota Reset Isolation / 额度重置 per-pool 隔离**: `onQuotaReset` callback now expands triggering model IDs to their full quota pool via `expandToPool()` (groups by `resetTime`). Both `gmTracker.reset(poolModelIds)` and `activityTracker.archiveAndReset(poolModelIds)` now only affect data for models within the resetting pool. `GMTrackerState` extended with `archivedCallIds` for cross-session persistence of per-pool archived call tracking.
+  `onQuotaReset` 回调现通过 `expandToPool()` 将触发模型 ID 扩展到完整配额池（按 resetTime 分组）。`gmTracker.reset(poolModelIds)` 和 `activityTracker.archiveAndReset(poolModelIds)` 现仅影响重置 pool 内的数据。`GMTrackerState` 新增 `archivedCallIds` 支持跨会话持久化。
+
+- **Monitor / GM Persistence Strategy / Monitor / GM 持久化策略**: `GMTracker.serialize()` still keeps a slim summary for fast baseline recovery, but `getDetailedSummary()` now exports a full `GMSummary` (with calls) to the external state file. This separates "lightweight cycle state" from "rich UI recovery state" and avoids forcing the WebView to wait for a fresh poll before restoring details.
+  `GMTracker.serialize()` 仍保留轻量版 summary 用于快速恢复基线，但新增 `getDetailedSummary()` 将完整 `GMSummary`（含 calls）写入外部状态文件。这样将“轻量周期状态”和“富 UI 恢复状态”分离，避免 WebView 必须等待下一次轮询后才能恢复细节。
+
+- **Settings UX / 设置交互体验**: Added success feedback mapping for quota notification, activity limits, quota-history max size, and persistent-state path copy action. Developer clear/reset actions now also refresh storage diagnostics immediately.
+  设置交互体验改进：为额度通知、活动限制、历史上限和状态文件路径复制补充了保存成功反馈；开发用清空 / 重置操作也会立即刷新存储诊断数据。
+
+- **Data Disclaimer Wording Update / 数据声明文案更新**: Disclaimer banner now clearly distinguishes data sources: items with a green **GM** badge are precise per-call values from Generator Metadata, while other metrics (context usage, token estimates) are derived from checkpoint snapshots or character-based heuristics. Previous wording implied all data was "estimated".
+  数据声明横幅现明确区分数据来源：带绿色 **GM** 徽章的数据为 Generator Metadata 的逐调用精确值，其余指标（上下文用量、Token 估算）基于 Checkpoint 快照或字符启发式计算。旧版文案暗示所有数据均为“估算”。
+
+- **Monitor Tab: GM Precision Sections / 监控标签页：GM 精确数据区块**: `buildMonitorSections()` now receives `GMSummary` and renders three new sections in the Monitor tab: ① **Output Split** — stacked bar chart showing input/output/cache/thinking token proportions per model, ② **Per-Call Detail** — expandable collapsible entries for each LLM call with full GM breakdown (tokens, TTFT, streaming speed, credits, stop reason, retry info), ③ **Stop Reason Distribution** — counts of each stop reason across all calls. New CSS classes in `webview-styles.ts`: `.gm-split-section`, `.gm-cache-section`, `.gm-stats-section`, `.output-split-bar`, `.call-row`, `.call-detail`.
+  `buildMonitorSections()` 现接收 `GMSummary` 并在监控标签页渲染三个新区块：① **输出分拆** — 堆叠条形图展示每模型的 input/output/cache/thinking 比例；② **逐调用详情** — 可展开的每次 LLM 调用完整 GM 明细（token、TTFT、流速、积分、停止原因、重试信息）；③ **停止原因分布** — 各种 stopReason 的计数。`webview-styles.ts` 新增 6 个 CSS 类。
+
+
+
+
+
 ## [1.13.3] - 2026-03-23
 
 ### Fixed / 修复

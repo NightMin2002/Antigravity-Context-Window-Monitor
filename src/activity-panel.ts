@@ -6,7 +6,8 @@
 import { tBi } from './i18n';
 import { ActivitySummary, ActivityArchive, ModelActivityStats, CheckpointSnapshot, ConversationBreakdown } from './activity-tracker';
 import { esc, formatShortTime as formatTime } from './webview-helpers';
-import type { GMSummary, GMModelStats, GMConversationData } from './gm-tracker';
+import type { ContextUsage } from './tracker';
+import type { GMSummary, GMModelStats, GMConversationData, TokenBreakdownGroup } from './gm-tracker';
 
 // ─── Public API ──────────────────────────────────────────────────────────────
 
@@ -18,6 +19,7 @@ import type { GMSummary, GMModelStats, GMConversationData } from './gm-tracker';
 export function buildGMDataTabContent(
     summary: ActivitySummary | null,
     gmSummary: GMSummary | null,
+    currentUsage?: ContextUsage | null,
 ): string {
     if (!summary && (!gmSummary || gmSummary.totalCalls === 0)) {
         return `<p class="empty-msg">${tBi(
@@ -32,7 +34,7 @@ export function buildGMDataTabContent(
     parts.push(buildSummaryBar(summary, gmSummary));
 
     // ── Recent Timeline (activity)
-    if (summary) { parts.push(buildTimeline(summary)); }
+    if (summary) { parts.push(buildTimeline(summary, currentUsage)); }
 
     // ── Model Cards (merged activity counts + GM precision)
     parts.push(buildModelCards(summary, gmSummary));
@@ -69,6 +71,17 @@ export function buildGMDataTabContent(
             parts.push(`<div class="act-two-col">
                 ${ctx ? `<div class="act-col">${ctx}</div>` : ''}
                 ${conv ? `<div class="act-col">${conv}</div>` : ''}
+            </div>`);
+        }
+    }
+    // ── Retry Overhead + Token Breakdown (GM — new probes)
+    if (gmSummary && gmSummary.totalCalls > 0) {
+        const retry = buildRetryOverhead(gmSummary);
+        const breakdown = buildTokenBreakdownChart(gmSummary);
+        if (retry || breakdown) {
+            parts.push(`<div class="act-two-col">
+                ${retry ? `<div class="act-col">${retry}</div>` : ''}
+                ${breakdown ? `<div class="act-col">${breakdown}</div>` : ''}
             </div>`);
         }
     }
@@ -246,9 +259,10 @@ export function getGMDataTabStyles(): string {
     }
     .act-tl-item {
         display: flex;
-        align-items: flex-start;
-        gap: var(--space-1);
-        padding: 3px var(--space-1);
+        align-items: center;
+        gap: 3px;
+        padding: 2px var(--space-2);
+        min-height: 24px;
         font-size: 0.82em;
         border-bottom: 1px solid rgba(255,255,255,0.03);
         transition: background-color 0.15s cubic-bezier(.4,0,.2,1);
@@ -257,13 +271,23 @@ export function getGMDataTabStyles(): string {
         .act-tl-item:hover { background: rgba(255,255,255,0.04); }
     }
     .act-tl-item:last-child { border-bottom: none; }
-    .act-tl-time { color: var(--color-text-dim); flex-shrink: 0; width: 65px; }
-    .act-tl-icon { flex-shrink: 0; width: 20px; text-align: center; }
-    .act-tl-model { color: var(--color-info); font-weight: 500; flex-shrink: 0; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .act-tl-detail { color: var(--color-text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .act-tl-user { color: var(--color-ok); font-style: italic; }
-    .act-tl-ai-preview { color: var(--color-accent); opacity: 0.8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .act-tl-dur { color: var(--color-text-dim); flex-shrink: 0; margin-left: auto; }
+    .act-tl-time { color: var(--color-text-dim); flex-shrink: 0; width: 42px; font-size: 0.78em; font-variant-numeric: tabular-nums; }
+    .act-tl-icon { flex-shrink: 0; width: 18px; text-align: center; }
+    .act-tl-content { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-1); overflow: hidden; }
+    .act-tl-model { color: var(--color-info); font-weight: 500; flex-shrink: 0; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .act-tl-detail { color: var(--color-text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+    .act-tl-user { color: var(--color-ok); font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: default; }
+    .act-tl-ai-preview { color: var(--color-accent); opacity: 0.8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; cursor: default; }
+    .act-tl-expandable { cursor: pointer; text-decoration-style: dotted; text-decoration-line: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+    .act-tl-user.act-tl-expandable, .act-tl-ai-preview.act-tl-expandable { cursor: pointer; }
+    @media (hover: hover) { .act-tl-expandable:hover { opacity: 1; filter: brightness(1.3); } }
+    .act-tl-expand { display: none; padding: var(--space-2) var(--space-3); margin: var(--space-1) 0 var(--space-1) 62px; background: rgba(255,255,255,0.03); border-radius: var(--radius-sm); border-left: 2px solid var(--color-border); font-size: 0.85em; line-height: 1.6; white-space: pre-wrap; word-break: break-word; color: var(--color-text); max-height: 300px; overflow-y: auto; }
+    .act-tl-expand.act-tl-expand-open { display: block; }
+    .act-tl-expand::-webkit-scrollbar { width: 4px; }
+    .act-tl-expand::-webkit-scrollbar-track { background: transparent; }
+    .act-tl-expand::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: var(--radius-full); }
+    .act-tl-meta { margin-left: auto; display: flex; align-items: center; gap: 3px; flex-shrink: 0; white-space: nowrap; }
+    .act-tl-dur { color: var(--color-text-dim); flex-shrink: 0; }
     .act-tl-reasoning .act-tl-icon { color: var(--color-ok); }
     .act-tl-tool .act-tl-icon { color: var(--color-warn); }
     .act-tl-tool-name {
@@ -278,13 +302,16 @@ export function getGMDataTabStyles(): string {
     }
     .act-tl-step-idx {
         color: var(--color-text-dim);
-        opacity: 0.5;
-        font-size: 0.8em;
+        opacity: 0.85;
+        font-size: 0.75em;
         flex-shrink: 0;
-        min-width: 28px;
-        text-align: right;
-        margin-right: var(--space-1);
+        min-width: 30px;
+        text-align: center;
+        padding: 1px 3px;
+        background: rgba(255,255,255,0.05);
+        border-radius: var(--radius-sm);
         font-variant-numeric: tabular-nums;
+        font-weight: 500;
     }
     .act-tl-gm {
         display: inline-flex;
@@ -304,10 +331,160 @@ export function getGMDataTabStyles(): string {
     .act-tl-gm-ttft { background: rgba(251,191,36,0.12); color: #fcd34d; }
     .act-tl-gm-cache { background: rgba(167,139,250,0.12); color: #c4b5fd; }
     .act-tl-gm-retry { background: rgba(248,113,113,0.15); color: #fca5a5; }
+    .act-tl-segment {
+        border: 1px solid rgba(255,255,255,0.05);
+        border-radius: var(--radius-md);
+        background: rgba(255,255,255,0.02);
+        overflow: hidden;
+        margin-bottom: var(--space-2);
+    }
+    .act-tl-segment:last-child {
+        margin-bottom: 0;
+    }
+    .act-tl-segment-user {
+        background: rgba(74, 222, 128, 0.04);
+        padding-left: var(--space-2);
+    }
+    .act-tl-segment-user::before {
+        content: '';
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        background: #4ade80;
+        flex-shrink: 0;
+        margin-right: var(--space-1);
+    }
+    .act-tl-segment-body {
+        display: flex;
+        flex-direction: column;
+    }
+    .act-tl-segment-body .act-tl-item {
+        padding-left: var(--space-2);
+    }
+    .act-tl-segment-body .act-tl-item::before {
+        content: '';
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.16);
+        flex-shrink: 0;
+        margin-right: var(--space-1);
+    }
+    .act-tl-segment-caption {
+        padding: 4px var(--space-2);
+        font-size: 0.76em;
+        color: var(--color-text-dim);
+        background: rgba(255,255,255,0.02);
+        border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .act-tl-tags {
+        display: inline-flex;
+        flex-wrap: nowrap;
+        gap: 3px;
+        align-items: center;
+    }
+    .act-tl-tag {
+        display: inline-flex;
+        align-items: center;
+        padding: 0 4px;
+        border-radius: var(--radius-sm);
+        font-size: 0.72em;
+        line-height: 1.6;
+        white-space: nowrap;
+        border: 1px solid transparent;
+    }
+    /* .act-tl-tag-exact removed — "Exact" label deemed too absolute */
+    .act-tl-tag-alias {
+        background: rgba(251, 191, 36, 0.12);
+        color: #fcd34d;
+        border-color: rgba(251, 191, 36, 0.2);
+    }
+    .act-tl-tag-struct {
+        background: rgba(96, 165, 250, 0.12);
+        color: #93c5fd;
+        border-color: rgba(96, 165, 250, 0.2);
+    }
+    .act-tl-tag-est {
+        background: rgba(248, 113, 113, 0.14);
+        color: #fca5a5;
+        border-color: rgba(248, 113, 113, 0.2);
+    }
+    .act-tl-tag-basis {
+        background: rgba(167, 139, 250, 0.12);
+        color: #c4b5fd;
+        border-color: rgba(167, 139, 250, 0.2);
+    }
+    .act-tl-tag-model {
+        background: rgba(255,255,255,0.04);
+        color: var(--color-text-dim);
+        border-color: rgba(255,255,255,0.08);
+        max-width: 200px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .act-tl-tag-marker {
+        background: rgba(255,255,255,0.04);
+        color: var(--color-text-dim);
+        border-color: rgba(255,255,255,0.08);
+    }
     .act-badge { font-size: 0.75em; opacity: 0.7; }
     .act-checkpoint-model { border-color: rgba(255,255,255,0.06); opacity: 0.85; }
 
-    /* ─── Activity Tab: Distribution Note ─── */
+    /* ─── Activity Tab: Timeline Legend ─── */
+    .act-tl-legend {
+        margin-top: var(--space-2);
+        margin-bottom: var(--space-2);
+        border: 1px solid rgba(255,255,255,0.06);
+        border-radius: var(--radius-md);
+        background: rgba(255,255,255,0.02);
+        font-size: 0.82em;
+    }
+    .act-tl-legend summary {
+        padding: var(--space-1) var(--space-2);
+        cursor: pointer;
+        color: var(--color-text-dim);
+        user-select: none;
+        list-style: none;
+        display: flex;
+        align-items: center;
+        gap: var(--space-1);
+    }
+    .act-tl-legend summary::-webkit-details-marker { display: none; }
+    .act-tl-legend summary::before {
+        content: '';
+        width: 0; height: 0;
+        border-left: 5px solid currentColor;
+        border-top: 4px solid transparent;
+        border-bottom: 4px solid transparent;
+        transition: transform 0.2s cubic-bezier(.4,0,.2,1);
+        flex-shrink: 0;
+    }
+    .act-tl-legend[open] summary::before {
+        transform: rotate(90deg);
+    }
+    .act-tl-legend-body {
+        padding: var(--space-2);
+        padding-top: 0;
+        line-height: 1.5;
+    }
+    .act-tl-legend-body table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .act-tl-legend-body td {
+        padding: 3px var(--space-1);
+        vertical-align: top;
+        border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .act-tl-legend-body td:first-child {
+        white-space: nowrap;
+        width: 1%;
+        padding-right: var(--space-2);
+    }
+    .act-tl-legend-body tr:last-child td {
+        border-bottom: none;
+    }
+    /* keep act-dist-note for other usages */
     .act-dist-note {
         font-size: 0.8em;
         color: var(--color-warn);
@@ -451,6 +628,57 @@ export function getGMDataTabStyles(): string {
     .gm-badge-real { display: inline-block; font-size: 0.65em; padding: 1px var(--space-1); border-radius: var(--radius-sm); background: rgba(52,211,153,0.15); color: #34d399; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; vertical-align: middle; margin-left: var(--space-1); }
     .gm-provider-tag { display: inline-block; font-size: 0.72em; padding: 1px var(--space-1); border-radius: var(--radius-sm); background: rgba(96,165,250,0.1); color: var(--color-info); margin-top: var(--space-1); }
 
+    /* ─── Retry Overhead ─── */
+    .act-stat-warn { border-color: rgba(248,113,113,0.3); }
+    @media (hover: hover) {
+        .act-stat-warn:hover { border-color: rgba(248,113,113,0.6); box-shadow: 0 0 8px rgba(248,113,113,0.15); }
+    }
+    .gm-retry-card {
+        background: var(--color-surface);
+        border: 1px solid rgba(248,113,113,0.2);
+        border-radius: var(--radius-md);
+        padding: var(--space-3);
+        margin-bottom: var(--space-4);
+    }
+    .gm-retry-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: var(--space-2);
+        text-align: center;
+    }
+    .gm-retry-metric {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: var(--space-2);
+        border-radius: var(--radius-sm);
+        background: rgba(248,113,113,0.06);
+        border: 1px solid rgba(248,113,113,0.1);
+    }
+    .gm-retry-val { font-weight: 700; font-size: 1.1em; color: #f87171; }
+    .gm-retry-label { font-size: 0.72em; color: var(--color-text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+    .gm-retry-stops {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-1);
+        margin-top: var(--space-3);
+        padding-top: var(--space-2);
+        border-top: 1px solid rgba(255,255,255,0.06);
+    }
+    .gm-stop-tag {
+        display: inline-block;
+        font-size: 0.72em;
+        padding: 2px var(--space-2);
+        border-radius: var(--radius-sm);
+        background: rgba(52,211,153,0.1);
+        color: #34d399;
+        font-weight: 500;
+    }
+    .gm-stop-err {
+        background: rgba(248,113,113,0.1);
+        color: #f87171;
+    }
+
     `;
 }
 
@@ -469,6 +697,7 @@ function buildSummaryBar(s: ActivitySummary | null, gm: GMSummary | null): strin
             <div class="act-stat"><span class="act-stat-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21V9M5 14l7-7 7 7"/></svg></span><span class="act-stat-val">${fmt(gm.totalOutputTokens)}</span><span class="act-stat-label">${tBi('Out', '输出')}</span></div>
             <div class="act-stat"><span class="act-stat-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12H2"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg></span><span class="act-stat-val">${fmt(gm.totalCacheRead)}</span><span class="act-stat-label">${tBi('Cache', '缓存')}</span></div>
             ${gm.totalCredits > 0 ? `<div class="act-stat"><span class="act-stat-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></span><span class="act-stat-val">${gm.totalCredits}</span><span class="act-stat-label">Credits</span></div>` : ''}
+            ${gm.totalRetryTokens > 0 ? `<div class="act-stat act-stat-warn" data-tooltip="${tBi('Tokens wasted on retries (input + output)', '重试浪费的 token（输入+输出）')}"><span class="act-stat-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></span><span class="act-stat-val">${fmt(gm.totalRetryTokens)}</span><span class="act-stat-label">${tBi('Retry Waste', '重试浪费')}</span></div>` : ''}
         </div>`;
     }
 
@@ -531,6 +760,7 @@ function buildSummaryBar(s: ActivitySummary | null, gm: GMSummary | null): strin
         ${s.totalToolReturnTokens > 0 ? `<div class="act-stat" data-tooltip="${tBi('Tokens returned by tool calls', '工具调用返回的 token 数')}"><span class="act-stat-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 14l-4-4 4-4"/><path d="M5 10h11a4 4 0 0 1 0 8h-1"/></svg></span><span class="act-stat-val">${fmt(s.totalToolReturnTokens)}</span><span class="act-stat-label">${tBi('Tool Output', '工具输出')}</span></div>` : ''}
         ${cacheCard}
         ${creditsCard}
+        ${gm && gm.totalRetryTokens > 0 ? `<div class="act-stat act-stat-warn" data-tooltip="${tBi('Tokens wasted on retries (input + output)', '重试浪费的 token（输入+输出）')}"><span class="act-stat-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></span><span class="act-stat-val">${fmt(gm.totalRetryTokens)}</span><span class="act-stat-label">${tBi('Retry', '重试')}</span></div>` : ''}
     </div>`;
 }
 
@@ -636,10 +866,15 @@ function buildModelCards(s: ActivitySummary | null, gm: GMSummary | null): strin
                 ${gmStats.totalCacheRead > 0 ? `<div class="act-card-row"><span>${ICONS.save} <span>${tBi('Cache', '缓存')}</span></span><span class="val">${fmt(gmStats.totalCacheRead)}${gmTag}</span></div>` : ''}
                 ${gmStats.totalCredits > 0 ? `<div class="act-card-row"><span>${ICONS.coin} <span>Credits</span></span><span class="val">${gmStats.totalCredits.toFixed(1)}${gmTag}</span></div>` : ''}
                 ${gmStats.cacheHitRate > 0 ? `<div class="act-card-row"><span>${ICONS.bar} <span>${tBi('Cache Hit', '缓存命中')}</span></span><span class="val">${(gmStats.cacheHitRate * 100).toFixed(0)}%${gmTag}</span></div>` : ''}
+                ${'exactCallCount' in gmStats && gmStats.exactCallCount > 0 ? `<div class="act-card-row"><span>${ICONS.tool} <span>${tBi('Exact Calls', '精确调用')}</span></span><span class="val">${gmStats.exactCallCount}${gmTag}</span></div>` : ''}
+                ${'placeholderOnlyCalls' in gmStats && gmStats.placeholderOnlyCalls > 0 ? `<div class="act-card-row"><span>${ICONS.error} <span>${tBi('Alias Only', '仅别名')}</span></span><span class="val">${gmStats.placeholderOnlyCalls}${gmTag}</span></div>` : ''}
                 `;
                 // Footer tags from full GMModelStats (responseModel, apiProvider)
                 if ('responseModel' in gmStats && gmStats.responseModel) {
                     gmFooterTags += `<span class="act-tool-tag">${esc(gmStats.responseModel)}</span>`;
+                }
+                if ('placeholderOnlyCalls' in gmStats && gmStats.placeholderOnlyCalls > 0) {
+                    gmFooterTags += `<span class="gm-provider-tag">${tBi(`Alias ${gmStats.placeholderOnlyCalls}`, `别名 ${gmStats.placeholderOnlyCalls}`)}</span>`;
                 }
                 if ('apiProvider' in gmStats && gmStats.apiProvider) {
                     const providerShort = gmStats.apiProvider.replace('API_PROVIDER_', '').replace(/_/g, ' ');
@@ -684,10 +919,13 @@ function buildModelCards(s: ActivitySummary | null, gm: GMSummary | null): strin
                 ${gms.totalCacheRead > 0 ? `<div class="act-card-row"><span>${ICONS.save} <span>${tBi('Cache', '缓存')}</span></span><span class="val">${fmt(gms.totalCacheRead)}</span></div>` : ''}
                 ${gms.totalCredits > 0 ? `<div class="act-card-row"><span>${ICONS.coin} <span>Credits</span></span><span class="val">${gms.totalCredits.toFixed(1)}</span></div>` : ''}
                 ${gms.cacheHitRate > 0 ? `<div class="act-card-row"><span>${ICONS.bar} <span>${tBi('Cache Hit', '缓存命中')}</span></span><span class="val">${(gms.cacheHitRate * 100).toFixed(0)}%</span></div>` : ''}
+                ${'exactCallCount' in gms && gms.exactCallCount > 0 ? `<div class="act-card-row"><span>${ICONS.tool} <span>${tBi('Exact Calls', '精确调用')}</span></span><span class="val">${gms.exactCallCount}</span></div>` : ''}
+                ${'placeholderOnlyCalls' in gms && gms.placeholderOnlyCalls > 0 ? `<div class="act-card-row"><span>${ICONS.error} <span>${tBi('Alias Only', '仅别名')}</span></span><span class="val">${gms.placeholderOnlyCalls}</span></div>` : ''}
             </div>
             <div class="act-card-footer">
                 ${'responseModel' in gms && gms.responseModel ? `<span class="act-tool-tag">${esc(gms.responseModel)}</span>` : ''}
                 ${providerShort ? `<span class="gm-provider-tag">${esc(providerShort)}</span>` : ''}
+                ${'placeholderOnlyCalls' in gms && gms.placeholderOnlyCalls > 0 ? `<span class="gm-provider-tag">${tBi(`Alias ${gms.placeholderOnlyCalls}`, `别名 ${gms.placeholderOnlyCalls}`)}</span>` : ''}
                 <span class="act-tool-tag">${tBi('Cache', '缓存')} ${(gms.cacheHitRate * 100).toFixed(0)}%</span>
             </div>
         </div>`;
@@ -700,16 +938,22 @@ function buildModelCards(s: ActivitySummary | null, gm: GMSummary | null): strin
         html += `<div class="act-cards-grid">`;
         for (const sa of s.subAgentTokens) {
             const avgInput = sa.count > 0 ? Math.round(sa.inputTokens / sa.count) : 0;
+            const convCount = sa.cascadeIds?.length || 0;
+            const convTags = (sa.cascadeIds || []).map(id =>
+                `<span class="act-tool-tag">${esc(id.slice(0, 8))}</span>`
+            ).join('');
             html += `
             <div class="act-model-card act-checkpoint-model">
-                <div class="act-card-header"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><path d="M12 2a4 4 0 0 1 4 4v2h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2h2V6a4 4 0 0 1 4-4z"/><circle cx="12" cy="15" r="2"/></svg>${esc(sa.displayName)} <span class="act-badge">${tBi(`${sa.count} checkpoints`, `${sa.count} 检查点`)}</span></div>
+                <div class="act-card-header"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><path d="M12 2a4 4 0 0 1 4 4v2h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2h2V6a4 4 0 0 1 4-4z"/><circle cx="12" cy="15" r="2"/></svg>${esc(sa.displayName)} <span class="act-badge">${tBi(`${sa.count} checkpoints`, `${sa.count} 检查点`)}</span>${sa.ownerModel ? ` <span class="act-badge" style="color:var(--color-text-dim)">→ ${esc(sa.ownerModel)}</span>` : ''}</div>
                 <div class="act-card-body">
                     <div class="act-card-row"><span>${ICONS.coin} <span>${tBi('In', '输入')}</span></span><span class="val">${fmt(sa.inputTokens)}</span></div>
                     <div class="act-card-row"><span>${ICONS.coin} <span>${tBi('Out', '输出')}</span></span><span class="val">${fmt(sa.outputTokens)}</span></div>
                     <div class="act-card-row"><span>${ICONS.coin} <span>${tBi('Cache Read', '缓存读取')}</span></span><span class="val">${fmt(sa.cacheReadTokens)}</span></div>
                     <div class="act-card-row"><span>${ICONS.tool} <span>${tBi('Avg In/CP', '均值输入/CP')}</span></span><span class="val">${fmt(avgInput)}</span></div>${sa.compressionEvents > 0 ? `
-                    <div class="act-card-row"><span><svg class="act-icon" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg> <span>${tBi('Compressions', '压缩次数')}</span></span><span class="val" style="color:var(--color-warning,#f97316)">${sa.compressionEvents}</span></div>` : ''}
+                    <div class="act-card-row"><span><svg class="act-icon" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg> <span>${tBi('Compressions', '压缩次数')}</span></span><span class="val" style="color:var(--color-warning,#f97316)">${sa.compressionEvents}</span></div>` : ''}${convCount > 0 ? `
+                    <div class="act-card-row"><span><svg class="act-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> <span>${tBi('Conversations', '对话')}</span></span><span class="val">${convCount}</span></div>` : ''}
                 </div>
+                ${convTags ? `<div class="act-card-footer">${convTags}</div>` : ''}
             </div>`;
         }
         html += `</div>`;
@@ -718,9 +962,16 @@ function buildModelCards(s: ActivitySummary | null, gm: GMSummary | null): strin
     return html;
 }
 
-function buildTimeline(s: ActivitySummary): string {
-    const events = s.recentSteps.slice(-30).reverse();
-    if (events.length === 0) { return ''; }
+function buildTimeline(s: ActivitySummary, currentUsage?: ContextUsage | null): string {
+    const currentCascadeId = currentUsage?.cascadeId;
+    const scopedEvents = currentCascadeId
+        ? s.recentSteps.filter(event => event.cascadeId === currentCascadeId)
+        : s.recentSteps;
+    const orderedEvents = [...scopedEvents];
+    if (orderedEvents.length === 0) {
+        if (!currentCascadeId) { return ''; }
+        return `<h2 class="act-section-title"><svg class="act-icon" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${tBi('Recent Activity', '最近操作')} <span class="act-badge">${tBi('Current Session', '当前对话')}</span></h2><p class="empty-msg">${tBi('No recent activity for the current conversation yet.', '当前对话暂时还没有可显示的最近操作。')}</p>`;
+    }
 
     const fmtTok = (n: number) => n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n);
 
@@ -728,6 +979,7 @@ function buildTimeline(s: ActivitySummary): string {
         // SVG Mapping for categories/emojis
         if (e.icon === '❌') return `<svg class="act-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`;
         if (e.icon === '💾') return `<svg class="act-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>`;
+        if (e.icon === '📊') return `<svg class="act-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>`;
         if (e.category === 'reasoning') return `<svg class="act-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 0 1 7 7c0 2.5-1.3 4.7-3.2 6H8.2C6.3 13.7 5 11.5 5 9a7 7 0 0 1 7-7z"/><path d="M9 17h6M10 21h4"/></svg>`;
         if (e.category === 'user') return `<svg class="act-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`;
         if (e.category === 'tool') {
@@ -742,18 +994,82 @@ function buildTimeline(s: ActivitySummary): string {
         return `<svg class="act-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
     };
 
+    const buildMetaTags = (e: any) => {
+        const tags: string[] = [];
+        if (e.source === 'gm_virtual') {
+            tags.push(`<span class="act-tl-tag act-tl-tag-struct">${e.gmPromptSnippet && !/checkpoint/i.test(String(e.gmPromptSnippet)) ? 'GM-TEXT' : 'GM-STRUCT'}</span>`);
+        } else if (e.source === 'gm_user') {
+            tags.push(`<span class="act-tl-tag act-tl-tag-struct">GM-USER</span>`);
+        } else if (e.source === 'estimated') {
+            tags.push(`<span class="act-tl-tag act-tl-tag-est">${e.estimatedResolved ? tBi('Recovered', '已补回') : tBi('Est.', '推算')}</span>`);
+        }
+
+        if (e.modelBasis === 'gm_placeholder') {
+            tags.push(`<span class="act-tl-tag act-tl-tag-alias">${tBi('Alias', '别名')}</span>`);
+        } else if (e.modelBasis === 'summary') {
+            tags.push(`<span class="act-tl-tag act-tl-tag-basis">${tBi('Summary', '摘要')}</span>`);
+        } else if (e.modelBasis === 'generator') {
+            tags.push(`<span class="act-tl-tag act-tl-tag-basis">${tBi('Generator', '生成器')}</span>`);
+        } else if (e.modelBasis === 'dominant') {
+            tags.push(`<span class="act-tl-tag act-tl-tag-basis">${tBi('Dominant', '主模型')}</span>`);
+        }
+
+        if (e.gmModel && e.gmModelAccuracy === 'exact') {
+            tags.push(`<span class="act-tl-tag act-tl-tag-model">${esc(e.gmModel)}</span>`);
+        }
+        if (e.gmContextTokensUsed) {
+            tags.push(`<span class="act-tl-tag act-tl-tag-marker">${tBi(`Ctx ${fmtTok(e.gmContextTokensUsed)}`, `上下文 ${fmtTok(e.gmContextTokensUsed)}`)}</span>`);
+        }
+        return tags.length > 0 ? `<span class="act-tl-tags">${tags.join('')}</span>` : '';
+    };
+
     // GM coverage badge
     const gmRate = s.gmCoverageRate;
     const gmBadge = gmRate !== undefined && gmRate > 0
         ? ` <span class="act-badge" style="color:var(--color-ok)">${tBi('GM', 'GM')} ${(gmRate * 100).toFixed(0)}%</span>`
         : '';
 
-    let html = `<h2 class="act-section-title"><svg class="act-icon" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${tBi('Recent Activity', '最近操作')}${gmBadge}</h2><div class="act-timeline">`;
-    for (const e of events) {
+    const scopeBadge = currentCascadeId
+        ? ` <span class="act-badge">${tBi('Current Session', '当前对话')}</span>`
+        : '';
+    let html = `<h2 class="act-section-title"><svg class="act-icon" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${tBi('Recent Activity', '最近操作')}${scopeBadge}${gmBadge}</h2>
+    <details class="act-tl-legend" id="d-tl-legend">
+        <summary>${tBi('Timeline Legend', '时间线图例')}</summary>
+        <div class="act-tl-legend-body">
+            <table>
+                <tbody>
+                    <tr><td><span class="act-tl-time" style="display:inline">08:20</span></td><td>${tBi('Timestamp of the step', '步骤发生时间')}</td></tr>
+                    <tr><td><span class="act-tl-step-idx" style="display:inline">#115</span></td><td>${tBi('Steps API index. Gaps (e.g. #165→#168) are normal — skipped indices are internal system steps (message intake, context assembly, checkpointing) that have no user-facing content.', 'Steps API 步骤索引。跳号（如 #165→#168）是正常的 — 被跳过的是系统内部步骤（消息接收、上下文组装、快照），没有用户可见内容。')}</td></tr>
+                    <tr><td style="color:var(--color-info);font-weight:500">claude-opus-4.6</td><td>${tBi('Model used for this step. Source badge indicates attribution method:', '该步骤使用的模型。来源标签表示归因方式：')}<br/>
+                        &nbsp;&nbsp;${tBi('<b>Alias</b> = model name is a placeholder ID, not the real name', '<b>别名</b> = 模型名为占位 ID，非真实名称')}<br/>
+                        &nbsp;&nbsp;${tBi('<b>Summary</b> = inferred from conversation summary', '<b>摘要</b> = 从对话摘要中推断')}<br/>
+                        &nbsp;&nbsp;${tBi('<b>Dominant</b> = assumed from the most-used model in context', '<b>主模型</b> = 假定为上下文中最常用的模型')}
+                    </td></tr>
+                    <tr><td><span class="act-tl-tag act-tl-tag-marker" style="display:inline">${tBi('Ctx 142.7k', '上下文 142.7k')}</span></td><td>${tBi('Context window usage at the time of this call — how many tokens the model could "see". Precise GM value.', '该次调用时的上下文窗口占用量 — 模型能「看到」多少 token。GM 精确值。')}</td></tr>
+                    <tr><td><span class="act-tl-gm-tag act-tl-gm-in" style="display:inline">1.3kin</span></td><td>${tBi('Input tokens billed for this call (new content, excluding cached)', '该次调用计费的输入 token（新内容，不含缓存）')}</td></tr>
+                    <tr><td><span class="act-tl-gm-tag act-tl-gm-out" style="display:inline">117out</span></td><td>${tBi('Output tokens generated by the model', '模型生成的输出 token')}</td></tr>
+                    <tr><td><span class="act-tl-gm-tag act-tl-gm-ttft" style="display:inline">2.1s</span></td><td>${tBi('TTFT — Time To First Token. Network + model latency before the first token arrives.', 'TTFT — 首 Token 延迟。从发出请求到收到第一个 token 的等待时间。')}</td></tr>
+                    <tr><td><span class="act-tl-gm-tag act-tl-gm-cache" style="display:inline">176.8k ${tBi('cache', '缓存')}</span></td><td>${tBi('Cache read tokens — content served from cache, reducing cost and latency. Relationship: Context ≈ Input + Cache + overhead.', '缓存读取 token — 从缓存中读取的内容，降低成本和延迟。关系：上下文 ≈ 输入 + 缓存 + 开销。')}</td></tr>
+                    <tr><td><span style="color:var(--color-text-dim)">538ms</span></td><td>${tBi('Total duration of this step', '该步骤的总耗时')}</td></tr>
+                </tbody>
+            </table>
+            <p style="margin-top:var(--space-2);opacity:0.7;font-size:0.85em">${tBi(
+                'Token data (in/out/cache/TTFT) only appears on reasoning rows. Tool steps share the same GM call as the reasoning step that invoked them, so their tokens are counted there to avoid double-counting.',
+                'Token 数据（in/out/缓存/TTFT）仅在推理行显示。工具步骤与调用它的推理步骤共享同一次 GM 调用，token 统计在推理行上以避免重复计数。'
+            )}</p>
+        </div>
+    </details><div class="act-timeline">`;
+
+    const renderEventRow = (e: any, extraClass = '') => {
         const time = formatTime(e.timestamp);
         const dur = e.durationMs > 0 ? `<span class="act-tl-dur">${e.durationMs < 1000 ? e.durationMs + 'ms' : (e.durationMs / 1000).toFixed(1) + 's'}</span>` : '';
+        // Determine if this row has expandable full text that is LONGER than the preview
+        const previewText = e.userInput || e.aiResponse || '';
+        const fullText = e.fullUserInput || e.fullAiResponse || '';
+        const hasExpand = fullText && fullText.length > previewText.length;
+        const expandableClass = hasExpand ? ' act-tl-expandable' : '';
         let detail = '';
-        if (e.userInput) { detail = `<span class="act-tl-user">"${esc(e.userInput)}"</span>`; }
+        if (e.userInput) { detail = `<span class="act-tl-user${expandableClass}">"${esc(e.userInput.replace(/\s*\n\s*/g, ' '))}"</span>`; }
         else if (e.toolName && e.detail) {
             detail = `<span class="act-tl-tool-name">${esc(e.toolName)}</span><span class="act-tl-detail">${esc(e.detail)}</span>`;
         }
@@ -761,12 +1077,13 @@ function buildTimeline(s: ActivitySummary): string {
             detail = `<span class="act-tl-tool-name">${esc(e.toolName)}</span>`;
         }
         else if (e.aiResponse) {
-            detail = `<span class="act-tl-ai-preview">${esc(e.aiResponse)}</span>`;
+            detail = `<span class="act-tl-ai-preview${expandableClass}">${esc(e.aiResponse)}</span>`;
         }
         else if (e.detail) { detail = `<span class="act-tl-detail">${esc(e.detail)}</span>`; }
 
         const stepIdx = e.stepIndex !== undefined ? `<span class="act-tl-step-idx">#${e.stepIndex}</span>` : '';
         const svgIcon = getTimelineIcon(e);
+        const metaTags = buildMetaTags(e);
 
         // GM precision data tags — only show on reasoning steps (tools share the same GM call)
         let gmTags = '';
@@ -775,21 +1092,65 @@ function buildTimeline(s: ActivitySummary): string {
             parts.push(`<span class="act-tl-gm-tag act-tl-gm-in">${fmtTok(e.gmInputTokens)}in</span>`);
             if (e.gmOutputTokens) { parts.push(`<span class="act-tl-gm-tag act-tl-gm-out">${fmtTok(e.gmOutputTokens)}out</span>`); }
             if (e.gmTTFT && e.gmTTFT > 0) { parts.push(`<span class="act-tl-gm-tag act-tl-gm-ttft">${e.gmTTFT.toFixed(1)}s</span>`); }
-            if (e.gmCacheReadTokens && e.gmCacheReadTokens > 0) { parts.push(`<span class="act-tl-gm-tag act-tl-gm-cache">${fmtTok(e.gmCacheReadTokens)}$</span>`); }
+            if (e.gmCacheReadTokens && e.gmCacheReadTokens > 0) { parts.push(`<span class="act-tl-gm-tag act-tl-gm-cache">${fmtTok(e.gmCacheReadTokens)} ${tBi('cache', '缓存')}</span>`); }
             if (e.gmRetries && e.gmRetries > 1) { parts.push(`<span class="act-tl-gm-tag act-tl-gm-retry">r${e.gmRetries}</span>`); }
             gmTags = `<span class="act-tl-gm">${parts.join('')}</span>`;
         }
 
-        html += `
-        <div class="act-tl-item act-tl-${e.category}">
+        // Expandable full text block
+        const expandId = hasExpand ? `tl-exp-${e.stepIndex ?? Math.random().toString(36).slice(2, 8)}` : '';
+        const expandBlock = hasExpand
+            ? `<div id="${expandId}" class="act-tl-expand">${esc(fullText)}</div>`
+            : '';
+        const toggleAttr = hasExpand ? ` data-expand-target="${expandId}"` : '';
+
+        return `
+        <div class="act-tl-item act-tl-${e.category}${extraClass ? ` ${extraClass}` : ''}"${toggleAttr}>
             <span class="act-tl-time">${time}</span>
             ${stepIdx}
             <span class="act-tl-icon">${svgIcon}</span>
-            ${e.model ? `<span class="act-tl-model">${esc(e.model)}</span>` : ''}
-            ${detail}
-            ${dur}
-            ${gmTags}
-        </div>`;
+            <span class="act-tl-content">
+                ${e.model ? `<span class="act-tl-model">${esc(e.model)}</span>` : ''}
+                ${detail}
+            </span>
+            <span class="act-tl-meta">
+                ${metaTags}
+                ${gmTags}
+                ${dur}
+            </span>
+        </div>${expandBlock}`;
+    };
+
+    const segments: Array<{ user?: any; actions: any[] }> = [];
+    let currentSegment: { user?: any; actions: any[] } | null = null;
+    for (const event of orderedEvents) {
+        if (event.category === 'user') {
+            currentSegment = { user: event, actions: [] };
+            segments.push(currentSegment);
+            continue;
+        }
+        if (!currentSegment) {
+            currentSegment = { actions: [] };
+            segments.push(currentSegment);
+        }
+        currentSegment.actions.push(event);
+    }
+
+    for (const segment of [...segments].reverse()) {
+        html += `<div class="act-tl-segment">`;
+        if (segment.actions.length > 0) {
+            html += `<div class="act-tl-segment-body">`;
+            for (const action of [...segment.actions].reverse()) {
+                html += renderEventRow(action);
+            }
+            html += `</div>`;
+        }
+        if (segment.user) {
+            html += renderEventRow(segment.user, 'act-tl-segment-user');
+        } else {
+            html += `<div class="act-tl-segment-caption">${tBi('AI actions (user anchor unavailable)', 'AI 动作（缺少用户锚点）')}</div>`;
+        }
+        html += `</div>`;
     }
     html += `</div>`;
     return html;
@@ -897,4 +1258,93 @@ function buildConversations(s: GMSummary): string {
     }
     html += `</div>`;
     return html;
+}
+
+// ─── Retry Overhead Section ─────────────────────────────────────────────────
+
+function buildRetryOverhead(s: GMSummary): string {
+    if (s.totalRetryTokens <= 0 && s.totalRetryCount <= 0) { return ''; }
+    const fmt = (n: number) => n >= 1_000_000 ? (n / 1_000_000).toFixed(2) + 'M' : n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n);
+    const pctOfTotal = (s.totalInputTokens + s.totalOutputTokens) > 0
+        ? ((s.totalRetryTokens / (s.totalInputTokens + s.totalOutputTokens)) * 100).toFixed(1)
+        : '0';
+
+    // Stop reason distribution
+    let stopHtml = '';
+    const srEntries = Object.entries(s.stopReasonCounts);
+    if (srEntries.length > 0) {
+        stopHtml = `<div class="gm-retry-stops">`;
+        for (const [reason, count] of srEntries.sort((a, b) => b[1] - a[1])) {
+            const isErr = reason !== 'STOP_PATTERN' && reason !== 'END_TURN';
+            stopHtml += `<span class="gm-stop-tag${isErr ? ' gm-stop-err' : ''}">${esc(reason)} ×${count}</span>`;
+        }
+        stopHtml += `</div>`;
+    }
+
+    return `<h2 class="act-section-title"><svg class="act-icon" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>${tBi('Retry Overhead', '重试开销')} <span class="gm-badge-real">${tBi('Probe', '探针')}</span></h2>
+    <div class="gm-retry-card">
+        <div class="gm-retry-grid">
+            <div class="gm-retry-metric">
+                <span class="gm-retry-val">${fmt(s.totalRetryTokens)}</span>
+                <span class="gm-retry-label">${tBi('Tokens Wasted', 'Token 浪费')}</span>
+            </div>
+            <div class="gm-retry-metric">
+                <span class="gm-retry-val">${s.totalRetryCredits > 0 ? s.totalRetryCredits.toFixed(1) : '0'}</span>
+                <span class="gm-retry-label">${tBi('Credits Lost', 'Credits 损耗')}</span>
+            </div>
+            <div class="gm-retry-metric">
+                <span class="gm-retry-val">${s.totalRetryCount}</span>
+                <span class="gm-retry-label">${tBi('Retry Calls', '重试次数')}</span>
+            </div>
+            <div class="gm-retry-metric">
+                <span class="gm-retry-val">${pctOfTotal}%</span>
+                <span class="gm-retry-label">${tBi('of Total', '占总量')}</span>
+            </div>
+        </div>
+        ${stopHtml}
+    </div>`;
+}
+
+// ─── Token Breakdown Chart ──────────────────────────────────────────────────
+
+function buildTokenBreakdownChart(s: GMSummary): string {
+    const groups = s.latestTokenBreakdown;
+    if (!groups || groups.length === 0) { return ''; }
+
+    const fmt = (n: number) => n >= 1_000_000 ? (n / 1_000_000).toFixed(2) + 'M' : n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n);
+    const total = groups.reduce((a, g) => a + g.tokens, 0);
+    if (total <= 0) { return ''; }
+
+    const colors = ['#8b5cf6', '#06b6d4', '#f59e0b', '#10b981', '#ec4899', '#6366f1', '#f97316', '#14b8a6'];
+    const size = 140;
+    const r = 55;
+    const cx = size / 2;
+    const cy = size / 2;
+    const circumference = 2 * Math.PI * r;
+    let offset = 0;
+
+    let donut = `<svg class="act-donut-chart" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}">`;
+    for (let i = 0; i < groups.length; i++) {
+        const pct = groups[i].tokens / total;
+        const len = pct * circumference;
+        donut += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${colors[i % colors.length]}" stroke-width="16" stroke-dasharray="${len} ${circumference - len}" stroke-dashoffset="${-offset}" transform="rotate(-90 ${cx} ${cy})"/>`;
+        offset += len;
+    }
+    donut += `<text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central" fill="var(--color-text)" font-size="16" font-weight="600">${fmt(total)}</text>`;
+    donut += `</svg>`;
+
+    let legend = `<div class="act-dist-legend">`;
+    for (let i = 0; i < groups.length; i++) {
+        const g = groups[i];
+        const pct = ((g.tokens / total) * 100).toFixed(1);
+        const name = g.name || g.type.replace('TOKEN_TYPE_', '').replace(/_/g, ' ');
+        legend += `<div class="act-legend-item"><span class="act-legend-dot" style="background:${colors[i % colors.length]}"></span>${esc(name)} <span class="act-legend-pct">${pct}% (${fmt(g.tokens)})</span></div>`;
+    }
+    legend += `</div>`;
+
+    return `<h2 class="act-section-title"><svg class="act-icon" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 10 10"/><path d="M12 12V2"/><path d="M12 12h10"/></svg>${tBi('Context Composition', '上下文组成')} <span class="gm-badge-real">${tBi('Probe', '探针')}</span></h2>
+    <div class="act-dist-container">
+        ${donut}
+        ${legend}
+    </div>`;
 }

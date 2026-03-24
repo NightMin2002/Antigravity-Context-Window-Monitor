@@ -155,6 +155,11 @@ export function getScript(): string {
                     var feedbackMap = {
                         'pollingInterval': 'pollingFeedback',
                         'contextLimits': 'modelLimitsFeedback',
+                        'quotaNotificationThreshold': 'quotaNotifyFeedback',
+                        'activity.maxRecentSteps': 'maxRecentStepsFeedback',
+                        'activity.maxArchives': 'maxArchivesFeedback',
+                        'quotaMaxHistory': 'maxHistoryFeedback',
+                        'statePath': 'statePathFeedback'
                     };
                     var fbId = feedbackMap[msg.key];
                     if (fbId) {
@@ -337,6 +342,26 @@ export function getScript(): string {
                 });
             }
 
+            // ─── Persistent State File Helpers ───
+            var copyStatePathBtn = document.getElementById('copyStatePath');
+            if (copyStatePathBtn) {
+                copyStatePathBtn.addEventListener('click', function() {
+                    vscode.postMessage({ command: 'copyStatePath' });
+                });
+            }
+            var openStateFileBtn = document.getElementById('openStateFile');
+            if (openStateFileBtn) {
+                openStateFileBtn.addEventListener('click', function() {
+                    vscode.postMessage({ command: 'openStateFile' });
+                });
+            }
+            var revealStateFileBtn = document.getElementById('revealStateFile');
+            if (revealStateFileBtn) {
+                revealStateFileBtn.addEventListener('click', function() {
+                    vscode.postMessage({ command: 'revealStateFile' });
+                });
+            }
+
             // ─── Pricing: Save / Reset ───
             var pricingSaveBtn = document.getElementById('pricingSaveBtn');
             var pricingResetBtn = document.getElementById('pricingResetBtn');
@@ -415,6 +440,25 @@ export function getScript(): string {
             // ─── Calendar: Event Delegation ───
             document.body.addEventListener('click', function(e) {
                 var target = e.target;
+
+                // ── Timeline: expand/collapse full text ──
+                var tlItem = target.closest && target.closest('[data-expand-target]');
+                if (tlItem) {
+                    var expandId = tlItem.getAttribute('data-expand-target');
+                    if (expandId) {
+                        var expandEl = document.getElementById(expandId);
+                        if (expandEl) {
+                            var isOpen = expandEl.classList.toggle('act-tl-expand-open');
+                            // Persist expand state across poll refreshes
+                            var st = vscode.getState() || {};
+                            var te = st.tlExpands || {};
+                            te[expandId] = isOpen;
+                            st.tlExpands = te;
+                            vscode.setState(st);
+                        }
+                    }
+                    return;
+                }
 
                 // ── Date Cell Click: expand/collapse detail panel ──
                 var cell = target.closest && target.closest('.cal-cell.has-data');
@@ -523,6 +567,15 @@ export function getScript(): string {
                         });
                     }
 
+                    // Restore timeline expand blocks
+                    var tlExpands = (vscode.getState() || {}).tlExpands || {};
+                    var expEls = document.querySelectorAll('.act-tl-expand');
+                    for (var ei = 0; ei < expEls.length; ei++) {
+                        if (tlExpands[expEls[ei].id]) {
+                            expEls[ei].classList.add('act-tl-expand-open');
+                        }
+                    }
+
                     // NOW restore scrollTop (details are open, heights are correct)
                     for (var rs = 0; rs < scrollableSelectors.length; rs++) {
                         var rsel = scrollableSelectors[rs];
@@ -606,14 +659,31 @@ export function getScript(): string {
                         });
                     }
 
-                    // Re-apply privacy mask if active
+                    // Re-apply privacy mask if active AND re-bind toggle button
                     var privState = vscode.getState() || {};
-                    if (privState.privacyMasked) {
+                    var isMasked = !!privState.privacyMasked;
+                    if (isMasked) {
                         var targets = document.querySelectorAll('[data-real][data-masked]');
                         for (var pj = 0; pj < targets.length; pj++) {
                             var el = targets[pj];
                             el.textContent = el.getAttribute('data-masked');
                         }
+                    }
+                    // Re-bind privacy toggle button (old button destroyed by innerHTML swap)
+                    var newPrivBtn = document.getElementById('privacyToggle');
+                    if (newPrivBtn) {
+                        if (isMasked) { newPrivBtn.classList.add('active'); }
+                        newPrivBtn.addEventListener('click', function() {
+                            var st = vscode.getState() || {};
+                            var m = !st.privacyMasked;
+                            st.privacyMasked = m;
+                            vscode.setState(st);
+                            var tgts = document.querySelectorAll('[data-real][data-masked]');
+                            for (var k = 0; k < tgts.length; k++) {
+                                tgts[k].textContent = m ? tgts[k].getAttribute('data-masked') : tgts[k].getAttribute('data-real');
+                            }
+                            newPrivBtn.classList.toggle('active', m);
+                        });
                     }
                 }
             });
