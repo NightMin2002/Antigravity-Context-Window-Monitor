@@ -1,5 +1,29 @@
 # 变更日志 / Changelog
 
+## [1.13.5] - 2026-03-24
+
+### Added / 新增
+
+- **Daily Aggregation Summary / 每日跨周期聚合汇总**: `webview-calendar-tab.ts` now merges all quota cycles for a single day into a unified summary card. Per-model stats (reasoning, toolCalls, errors, estSteps, tokens) are summed across cycles; GM stats (calls, credits, tokens) are summed with TTFT and cache hit rate computed as call-weighted averages. When a day has >1 cycle, individual cycle cards collapse into a `<details>` element; single-cycle days render inline.
+  日历日详情面板新增跨周期聚合：同一天的所有配额周期按模型合并统计，TTFT 和缓存率使用调用数加权平均。多周期时原始卡片折叠到 `<details>` 中。
+
+- **Top Summary Bar Enhancements / 顶部汇总栏增强**: Added GM Calls, weighted-average Cache Hit Rate, and Errors (red) to the day summary bar. Token display now prefers GM token totals (precise per-call API data) over Activity Tracker estimates when available — fixes the 139.6k → 6.5M discrepancy.
+  顶部汇总栏新增 GM 调用数、加权缓存率、错误数。Token 优先使用 GM 精确数据替代 Activity 估算。
+
+### Changed / 变更
+
+- **Calendar Grid Compaction / 日历格子紧凑化**: Removed `aspect-ratio: 1` constraint from calendar cells, switching to compact `padding: var(--space-1) 0` layout. Significantly reduces vertical footprint.
+  移除格子正方形约束，改紧凑 padding 布局，大幅减少垂直占用。
+
+- **Font Size Uplift / 字体增大**: Systematically increased font sizes across all calendar labels, chips, and stat values (e.g., `0.7em` → `0.85em+`) for improved readability.
+  系统性增大日历全部标签、chip、统计值的字号。
+
+- **All-Time Summary Position / 历史汇总位置**: Moved "All-Time Summary" section to the top of the Calendar tab for immediate visibility on tab switch.
+  历史汇总移至日历 Tab 顶部，切换即可见。
+
+- **Inline Style Cleanup / 内联样式清理**: Migrated remaining inline `style="..."` attributes to dedicated CSS classes (`.cal-clear-section`, `.cal-cycle-stats-spaced`, `.cal-day-total-danger`, `.cal-cycles-details`, `.cal-cycles-summary`).
+  内联样式提取为 CSS class。
+
 ## [1.13.4] - 2026-03-24
 
 ### Changed / 变更
