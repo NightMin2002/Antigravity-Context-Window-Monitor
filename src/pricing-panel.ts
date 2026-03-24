@@ -94,8 +94,8 @@ export function getPricingTabStyles(): string {
         gap: 1px;
         padding: var(--space-1);
         border-radius: var(--radius-sm);
-        background: rgba(255,255,255,0.02);
-        border: 1px solid rgba(255,255,255,0.04);
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
     }
     .prc-dna-label {
         font-size: 0.78em;
@@ -118,7 +118,7 @@ export function getPricingTabStyles(): string {
         font-size: 0.78em;
         padding: 2px var(--space-2);
         border-radius: var(--radius-sm);
-        background: rgba(255,255,255,0.06);
+        background: var(--color-surface-hover);
         color: var(--color-text-dim);
     }
     .prc-tool-tag {
@@ -156,8 +156,8 @@ export function getPricingTabStyles(): string {
         text-align: center;
         padding: var(--space-2) var(--space-3);
         border-radius: var(--radius-md);
-        background: rgba(255,255,255,0.02);
-        border: 1px solid rgba(255,255,255,0.04);
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
     }
     .prc-viz-hl-val {
         font-weight: 700;
@@ -189,7 +189,7 @@ export function getPricingTabStyles(): string {
         flex: 1;
         height: 18px;
         border-radius: var(--radius-sm);
-        background: rgba(255,255,255,0.04);
+        background: var(--color-surface);
         overflow: hidden;
         display: flex;
     }
@@ -238,7 +238,7 @@ export function getPricingTabStyles(): string {
         margin-bottom: var(--space-3);
     }
     .prc-cost-card {
-        background: rgba(255,255,255,0.02);
+        background: var(--color-surface);
         border: 1px solid var(--color-border);
         border-left: 3px solid var(--color-info);
         border-radius: var(--radius-md);
@@ -247,8 +247,8 @@ export function getPricingTabStyles(): string {
     }
     @media (hover: hover) {
         .prc-cost-card:hover {
-            background: rgba(255,255,255,0.04);
-            border-color: rgba(255,255,255,0.15);
+            background: var(--color-surface-hover);
+            border-color: var(--color-border-hover);
         }
     }
     .prc-cost-card-header {
@@ -257,7 +257,7 @@ export function getPricingTabStyles(): string {
         align-items: center;
         margin-bottom: var(--space-2);
         padding-bottom: var(--space-1);
-        border-bottom: 1px solid rgba(255,255,255,0.06);
+        border-bottom: 1px solid var(--color-border);
     }
     .prc-cost-card-name {
         font-weight: 600;
@@ -336,7 +336,7 @@ export function getPricingTabStyles(): string {
     }
     @media (hover: hover) {
         .prc-edit-card:hover {
-            border-color: rgba(255,255,255,0.15);
+            border-color: var(--color-border-hover);
         }
     }
     .prc-edit-card-header {
@@ -380,7 +380,7 @@ export function getPricingTabStyles(): string {
         font-size: 0.92em;
         font-family: inherit;
         text-align: right;
-        background: rgba(255,255,255,0.04);
+        background: var(--color-surface);
         border: 1px solid var(--color-border);
         border-radius: var(--radius-sm);
         color: inherit;
@@ -389,12 +389,12 @@ export function getPricingTabStyles(): string {
     .prc-edit-input:focus-visible {
         outline: none;
         border-color: var(--color-accent);
-        background: rgba(255,255,255,0.08);
+        background: var(--color-surface-hover);
         box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 35%, transparent);
     }
     @media (hover: hover) {
         .prc-edit-input:hover {
-            border-color: rgba(255,255,255,0.2);
+            border-color: var(--color-border-hover);
         }
     }
     .prc-edit-input:disabled {
@@ -415,15 +415,15 @@ export function getPricingTabStyles(): string {
         font-weight: 600;
         border: 1px solid var(--color-border);
         border-radius: var(--radius-sm);
-        background: rgba(255,255,255,0.06);
+        background: var(--color-surface-hover);
         color: inherit;
         cursor: pointer;
         transition: background 0.2s cubic-bezier(.4,0,.2,1), border-color 0.2s cubic-bezier(.4,0,.2,1), transform 0.1s;
     }
     @media (hover: hover) {
         .prc-btn:hover {
-            background: rgba(255,255,255,0.1);
-            border-color: rgba(255,255,255,0.2);
+            background: var(--color-border-hover);
+            border-color: var(--color-border-hover);
         }
     }
     .prc-btn:active {
@@ -463,6 +463,18 @@ export function getPricingTabStyles(): string {
     @media (prefers-reduced-motion: reduce) {
         .prc-bar-seg, .prc-edit-input, .prc-cost-card, .prc-edit-card { transition: none; }
     }
+
+    /* ── Light Theme Overrides ── */
+    body.vscode-light .prc-dna-provider { background: rgba(37,99,235,0.1); color: #1d4ed8; }
+    body.vscode-light .prc-tool-tag { background: rgba(22,163,74,0.08); color: #15803d; }
+    body.vscode-light .prc-error-tag { background: rgba(220,38,38,0.08); color: #dc2626; }
+    body.vscode-light .prc-cost-card-total { color: #b45309; }
+    body.vscode-light .prc-cost-grand-val { color: #b45309; }
+    body.vscode-light .prc-cost-card.prc-cost-grand { border-left-color: #d97706; background: rgba(217,119,6,0.05); }
+    body.vscode-light .prc-custom-badge { background: rgba(202,138,4,0.12); color: #92400e; }
+    body.vscode-light .prc-edit-source-custom { color: #92400e; }
+    body.vscode-light .prc-edit-source-builtin { color: #15803d; }
+    body.vscode-light .prc-feedback { color: #15803d; }
     `;
 }
 

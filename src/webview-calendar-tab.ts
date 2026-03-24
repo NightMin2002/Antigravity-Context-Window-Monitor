@@ -142,7 +142,7 @@ export function getCalendarTabStyles(): string {
 
         @media (hover: hover) {
             .cal-nav-btn:hover {
-                background: rgba(255,255,255,0.08);
+                background: var(--color-surface-hover);
                 color: var(--color-text);
             }
         }
@@ -189,7 +189,7 @@ export function getCalendarTabStyles(): string {
         .cal-cell.has-data {
             cursor: pointer;
             color: var(--color-text);
-            background: rgba(255,255,255,0.03);
+            background: var(--color-surface);
         }
 
         .cal-cell.has-data:focus-visible {
@@ -284,13 +284,13 @@ export function getCalendarTabStyles(): string {
             border-radius: var(--radius-md);
             padding: var(--space-3);
             margin-bottom: var(--space-2);
-            background: rgba(255,255,255,0.02);
+            background: var(--color-surface);
             transition: border-color 0.2s cubic-bezier(.4,0,.2,1);
         }
 
         @media (hover: hover) {
             .cal-cycle:hover {
-                border-color: rgba(255,255,255,0.15);
+                border-color: var(--color-border-hover);
             }
         }
 

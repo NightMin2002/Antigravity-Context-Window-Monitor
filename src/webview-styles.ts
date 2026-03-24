@@ -12,6 +12,8 @@ export function getStyles(): string {
             --color-accent: var(--vscode-focusBorder, #007fd4);
             --color-surface: rgba(255,255,255,0.04);
             --color-border: rgba(255,255,255,0.08);
+            --color-border-hover: rgba(255,255,255,0.20);
+            --color-surface-hover: rgba(255,255,255,0.06);
             --color-text: var(--vscode-foreground, #ccc);
             --color-text-dim: var(--vscode-descriptionForeground, #888);
             --color-bg: var(--vscode-editor-background, #1e1e1e);
@@ -263,7 +265,7 @@ export function getStyles(): string {
 
         @media (hover: hover) {
             .card:hover {
-                border-color: rgba(255,255,255,0.15);
+                border-color: var(--color-border-hover);
             }
         }
 
@@ -568,8 +570,8 @@ export function getStyles(): string {
 
         @media (hover: hover) {
             .call-card:hover {
-                background: rgba(255,255,255,0.05);
-                border-color: rgba(255,255,255,0.15);
+                background: var(--color-surface-hover);
+                border-color: var(--color-border-hover);
             }
         }
 
@@ -647,7 +649,7 @@ export function getStyles(): string {
 
         @media (hover: hover) {
             .compress-card:hover {
-                background: rgba(255,255,255,0.05);
+                background: var(--color-surface-hover);
             }
         }
 
@@ -729,7 +731,7 @@ export function getStyles(): string {
 
         @media (hover: hover) {
             .ts-card:hover {
-                background: rgba(255,255,255,0.05);
+                background: var(--color-surface-hover);
             }
         }
 
@@ -934,7 +936,7 @@ export function getStyles(): string {
         @media (hover: hover) {
             .collapsible:hover {
                 border-color: var(--color-info);
-                background: rgba(255,255,255,0.04);
+                background: var(--color-surface-hover);
             }
         }
 
@@ -963,13 +965,13 @@ export function getStyles(): string {
             width: 20px;
             height: 20px;
             border-radius: var(--radius-sm);
-            background: rgba(255,255,255,0.06);
+            background: var(--color-surface-hover);
             transition: transform 0.2s cubic-bezier(.4,0,.2,1), background 0.2s cubic-bezier(.4,0,.2,1);
         }
 
         @media (hover: hover) {
             .collapsible summary:hover::before {
-                background: rgba(255,255,255,0.12);
+                background: var(--color-border-hover);
             }
         }
 
@@ -1228,8 +1230,8 @@ export function getStyles(): string {
 
         @media (hover: hover) {
             .model-card:hover {
-                border-color: rgba(255,255,255,0.18);
-                background: rgba(255,255,255,0.04);
+                border-color: var(--color-border-hover);
+                background: var(--color-surface-hover);
             }
         }
 
@@ -1341,13 +1343,13 @@ export function getStyles(): string {
             width: 20px;
             height: 20px;
             border-radius: var(--radius-sm);
-            background: rgba(255,255,255,0.06);
+            background: var(--color-surface-hover);
             transition: transform 0.2s cubic-bezier(.4,0,.2,1), background 0.2s cubic-bezier(.4,0,.2,1);
         }
 
         @media (hover: hover) {
             .session-summary-row:hover::before {
-                background: rgba(255,255,255,0.12);
+                background: var(--color-border-hover);
             }
         }
 
@@ -1507,7 +1509,7 @@ export function getStyles(): string {
 
         @media (hover: hover) {
             .num-spinner-btn:hover {
-                background: rgba(255,255,255,0.12);
+                background: var(--color-border-hover);
                 color: var(--color-text);
             }
         }
@@ -1701,7 +1703,7 @@ export function getStyles(): string {
         }
 
         @media (hover: hover) {
-            .radio-row:hover { background: rgba(255,255,255,0.04); }
+            .radio-row:hover { background: var(--color-surface); }
         }
 
         .radio-row input[type="radio"] {
@@ -1960,8 +1962,8 @@ export function getStyles(): string {
 
         @media (hover: hover) {
             .timeline-card:hover {
-                border-color: rgba(255,255,255,0.15);
-                background: rgba(255,255,255,0.03);
+                border-color: var(--color-border-hover);
+                background: var(--color-surface);
             }
         }
 
@@ -2277,6 +2279,8 @@ export function getStyles(): string {
             --color-info: #2563eb;
             --color-surface: rgba(0,0,0,0.03);
             --color-border: rgba(0,0,0,0.1);
+            --color-border-hover: rgba(0,0,0,0.22);
+            --color-surface-hover: rgba(0,0,0,0.06);
         }
 
         /* ─── Light Theme: Activity GM Chips ──── */
