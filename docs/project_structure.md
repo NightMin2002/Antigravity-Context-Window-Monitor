@@ -35,7 +35,7 @@ antigravity-context-monitor/
 │   ├── webview-settings-tab.ts   # Settings 标签页 HTML（含持久化状态诊断）
 │   ├── webview-profile-tab.ts    # Profile 标签页 HTML
 │   ├── webview-history-tab.ts    # Quota Tracking 标签页 HTML
-│   ├── activity-panel.ts         # GM Data 统一标签页 HTML（Activity + GM 精确数据）
+│   ├── activity-panel.ts         # GM Data 统一标签页 HTML（Activity + GM 数据）
 │   ├── pricing-panel.ts          # Pricing 标签页 HTML
 │   ├── webview-calendar-tab.ts   # Calendar 标签页 HTML
 │   └── images/                   # README 截图资源

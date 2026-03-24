@@ -541,124 +541,38 @@ export function getStyles(): string {
             border-top: 1px solid var(--color-border);
         }
 
-        /* ─── Token Breakdown X-ray ────── */
-        .gm-breakdown-section {
-            border-top: 1px solid var(--color-border);
-            padding-top: var(--space-3);
-            margin-top: var(--space-2);
-            margin-bottom: var(--space-2);
-        }
 
-        .breakdown-list { display: grid; gap: var(--space-2); }
-
-        .breakdown-item { font-size: 0.82em; }
-
-        .breakdown-header {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 2px;
-            color: var(--color-text-dim);
-        }
-
-        .breakdown-bar-wrap {
-            height: 4px;
-            background: rgba(255,255,255,0.06);
-            border-radius: var(--radius-sm);
-            overflow: hidden;
-        }
-
-        .breakdown-bar {
-            height: 100%;
-            border-radius: var(--radius-sm);
-            transition: width 0.3s cubic-bezier(.4,0,.2,1);
-        }
-
-        .breakdown-children {
-            font-size: 0.75em;
-            color: var(--color-text-dim);
-            opacity: 0.65;
-            margin-top: 1px;
-        }
-
-        .breakdown-total {
-            font-size: 0.78em;
-            color: var(--color-text-dim);
-            margin-top: var(--space-2);
-            text-align: right;
-            font-weight: 600;
-        }
-
-        /* ─── Growth Chart ────────────── */
-        .growth-chart {
-            display: flex;
-            align-items: flex-end;
-            height: 64px;
-            gap: 1px;
-            padding: var(--space-1) 0;
-        }
-
-        .growth-bar {
-            background: linear-gradient(180deg, var(--color-info) 0%, rgba(96,165,250,0.4) 100%);
-            border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-            min-width: 3px;
-            transition: height 0.3s cubic-bezier(.4,0,.2,1);
-        }
-
-        .growth-axis {
-            display: flex;
-            justify-content: space-between;
-            font-size: 0.68em;
-            color: var(--color-text-dim);
-            opacity: 0.7;
-        }
-
-        /* ─── Model Distribution ──────── */
-        .model-dist-row {
-            padding: var(--space-1) 0;
-        }
-
-        .model-dist-row + .model-dist-row {
-            border-top: 1px solid var(--color-border);
-        }
-
-        .model-dist-header {
-            display: flex;
-            justify-content: space-between;
-            font-size: 0.82em;
-            margin-bottom: 2px;
-        }
-
-        .model-dist-name {
-            font-weight: 500;
-            color: var(--color-text);
-        }
-
-        .model-dist-meta {
-            font-size: 0.72em;
-            color: var(--color-text-dim);
-            margin-top: 2px;
-        }
-
-        /* ─── Call Details ─────────────── */
+        /* ─── Call Details (Card-based) ────── */
         .call-details-body {
-            max-height: 320px;
+            max-height: 400px;
             overflow-y: auto;
+            display: grid;
+            gap: var(--space-1);
         }
 
-        .call-row {
-            padding: var(--space-1) 0;
+        .call-card {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--color-border);
+            border-left: 3px solid var(--color-info);
+            border-radius: var(--radius-md);
+            padding: var(--space-2) var(--space-3);
             font-size: 0.82em;
+            transition: background 0.15s cubic-bezier(.4,0,.2,1), border-color 0.15s cubic-bezier(.4,0,.2,1);
         }
 
-        .call-row + .call-row {
-            border-top: 1px solid var(--color-border);
+        @media (hover: hover) {
+            .call-card:hover {
+                background: rgba(255,255,255,0.05);
+                border-color: rgba(255,255,255,0.15);
+            }
         }
 
-        .call-header {
+        .call-card-header {
             display: flex;
             align-items: center;
             gap: var(--space-2);
-            margin-bottom: 1px;
+            margin-bottom: var(--space-1);
+            flex-wrap: wrap;
         }
 
         .call-idx {
@@ -673,16 +587,178 @@ export function getStyles(): string {
             font-weight: 500;
         }
 
-        .call-stats {
-            font-size: 0.85em;
-            color: var(--color-text-dim);
+        /* ─── Call Stat Chips ─────────────── */
+        .call-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-1);
             padding-left: 28px;
         }
+
+        .call-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            padding: 1px var(--space-2);
+            border-radius: var(--radius-sm);
+            font-size: 0.82em;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--color-border);
+            color: var(--color-text-dim);
+        }
+
+        .call-chip.thinking {
+            border-color: rgba(167,139,250,0.3);
+            color: #a78bfa;
+        }
+
+        .call-chip.cache {
+            border-color: rgba(96,165,250,0.3);
+            color: var(--color-info);
+        }
+
+
 
         @media (prefers-reduced-motion: reduce) {
             .split-thinking, .split-response, .cache-ring circle {
                 transition: none;
             }
+        }
+
+        /* ─── Compression History Cards ── */
+        .compress-card {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--color-border);
+            border-left: 3px solid var(--color-warn);
+            border-radius: var(--radius-md);
+            padding: var(--space-2) var(--space-3);
+            transition: background 0.15s cubic-bezier(.4,0,.2,1);
+        }
+
+        .compress-card + .compress-card {
+            margin-top: var(--space-1);
+        }
+
+        @media (hover: hover) {
+            .compress-card:hover {
+                background: rgba(255,255,255,0.05);
+            }
+        }
+
+        .compress-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.82em;
+        }
+
+        .compress-steps {
+            font-weight: 500;
+            color: var(--color-text);
+        }
+
+        .compress-drop {
+            color: var(--color-danger);
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+
+        .compress-bar-wrap {
+            position: relative;
+            height: 6px;
+            border-radius: var(--radius-full);
+            background: var(--color-surface);
+            margin: var(--space-1) 0;
+            overflow: hidden;
+        }
+
+        .compress-bar-before {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            background: rgba(251,191,36,0.2);
+            border-radius: var(--radius-full);
+        }
+
+        .compress-bar-after {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            background: var(--color-ok);
+            border-radius: var(--radius-full);
+            transition: width 0.3s cubic-bezier(.4,0,.2,1);
+        }
+
+        .compress-detail {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            font-size: 0.75em;
+            color: var(--color-text-dim);
+        }
+
+        .compress-detail svg {
+            opacity: 0.5;
+        }
+
+        /* ─── Timestamps Grid ─────────── */
+        .ts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-2);
+        }
+
+        .ts-card {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            padding: var(--space-2) var(--space-3);
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            transition: background 0.15s cubic-bezier(.4,0,.2,1);
+        }
+
+        @media (hover: hover) {
+            .ts-card:hover {
+                background: rgba(255,255,255,0.05);
+            }
+        }
+
+        .ts-icon {
+            margin-bottom: 1px;
+        }
+
+        .ts-label {
+            font-size: 0.72em;
+            color: var(--color-text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .ts-value {
+            font-size: 0.82em;
+            font-weight: 500;
+            color: var(--color-text);
+        }
+
+        .ts-cascade {
+            margin-top: var(--space-2);
+            padding: var(--space-1) var(--space-2);
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            font-size: 0.72em;
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+        }
+
+        .ts-cascade-label {
+            color: var(--color-text-dim);
+            white-space: nowrap;
         }
 
         /* ─── Session Rows ─────────────── */

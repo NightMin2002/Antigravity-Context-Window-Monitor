@@ -22,6 +22,20 @@
 - **Cache Token Label / 缓存 Token 标签**: Changed GM cache-read token suffix from `$` to `缓存` / `cache`.
   将缓存读取 token 后缀从 `$` 改为 `缓存`。
 
+- **Timeline Legend UI Overhaul / 时间线图例 UI 全面升级**: Replaced `<table>` layout with flex-based `.act-tl-legend-row` card system. Groups wrapped in bordered+rounded containers with tinted header bars. Each row uses `.act-tl-legend-sample` (90px fixed) + `.act-tl-legend-desc` (fluid) two-column flex layout. Added hover highlight, border on info card and formula bar. Matches the card-based aesthetic of the information note.
+  用 flex 行卡片系统替代 `<table>` 布局。分组容器加边框+圆角+着色标题栏。每行 90px 示例标签 + 流式说明文字双栏布局。新增 hover 高亮，信息卡片和公式条加外边框。与信息提示卡片的卡片化美学风格统一。
+
+- **Monitor Panel Full Audit / 监控面板全面审查**: 
+  1. **Remove absolutism** — Replaced all "精确/Precise/Exact" labels with "GM" branding or softer "实际/Exact" phrasing. i18n `preciseShort` → `GM`.
+  2. **Soften data disclaimer** — Rewrote disclaimer banner: "precise per-call values" → "higher per-call fidelity", added "All numbers are best-effort approximations" / "所有数值均为尽力计算的近似值".
+  3. **LLM Call Details newest-first** — Reversed call detail rendering so latest calls appear at top instead of bottom.
+  4. **Call-row → call-card** — Replaced flat `.call-row` dividers with bordered `.call-card` cards featuring left accent border, hover highlight, and tag-chip stat layout (`.call-chip`).
+  5. **Context X-ray children chip-ified** — Replaced dense comma-separated `breakdown-children` text with `.breakdown-chip` tag system: each child gets a pill with colored left border, name, token count, and percentage.
+  6. **Other Sessions badge** — Changed `✓/精` source badge to unified `GM` for non-estimated sessions.
+  7. **Default-collapsed expert blocks** — Wrapped Output Breakdown, Cache Efficiency, GM Stats, and Context X-ray in `<details>` (default collapsed). Users can expand at will.
+  8. **Compression History redesign** — Replaced plain `detail-row` with `.compress-card` cards: left warn-color accent, before/after progress bar, token counts with arrow.
+  9. **Timestamps redesign** — Replaced flat rows with a 2×2 `.ts-grid` of `.ts-card` icon cards. Each card shows SVG icon + uppercase label + value. Cascade ID moved to a separate bottom strip.
+
 ### Bug Fixes / 修复
 
 - **Estimated Event Placeholder / 估算事件占位符**: Replaced hardcoded `等待 GM...` with `estimatedModel` variable.
@@ -88,6 +102,27 @@
 
 - **GM Context Growth History Supplement / GM上下文增长历史补充**: `_checkpointHistory` was built only from CHECKPOINT steps within the API window, missing context growth from earlier steps. Now `injectGMData()` prepends virtual `CheckpointSnapshot` entries from `GMSummary.contextGrowth` data points that fall outside the step window, including compression detection. One-time injection guard prevents duplicate prepends across poll cycles.
   `_checkpointHistory` 仅从 API 窗口内的 CHECKPOINT 步骤构建，丢失更早步骤的上下文增长数据。现在 `injectGMData()` 将步骤窗口外的 `GMSummary.contextGrowth` 数据点转换为虚拟 `CheckpointSnapshot` 前置注入，包含压缩检测。一次性注入保护机制防止跨 poll 周期重复注入。
+
+### Refactored / 重构
+
+- **Monitor ↔ GM Data Deduplication / 监控与 GM 数据去重**: Removed 5 redundant data sections from the Monitor tab that overlap with the global-scope GM Data tab. Monitor now focuses exclusively on **current session** real-time status; all analytical/aggregated visualizations are delegated to GM Data.
+  从监控面板移除 5 个与 GM 数据重叠的区块。监控现在专注于**当前会话**实时状态；所有分析/聚合型可视化交由 GM 数据管理。
+
+  | 移除的区块 | 原因 |
+  |---|---|
+  | GM 统计 (Credits/TTFT/Stream/Calls/Retry) | GM 数据 tab 有更完整的全局版本 |
+  | 异常停止标签 | 属于调用/重试范畴，GM 数据管理 |
+  | 上下文 X 光 (Token Breakdown) | 已搬迁至 GM 数据的组成图中 |
+  | 增长曲线 (Growth Curve) | GM 数据的渐变折线图更精致 |
+  | 模型分布 (Model Distribution) | GM 数据的甜甜圈图更完整 |
+
+  **净减 352 行** (222 行 TS 函数 + 131 行 CSS 样式)。
+
+- **Context X-ray → GM Data Composition / 上下文 X 光搬迁至 GM 数据组成图**: Context X-ray detail view (per-group progress bars + child chip tags + total) relocated from Monitor tab to GM Data tab's "Context Composition" section. Rendered as a collapsible `<details>` beneath the donut chart — donut provides instant visual summary, expand reveals detailed per-group breakdown with progress bars and child chip tags.
+  上下文 X 光详细视图（按组进度条 + 子项 chip 标签 + 合计）从监控面板搬迁至 GM 数据的「上下文组成」区块。渲染为甜甜圈图下方的可折叠 `<details>` — 甜甜圈提供即时视觉总览，展开后显示每组详细分解。
+
+- **X-ray Detail Scroll Persistence / X 光详情滚动持久化**: `.xray-body` receives `max-height: 280px` + `overflow-y: auto` with themed 4px scrollbar. Added to `scrollableSelectors` array in `webview-script.ts` for automatic scroll position save/restore across DOM rebuilds.
+  `.xray-body` 限制最大高度 280px + 滚动条。加入 `webview-script.ts` 的 `scrollableSelectors`，DOM 重建后自动恢复滚动位置。
 
 ## [1.13.3] - 2026-03-23
 

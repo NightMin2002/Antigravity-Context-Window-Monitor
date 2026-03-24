@@ -529,7 +529,7 @@ export function getScript(): string {
                     var tabs = msg.tabs;
 
                     // Save scrollTop of inner scrollable elements before DOM swap
-                    var scrollableSelectors = ['.raw-json', '.act-timeline', '.details-body'];
+                    var scrollableSelectors = ['.raw-json', '.act-timeline', '.details-body', '.xray-body'];
                     var savedScrolls = {};
                     for (var ss = 0; ss < scrollableSelectors.length; ss++) {
                         var sel = scrollableSelectors[ss];

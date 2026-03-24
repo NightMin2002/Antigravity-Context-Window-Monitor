@@ -9,7 +9,7 @@ import { ModelConfig, UserStatusInfo } from './models';
 import { formatTokenCount, formatContextLimit, calculateCompressionStats } from './statusbar';
 import { ICON } from './webview-icons';
 import { esc, formatTime } from './webview-helpers';
-import { GMSummary, GMConversationData, GMCallEntry, TokenBreakdownGroup } from './gm-tracker';
+import { GMSummary, GMConversationData, GMCallEntry } from './gm-tracker';
 
 // ─── GM Data Aggregation ─────────────────────────────────────────────────────
 
@@ -222,8 +222,9 @@ function buildCurrentSessionSection(
         const thinkPct = total > 0 ? Math.round(gs.thinkingTokens / total * 100) : 0;
         const respPct = 100 - thinkPct;
         outputSplitHtml = `
-                <div class="gm-split-section">
-                    <div class="section-subtitle">${IC.brain} ${tBi('Output Breakdown', '输出分拆')} <span class="badge ok-badge">GM</span></div>
+                <details class="collapsible" id="d-output-split">
+                    <summary>${IC.brain} ${tBi('Output Breakdown', '输出分拆')} <span class="badge ok-badge">GM</span></summary>
+                    <div class="details-body">
                     <div class="output-split-bar">
                         ${thinkPct > 0 ? `<div class="split-thinking" style="width:${thinkPct}%"></div>` : ''}
                         <div class="split-response" style="width:${respPct}%"></div>
@@ -232,7 +233,8 @@ function buildCurrentSessionSection(
                         <span><span class="dot thinking-dot"></span> ${tBi('Thinking', '思考')} ${formatTokenCount(gs.thinkingTokens)} (${thinkPct}%)</span>
                         <span><span class="dot response-dot"></span> ${tBi('Response', '正文')} ${formatTokenCount(gs.responseTokens)} (${respPct}%)</span>
                     </div>
-                </div>`;
+                    </div>
+                </details>`;
     }
 
     // Cache efficiency
@@ -242,8 +244,9 @@ function buildCurrentSessionSection(
         const ringPct = Math.min(hitPct, 100);
         const ringDash = (ringPct / 100 * 251.2).toFixed(1);
         cacheHtml = `
-                <div class="gm-cache-section">
-                    <div class="section-subtitle">${IC.cache} ${tBi('Cache Efficiency', '缓存效率')} <span class="badge ok-badge">GM</span></div>
+                <details class="collapsible" id="d-cache-efficiency">
+                    <summary>${IC.cache} ${tBi('Cache Efficiency', '缓存效率')} <span class="badge ok-badge">GM</span></summary>
+                    <div class="details-body">
                     <div class="cache-row">
                         <div class="cache-ring-wrap">
                             <svg class="cache-ring" viewBox="0 0 90 90">
@@ -270,67 +273,9 @@ function buildCurrentSessionSection(
                             </div>
                         </div>
                     </div>
-                </div>`;
+                    </div>
+                </details>`;
     }
-
-    // Credits + Performance + Retry — compact row
-    let gmStatsHtml = '';
-    if (gs.hasData) {
-        const statItems: string[] = [];
-        const accuracyBits: string[] = [];
-        if (gs.exactCalls > 0) { accuracyBits.push(`${tBi('精确', '精确')} ${gs.exactCalls}`); }
-        if (gs.aliasOnlyCalls > 0) { accuracyBits.push(`${tBi('别名', '别名')} ${gs.aliasOnlyCalls}`); }
-        // Credits
-        if (gs.credits > 0) {
-            statItems.push(`<div class="stat mini"><div class="stat-label">${IC.coin} ${tBi('Credits', '积分')}</div><div class="stat-value">${gs.credits.toLocaleString()}</div></div>`);
-        }
-        // TTFT
-        if (gs.avgTTFT > 0) {
-            statItems.push(`<div class="stat mini"><div class="stat-label">${IC.zap} TTFT</div><div class="stat-value">${gs.avgTTFT.toFixed(1)}s</div></div>`);
-        }
-        // Streaming
-        if (gs.avgStreaming > 0) {
-            statItems.push(`<div class="stat mini"><div class="stat-label">${IC.zap} ${tBi('Stream', '流式')}</div><div class="stat-value">${gs.avgStreaming.toFixed(1)}s</div></div>`);
-        }
-        // LLM Calls
-        statItems.push(`<div class="stat mini"><div class="stat-label">${IC.call} ${tBi('LLM Calls', 'LLM 调用')}</div><div class="stat-value">${gs.calls}</div></div>`);
-        // Retry
-        if (gs.retryCount > 0) {
-            statItems.push(`<div class="stat mini"><div class="stat-label">${IC.retry} ${tBi('Retries', '重试')}</div><div class="stat-value retry-val">${gs.retryCount} <span class="dim">(${formatTokenCount(gs.retryTokens)})</span></div></div>`);
-        }
-
-        if (statItems.length > 0) {
-            gmStatsHtml = `
-                <div class="gm-stats-section">
-                    <div class="section-subtitle">${ICON.bolt} ${tBi('GM Precision', 'GM 精确数据')} <span class="badge ok-badge">${tBi('Precise', '精确')}</span></div>
-                    ${gs.latestCallModel ? `<div class="detail-row"><span>${tBi('Latest GM Model', '最后 GM 模型')}</span><span>${esc(gs.latestCallModel)} ${gs.latestCallAccuracy === 'exact' ? `<span class="badge ok-badge">${tBi('Exact', '精确')}</span>` : `<span class="badge warn-badge">${tBi('Alias', '别名')}</span>`}</span></div>` : ''}
-                    ${accuracyBits.length > 0 ? `<div class="detail-row"><span>${tBi('Model Accuracy', '模型精度')}</span><span>${accuracyBits.join(' · ')}</span></div>` : ''}
-                    <div class="stat-grid four-col">${statItems.join('')}</div>
-                </div>`;
-        }
-    }
-
-    // Stop reason tags (only abnormal)
-    const NORMAL = new Set(['STOP_PATTERN', 'END_TURN', 'MAX_TOKENS', '']);
-    let stopHtml = '';
-    if (gs.hasData) {
-        const abnormal = Object.entries(gs.stopReasons).filter(([r]) => !NORMAL.has(r));
-        if (abnormal.length > 0) {
-            const tags = abnormal.map(([r, n]) =>
-                `<span class="badge danger-badge">${esc(r)} ×${n}</span>`
-            ).join(' ');
-            stopHtml = `<div class="stop-alert">${tBi('Abnormal Stops', '异常停止')}: ${tags}</div>`;
-        }
-    }
-
-    // Token breakdown X-ray
-    const breakdownHtml = buildTokenBreakdownSection(gs, gm, gmConversations, usage.cascadeId);
-
-    // CHECKPOINT growth curve
-    const growthHtml = buildGrowthCurveSection(gs, gm, gmConversations, usage.cascadeId);
-
-    // Model distribution
-    const modelDistHtml = buildModelDistSection(gs, gm, gmConversations, usage.cascadeId);
 
     // Compression history
     const compressionHistoryHtml = buildCompressionHistorySection(gs, gm, gmConversations, usage.cascadeId);
@@ -400,22 +345,38 @@ function buildCurrentSessionSection(
                 ${compressHtml}
                 ${outputSplitHtml}
                 ${cacheHtml}
-                ${gmStatsHtml}
-                ${stopHtml}
-                ${breakdownHtml}
-                ${growthHtml}
-                ${modelDistHtml}
                 ${compressionHistoryHtml}
                 ${callDetailsHtml}
                 ${deltaHtml}
                 <details class="collapsible" id="d-current-times">
-                    <summary>${tBi('Timestamps', '时间戳')}</summary>
+                    <summary><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> ${tBi('Timestamps', '时间戳')}</summary>
                     <div class="details-body">
-                        <div class="detail-row"><span>${tBi('Created', '创建')}</span><span>${formatTime(usage.createdTime)}</span></div>
-                        <div class="detail-row"><span>${tBi('Last Modified', '最后修改')}</span><span>${formatTime(usage.lastModifiedTime)}</span></div>
-                        <div class="detail-row"><span>${tBi('Last User Input', '最后用户输入')}</span><span>${formatTime(usage.lastUserInputTime)}</span></div>
-                        <div class="detail-row"><span>${tBi('Last Input Step', '最后输入步骤')}</span><span>#${usage.lastUserInputStepIndex}</span></div>
-                        <div class="detail-row"><span>Cascade ID</span><span class="mono-val">${esc(usage.cascadeId)}</span></div>
+                        <div class="ts-grid">
+                            <div class="ts-card">
+                                <div class="ts-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-ok)" stroke-width="2"><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="M4.93 19.07l2.83-2.83"/><path d="M16.24 7.76l2.83-2.83"/></svg></div>
+                                <div class="ts-label">${tBi('Created', '创建')}</div>
+                                <div class="ts-value">${formatTime(usage.createdTime)}</div>
+                            </div>
+                            <div class="ts-card">
+                                <div class="ts-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-info)" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div>
+                                <div class="ts-label">${tBi('Last Modified', '最后修改')}</div>
+                                <div class="ts-value">${formatTime(usage.lastModifiedTime)}</div>
+                            </div>
+                            <div class="ts-card">
+                                <div class="ts-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-warn)" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div>
+                                <div class="ts-label">${tBi('Last User Input', '最后用户输入')}</div>
+                                <div class="ts-value">${formatTime(usage.lastUserInputTime)}</div>
+                            </div>
+                            <div class="ts-card">
+                                <div class="ts-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-dim)" stroke-width="2"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg></div>
+                                <div class="ts-label">${tBi('Last Input Step', '最后输入步骤')}</div>
+                                <div class="ts-value">#${usage.lastUserInputStepIndex}</div>
+                            </div>
+                        </div>
+                        <div class="ts-cascade">
+                            <span class="ts-cascade-label">Cascade ID</span>
+                            <span class="mono-val">${esc(usage.cascadeId)}</span>
+                        </div>
                     </div>
                 </details>
             </section>`);
@@ -439,7 +400,7 @@ function buildOtherSessionsSection(
         const remaining = Math.max(0, u.contextLimit - u.contextUsed);
         const sourceTag = u.isEstimated
             ? `<span class="badge warn-badge">${tBi('EST', '估')}</span>`
-            : `<span class="badge ok-badge">${tBi('✓', '精')}</span>`;
+            : `<span class="badge ok-badge">GM</span>`;
 
         // GM mini stats for this session
         const gs = aggregateGMForSession(gm, gmConversations, u.cascadeId);
@@ -524,10 +485,24 @@ function buildOtherSessionsSection(
                         </div>
                         ${gmMiniHtml}
                         ${buildGitInfoHtml(u)}
-                        <div class="detail-row"><span>${tBi('Created', '创建')}</span><span>${formatTime(u.createdTime)}</span></div>
-                        <div class="detail-row"><span>${tBi('Last Modified', '最后修改')}</span><span>${formatTime(u.lastModifiedTime)}</span></div>
-                        <div class="detail-row"><span>${tBi('Last User Input', '最后用户输入')}</span><span>${formatTime(u.lastUserInputTime)}</span></div>
-                        <div class="detail-row"><span>Cascade ID</span><span class="mono-val">${esc(u.cascadeId)}</span></div>
+                        <div class="ts-grid" style="margin-top:var(--space-2)">
+                            <div class="ts-card">
+                                <div class="ts-label">${tBi('Created', '创建')}</div>
+                                <div class="ts-value">${formatTime(u.createdTime)}</div>
+                            </div>
+                            <div class="ts-card">
+                                <div class="ts-label">${tBi('Last Modified', '最后修改')}</div>
+                                <div class="ts-value">${formatTime(u.lastModifiedTime)}</div>
+                            </div>
+                            <div class="ts-card">
+                                <div class="ts-label">${tBi('Last Input', '最后输入')}</div>
+                                <div class="ts-value">${formatTime(u.lastUserInputTime)}</div>
+                            </div>
+                            <div class="ts-card">
+                                <div class="ts-label">Cascade</div>
+                                <div class="ts-value mono-val" style="font-size:0.72em">${esc(u.cascadeId.substring(0, 12))}…</div>
+                            </div>
+                        </div>
                     </div>
                 </details>`;
     }).join('');
@@ -537,150 +512,6 @@ function buildOtherSessionsSection(
                 <h2>${ICON.chat} ${t('panel.otherSessions')} (${others.length})</h2>
                 ${rows}
             </section>`);
-}
-
-// ─── Builder: Token Breakdown X-ray ──────────────────────────────────────────
-
-function buildTokenBreakdownSection(
-    gs: GMSessionStats,
-    gm: GMSummary | null,
-    gmConversations: Record<string, GMConversationData> | undefined,
-    cascadeId: string,
-): string {
-    if (!gs.hasData) { return ''; }
-    const conv = getConversationData(gm, gmConversations, cascadeId);
-    if (!conv) { return ''; }
-
-    // Get the latest call's tokenBreakdown (most recent context composition)
-    let groups: TokenBreakdownGroup[] = [];
-    for (let i = conv.calls.length - 1; i >= 0; i--) {
-        if (conv.calls[i].tokenBreakdownGroups.length > 0) {
-            groups = conv.calls[i].tokenBreakdownGroups;
-            break;
-        }
-    }
-    if (groups.length === 0) { return ''; }
-
-    const total = groups.reduce((s, g) => s + g.tokens, 0);
-    if (total === 0) { return ''; }
-
-    const colors = ['#a78bfa', '#60a5fa', '#34d399', '#fbbf24', '#f87171', '#fb923c', '#c084fc', '#38bdf8'];
-    const bars = groups.map((g, i) => {
-        const pct = Math.max(1, Math.round(g.tokens / total * 100));
-        const col = colors[i % colors.length];
-        const detail = g.children.length > 0
-            ? ` (${g.children.map(ch => `${esc(ch.name)}: ${formatTokenCount(ch.tokens)}`).join(', ')})`
-            : '';
-        return `<div class="breakdown-item">
-                    <div class="breakdown-header">
-                        <span><span class="dot" style="background:${col}"></span> ${esc(g.name)}</span>
-                        <span>${formatTokenCount(g.tokens)} (${pct}%)</span>
-                    </div>
-                    <div class="breakdown-bar-wrap">
-                        <div class="breakdown-bar" style="width:${pct}%;background:${col}"></div>
-                    </div>
-                    ${detail ? `<div class="breakdown-children">${detail}</div>` : ''}
-                </div>`;
-    }).join('');
-
-    return `
-                <div class="gm-breakdown-section">
-                    <div class="section-subtitle">${IC.brain} ${tBi('Context X-ray', '上下文 X 光')} <span class="badge ok-badge">GM</span></div>
-                    <div class="breakdown-list">${bars}</div>
-                    <div class="breakdown-total">${tBi('Total', '合计')}: ${formatTokenCount(total)}</div>
-                </div>`;
-}
-
-// ─── Builder: Growth Curve ───────────────────────────────────────────────────
-
-function buildGrowthCurveSection(
-    gs: GMSessionStats,
-    gm: GMSummary | null,
-    gmConversations: Record<string, GMConversationData> | undefined,
-    cascadeId: string,
-): string {
-    if (!gs.hasData) { return ''; }
-    const conv = getConversationData(gm, gmConversations, cascadeId);
-    if (!conv || conv.calls.length < 2) { return ''; }
-
-    // Build growth data from per-call contextTokensUsed
-    const points = conv.calls
-        .filter(c => c.contextTokensUsed > 0)
-        .map((c, i) => ({ step: c.stepIndices[0] ?? i, tokens: c.contextTokensUsed }));
-    if (points.length < 2) { return ''; }
-
-    const maxTokens = Math.max(...points.map(p => p.tokens));
-    const barWidth = 100 / points.length;
-
-    const bars = points.map(p => {
-        const pct = maxTokens > 0 ? Math.max(2, Math.round(p.tokens / maxTokens * 100)) : 2;
-        return `<div class="growth-bar" style="height:${pct}%;width:${barWidth}%" data-tooltip="${formatTokenCount(p.tokens)}"></div>`;
-    }).join('');
-
-    return `
-                <details class="collapsible" id="d-growth-curve">
-                    <summary>${IC.zap} ${tBi('Context Growth', '上下文增长')} <span class="badge ok-badge">GM</span></summary>
-                    <div class="details-body">
-                        <div class="growth-chart">
-                            ${bars}
-                        </div>
-                        <div class="growth-axis">
-                            <span>${tBi('Call', '调用')} #1</span>
-                            <span>${formatTokenCount(maxTokens)}</span>
-                            <span>#${points.length}</span>
-                        </div>
-                    </div>
-                </details>`;
-}
-
-// ─── Builder: Model Distribution ─────────────────────────────────────────────
-
-function buildModelDistSection(
-    gs: GMSessionStats,
-    gm: GMSummary | null,
-    gmConversations: Record<string, GMConversationData> | undefined,
-    cascadeId: string,
-): string {
-    if (!gs.hasData) { return ''; }
-    const conv = getConversationData(gm, gmConversations, cascadeId);
-    if (!conv || conv.calls.length === 0) { return ''; }
-
-    // Aggregate by model within this session
-    const modelMap: Record<string, { calls: number; input: number; output: number; credits: number; model: string }> = {};
-    for (const c of conv.calls) {
-        const key = c.responseModel || c.modelDisplay || c.model;
-        if (!modelMap[key]) { modelMap[key] = { calls: 0, input: 0, output: 0, credits: 0, model: c.modelDisplay || key }; }
-        modelMap[key].calls++;
-        modelMap[key].input += c.inputTokens;
-        modelMap[key].output += c.outputTokens;
-        modelMap[key].credits += c.credits;
-    }
-
-    const models = Object.values(modelMap).sort((a, b) => b.calls - a.calls);
-    if (models.length <= 1) { return ''; } // Only 1 model — no distribution needed
-
-    const maxCalls = Math.max(...models.map(m => m.calls));
-    const rows = models.map(m => {
-        const pct = maxCalls > 0 ? Math.round(m.calls / maxCalls * 100) : 0;
-        return `<div class="model-dist-row">
-                    <div class="model-dist-header">
-                        <span class="model-dist-name">${esc(m.model)}</span>
-                        <span>${m.calls} ${tBi('calls', '调用')}</span>
-                    </div>
-                    <div class="breakdown-bar-wrap">
-                        <div class="breakdown-bar" style="width:${pct}%;background:var(--color-info)"></div>
-                    </div>
-                    <div class="model-dist-meta">
-                        ${tBi('In', '输入')}: ${formatTokenCount(m.input)} · ${tBi('Out', '输出')}: ${formatTokenCount(m.output)}${m.credits > 0 ? ` · ${m.credits} ${tBi('cr', '积分')}` : ''}
-                    </div>
-                </div>`;
-    }).join('');
-
-    return `
-                <details class="collapsible" id="d-model-dist">
-                    <summary>${IC.brain} ${tBi('Model Distribution', '模型分布')} <span class="badge ok-badge">GM</span></summary>
-                    <div class="details-body">${rows}</div>
-                </details>`;
 }
 
 // ─── Builder: Compression History ────────────────────────────────────────────
@@ -715,9 +546,20 @@ function buildCompressionHistorySection(
 
     const rows = drops.map(d => {
         const pct = d.fromTokens > 0 ? ((d.drop / d.fromTokens) * 100).toFixed(1) : '0';
-        return `<div class="detail-row">
-                    <span>${ICON.compress} #${d.fromStep} → #${d.toStep}</span>
-                    <span class="retry-val">-${formatTokenCount(d.drop)} (${pct}%)</span>
+        return `<div class="compress-card">
+                    <div class="compress-card-header">
+                        <span class="compress-steps">${ICON.compress} #${d.fromStep} → #${d.toStep}</span>
+                        <span class="compress-drop">-${formatTokenCount(d.drop)} (${pct}%)</span>
+                    </div>
+                    <div class="compress-bar-wrap">
+                        <div class="compress-bar-before" style="width:100%"></div>
+                        <div class="compress-bar-after" style="width:${d.fromTokens > 0 ? Math.round(d.toTokens / d.fromTokens * 100) : 0}%"></div>
+                    </div>
+                    <div class="compress-detail">
+                        <span>${formatTokenCount(d.fromTokens)}</span>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+                        <span>${formatTokenCount(d.toTokens)}</span>
+                    </div>
                 </div>`;
     }).join('');
 
@@ -745,31 +587,37 @@ function buildCallDetailsSection(
     const shown = conv.calls.slice(-maxCalls); // most recent
     const skipped = conv.calls.length - shown.length;
 
-    const rows = shown.map((c, i) => {
-        const idx = skipped + i + 1;
+    // Reverse so newest calls appear at top
+    const reversed = [...shown].reverse();
+
+    const rows = reversed.map((c) => {
+        // Use original index from conv.calls
+        const origIdx = conv.calls.indexOf(c) + 1;
         const sr = c.stopReason.replace('STOP_REASON_', '');
         const abnormal = !NORMAL_STOPS.has(sr);
         const stopTag = abnormal ? `<span class="badge danger-badge">${esc(sr)}</span>` : `<span class="dim">${esc(sr)}</span>`;
         const retryTag = c.retries > 0 ? `<span class="badge warn-badge">${c.retries} ${tBi('retry', '重试')}</span>` : '';
-        const cacheTag = c.cacheReadTokens > 0 ? `<span class="dim">${tBi('cache', '缓存')} ${formatTokenCount(c.cacheReadTokens)}</span>` : '';
         const accuracyTag = c.modelAccuracy === 'exact'
-            ? `<span class="badge ok-badge">${tBi('Exact', '精确')}</span>`
+            ? `<span class="badge ok-badge">${tBi('Exact', '实际')}</span>`
             : `<span class="badge warn-badge">${tBi('Alias', '别名')}</span>`;
-        const rawModelTag = c.responseModel
-            ? `<span class="dim">${esc(c.responseModel)}</span>`
-            : c.model
-                ? `<span class="dim">${esc(c.model)}</span>`
-                : '';
 
-        return `<div class="call-row">
-                    <div class="call-header">
-                        <span class="call-idx">#${idx}</span>
-                        <span class="call-model">${esc(c.modelDisplay || c.responseModel)}</span>
+        // Build stat chips
+        const chips: string[] = [];
+        chips.push(`<span class="call-chip">${tBi('In', '输入')} ${formatTokenCount(c.inputTokens)}</span>`);
+        chips.push(`<span class="call-chip">${tBi('Out', '输出')} ${formatTokenCount(c.outputTokens)}</span>`);
+        if (c.thinkingTokens > 0) { chips.push(`<span class="call-chip thinking">${tBi('Think', '思考')} ${formatTokenCount(c.thinkingTokens)}</span>`); }
+        if (c.cacheReadTokens > 0) { chips.push(`<span class="call-chip cache">${tBi('Cache', '缓存')} ${formatTokenCount(c.cacheReadTokens)}</span>`); }
+        if (c.credits > 0) { chips.push(`<span class="call-chip">${c.credits} cr</span>`); }
+        if (c.ttftSeconds > 0) { chips.push(`<span class="call-chip">TTFT ${c.ttftSeconds.toFixed(1)}s</span>`); }
+        if (c.streamingSeconds > 0) { chips.push(`<span class="call-chip">${c.streamingSeconds.toFixed(1)}s</span>`); }
+
+        return `<div class="call-card">
+                    <div class="call-card-header">
+                        <span class="call-idx">#${origIdx}</span>
+                        <span class="call-model">${esc(c.modelDisplay || c.responseModel || c.model)}</span>
                         ${accuracyTag} ${retryTag} ${stopTag}
                     </div>
-                    <div class="call-stats">
-                        ${tBi('In', '输入')}: ${formatTokenCount(c.inputTokens)} · ${tBi('Out', '输出')}: ${formatTokenCount(c.outputTokens)}${c.thinkingTokens > 0 ? ` (${tBi('think', '思考')}: ${formatTokenCount(c.thinkingTokens)})` : ''}${c.credits > 0 ? ` · ${c.credits} ${tBi('cr', '积分')}` : ''}${c.ttftSeconds > 0 ? ` · TTFT ${c.ttftSeconds.toFixed(1)}s` : ''}${cacheTag ? ` · ${cacheTag}` : ''}${rawModelTag ? ` · ${rawModelTag}` : ''}
-                    </div>
+                    <div class="call-chips">${chips.join('')}</div>
                 </div>`;
     }).join('');
 

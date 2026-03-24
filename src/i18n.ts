@@ -52,7 +52,7 @@ const translations: Record<string, TranslationEntry> = {
     'tooltip.output': { en: 'Output', zh: '输出' },
     'tooltip.cache': { en: 'Cache', zh: '缓存' },
     'tooltip.estimated': { en: 'Estimated', zh: '估算值' },
-    'tooltip.precise': { en: 'Precise (from checkpoint)', zh: '精确值 (来自 checkpoint)' },
+    'tooltip.precise': { en: 'GM data (from checkpoint)', zh: 'GM 数据 (来自 checkpoint)' },
 
     // ─ QuickPick Panel
     'panel.title': { en: 'Antigravity Context Window Monitor', zh: '上下文窗口使用情况' },
@@ -69,7 +69,7 @@ const translations: Record<string, TranslationEntry> = {
     'panel.stepsLabel': { en: 'Steps', zh: '步骤' },
     'panel.compression': { en: 'Compression', zh: '压缩量' },
     'panel.estimated': { en: 'Est', zh: '估' },
-    'panel.preciseShort': { en: 'Precise', zh: '精确' },
+    'panel.preciseShort': { en: 'GM', zh: 'GM' },
     'panel.compressed': { en: 'Compressed', zh: '已压缩' },
     'panel.compressing': { en: 'Compressing', zh: '压缩中' },
     'panel.gaps': { en: 'Gaps', zh: '缺失' },
