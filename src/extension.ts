@@ -12,7 +12,7 @@ import {
     UserStatusInfo,
 } from './tracker';
 import { StatusBarManager, formatContextLimit } from './statusbar';
-import { initI18n, initI18nFromState, showLanguagePicker } from './i18n';
+import { initI18n, initI18nFromState, showLanguagePicker, tBi } from './i18n';
 import { showMonitorPanel, updateMonitorPanel, isMonitorPanelVisible } from './webview-panel';
 import { ActivityTracker, ActivityTrackerState } from './activity-tracker';
 import { CascadeStatus, MAX_BACKOFF_INTERVAL_MS, COMPRESSION_PERSIST_POLLS } from './constants';
@@ -934,11 +934,15 @@ function checkQuotaNotification(configs: import('./models').ModelConfig[]): void
                 quotaNotifiedModels.add(groupKey);
                 const pct = (group.minFraction * 100).toFixed(1);
                 const names = group.labels.join(', ');
+                const openMonitorLabel = tBi('Open Monitor', '打开监控');
                 vscode.window.showWarningMessage(
-                    `⚠ ${names} quota low: ${pct}% remaining`,
-                    'Open Monitor',
+                    tBi(
+                        `⚠ ${names} quota low: ${pct}% remaining`,
+                        `⚠ ${names} 额度偏低：剩余 ${pct}%`,
+                    ),
+                    openMonitorLabel,
                 ).then(choice => {
-                    if (choice === 'Open Monitor') {
+                    if (choice === openMonitorLabel) {
                         vscode.commands.executeCommand('antigravity-context-monitor.showDetails');
                     }
                 });

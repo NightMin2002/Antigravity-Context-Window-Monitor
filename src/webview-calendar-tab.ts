@@ -857,7 +857,7 @@ function buildMergedGMRows(merged: Record<string, { calls: number; credits: numb
         if (avgCache > 0) { chips.push(`<span class="cal-chip cal-chip-cache">${CAL_ICON.cache} ${(avgCache * 100).toFixed(0)}%</span>`); }
         if (ms.cost > 0) { chips.push(`<span class="cal-chip cal-chip-cost">${CAL_ICON.dollar} ${fmtCostShort(ms.cost)}</span>`); }
         const totalTok = ms.inputTokens + ms.outputTokens;
-        if (totalTok > 0) { chips.push(`<span class="cal-chip cal-chip-tokens">${fmtTok(totalTok)} tok</span>`); }
+        if (totalTok > 0) { chips.push(`<span class="cal-chip cal-chip-tokens">${fmtTok(totalTok)} ${tBi('tok', '令牌')}</span>`); }
         html += `<div class="cal-model-row"><span class="cal-model-name">${esc(name)}</span><span class="cal-model-chips">${chips.join('')}</span></div>`;
     }
     html += '</div>';
@@ -969,7 +969,7 @@ function buildGMModelRows(gmModelStats?: Record<string, GMModelCycleStats>): str
         }
         const totalTok = ms.inputTokens + ms.outputTokens;
         if (totalTok > 0) {
-            chips.push(`<span class="cal-chip cal-chip-tokens">${fmtTok(totalTok)} tok</span>`);
+            chips.push(`<span class="cal-chip cal-chip-tokens">${fmtTok(totalTok)} ${tBi('tok', '令牌')}</span>`);
         }
 
         html += `

@@ -288,7 +288,7 @@ function buildCurrentSessionSection(
     if (usage.estimatedDeltaSinceCheckpoint > 0 && usage.lastModelUsage) {
         deltaHtml = `
                 <div class="delta-hint">
-                    ${t('tooltip.estDelta')}: +${usage.estimatedDeltaSinceCheckpoint.toLocaleString()} tokens (${t('tooltip.sinceCheckpoint')})
+                    ${t('tooltip.estDelta')}: +${usage.estimatedDeltaSinceCheckpoint.toLocaleString()} ${tBi('tokens', '令牌')} (${t('tooltip.sinceCheckpoint')})
                 </div>`;
     }
 
@@ -374,7 +374,7 @@ function buildCurrentSessionSection(
                             </div>
                         </div>
                         <div class="ts-cascade">
-                            <span class="ts-cascade-label">Cascade ID</span>
+                            <span class="ts-cascade-label">${tBi('Cascade ID', '对话 ID')}</span>
                             <span class="mono-val">${esc(usage.cascadeId)}</span>
                         </div>
                     </div>
@@ -499,7 +499,7 @@ function buildOtherSessionsSection(
                                 <div class="ts-value">${formatTime(u.lastUserInputTime)}</div>
                             </div>
                             <div class="ts-card">
-                                <div class="ts-label">Cascade</div>
+                                <div class="ts-label">${tBi('Cascade ID', '对话 ID')}</div>
                                 <div class="ts-value mono-val" style="font-size:0.72em">${esc(u.cascadeId.substring(0, 12))}…</div>
                             </div>
                         </div>
@@ -607,7 +607,7 @@ function buildCallDetailsSection(
         chips.push(`<span class="call-chip">${tBi('Out', '输出')} ${formatTokenCount(c.outputTokens)}</span>`);
         if (c.thinkingTokens > 0) { chips.push(`<span class="call-chip thinking">${tBi('Think', '思考')} ${formatTokenCount(c.thinkingTokens)}</span>`); }
         if (c.cacheReadTokens > 0) { chips.push(`<span class="call-chip cache">${tBi('Cache', '缓存')} ${formatTokenCount(c.cacheReadTokens)}</span>`); }
-        if (c.credits > 0) { chips.push(`<span class="call-chip">${c.credits} cr</span>`); }
+        if (c.credits > 0) { chips.push(`<span class="call-chip">${c.credits} ${tBi('cr', '积分')}</span>`); }
         if (c.ttftSeconds > 0) { chips.push(`<span class="call-chip">TTFT ${c.ttftSeconds.toFixed(1)}s</span>`); }
         if (c.streamingSeconds > 0) { chips.push(`<span class="call-chip">${c.streamingSeconds.toFixed(1)}s</span>`); }
 

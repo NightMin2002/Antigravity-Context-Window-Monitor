@@ -16,6 +16,18 @@ interface MimeCategory {
     count: number;
 }
 
+function formatCreditTypeLabel(creditType: string): string {
+    const key = creditType.replace('CREDIT_TYPE_', '');
+    const labelMap: Record<string, [string, string]> = {
+        PROMPT: ['Prompt Credits', 'Prompt 额度'],
+        FLOW: ['Flow Credits', 'Flow 额度'],
+        GOOGLE_AI: ['Google AI Credits', 'Google AI 额度'],
+        GOOGLE_AI_STUDIO: ['Google AI Studio Credits', 'Google AI Studio 额度'],
+    };
+    const mapped = labelMap[key];
+    return mapped ? tBi(mapped[0], mapped[1]) : key.replace(/_/g, ' ');
+}
+
 function categorizeMimeTypes(mimeTypes: string[]): MimeCategory[] {
     let docs = 0, code = 0, images = 0, media = 0;
     for (const m of mimeTypes) {
@@ -110,9 +122,9 @@ function buildAccountSection(userInfo: UserStatusInfo): string {
     const validCredits = userInfo.availableCredits.filter(c => c.creditAmount > 0);
     const creditsHtml = validCredits.length > 0
         ? `<div class="gai-credits">${validCredits.map(c => {
-            const typeName = c.creditType.replace('CREDIT_TYPE_', '').replace(/_/g, ' ');
+            const typeName = formatCreditTypeLabel(c.creditType);
             return `<div class="gai-credit-item">
-                        <span class="gai-label">${typeName}</span>
+                        <span class="gai-label">${esc(typeName)}</span>
                         <span class="gai-value">${c.creditAmount.toLocaleString()}</span>
                     </div>`;
         }).join('')}</div>` : '';
@@ -124,7 +136,7 @@ function buildAccountSection(userInfo: UserStatusInfo): string {
                 ${tBi('Account', '账户')}
                 <span class="tier-badge" style="background:${tier.bg};color:${tier.color}">${esc(userInfo.planName)}</span>
                 ${userInfo.userTierName ? `<span class="tier-badge tier-sub" style="background:rgba(192,132,252,0.12);color:#c084fc">${esc(userInfo.userTierName)}</span>` : ''}
-                <button class="privacy-btn" id="privacyToggle" aria-label="Toggle privacy mask">${ICON.shield}</button>
+                <button class="privacy-btn" id="privacyToggle" aria-label="${tBi('Toggle privacy mask', '切换隐私遮罩')}">${ICON.shield}</button>
             </h2>
             <div class="account-info">
                 <span class="account-name" data-real="${esc(userInfo.name)}" data-masked="${esc(userInfo.name.charAt(0))}***">${esc(userInfo.name)}</span>
@@ -135,7 +147,7 @@ function buildAccountSection(userInfo: UserStatusInfo): string {
             <div class="credits-section">
                 <div class="credit-row">
                     <div class="credit-header">
-                        <span>Prompt Credits</span>
+                        <span>${tBi('Prompt Credits', 'Prompt 额度')}</span>
                         <span>${userInfo.availablePromptCredits.toLocaleString()} / ${userInfo.monthlyPromptCredits.toLocaleString()}</span>
                     </div>
                     <div class="credit-bar-wrap">
@@ -144,7 +156,7 @@ function buildAccountSection(userInfo: UserStatusInfo): string {
                 </div>
                 <div class="credit-row">
                     <div class="credit-header">
-                        <span>Flow Credits</span>
+                        <span>${tBi('Flow Credits', 'Flow 额度')}</span>
                         <span>${userInfo.availableFlowCredits.toLocaleString()} / ${userInfo.monthlyFlowCredits.toLocaleString()}</span>
                     </div>
                     <div class="credit-bar-wrap">
@@ -229,10 +241,16 @@ function buildLimitsSection(userInfo: UserStatusInfo): string {
     const limitsRows = [
         [tBi('Max Input Tokens', '最大输入'), fmtLimit(pl.maxNumChatInputTokens)],
         [tBi('Premium Messages', '高级消息数'), fmtLimit(pl.maxNumPremiumChatMessages)],
-        [tBi('Custom Instructions', '自定义指令'), `${fmtLimit(pl.maxCustomChatInstructionCharacters)} chars`],
+        [tBi('Custom Instructions', '自定义指令'), tBi(
+            `${fmtLimit(pl.maxCustomChatInstructionCharacters)} chars`,
+            `${fmtLimit(pl.maxCustomChatInstructionCharacters)} 字符`,
+        )],
         [tBi('Pinned Context', '固定上下文'), fmtLimit(pl.maxNumPinnedContextItems)],
         [tBi('Local Index', '本地索引'), fmtLimit(pl.maxLocalIndexSize)],
-        [tBi('Flex Credits', 'Flex 额度'), `${pl.monthlyFlexCreditPurchaseAmount.toLocaleString()} / mo`],
+        [tBi('Flex Credits', 'Flex 额度'), tBi(
+            `${pl.monthlyFlexCreditPurchaseAmount.toLocaleString()} / mo`,
+            `${pl.monthlyFlexCreditPurchaseAmount.toLocaleString()} /月`,
+        )],
     ].map(([k, v]) => `<div class="detail-row"><span>${k}</span><span>${v}</span></div>`).join('');
 
     return `

@@ -1,3 +1,5 @@
+import { tBi } from './i18n';
+
 // ─── WebView Client-Side Script ──────────────────────────────────────────────
 // Frontend JavaScript injected into the WebView panel.
 // Handles tab switching, settings controls, privacy mask, scroll persistence,
@@ -9,6 +11,10 @@ export function getScript(): string {
         (function() {
             var vscode = acquireVsCodeApi();
             var savedState = vscode.getState() || {};
+            var copiedText = ${JSON.stringify(`✓ ${tBi('Copied', '已复制')}`)};
+            var doneText = ${JSON.stringify(`✓ ${tBi('Done', '完成')}`)};
+            var savedText = ${JSON.stringify(`✓ ${tBi('Saved', '已保存')}`)};
+            var resetText = ${JSON.stringify(`✓ ${tBi('Reset', '已重置')}`)};
 
             // ─── Tab System ───
             var activeTab = savedState.activeTab || 'monitor';
@@ -251,7 +257,7 @@ export function getScript(): string {
                     navigator.clipboard.writeText(text).then(function() {
                         copyBtn.classList.add('copied');
                         var origHtml = copyBtn.innerHTML;
-                        copyBtn.textContent = '✓ Copied';
+                        copyBtn.textContent = copiedText;
                         setTimeout(function() {
                             copyBtn.innerHTML = origHtml;
                             copyBtn.classList.remove('copied');
@@ -330,7 +336,7 @@ export function getScript(): string {
                 devSimBtn.addEventListener('click', function() {
                     vscode.postMessage({ command: 'devSimulateReset' });
                     var fb = document.getElementById('devSimulateFeedback');
-                    if (fb) { fb.textContent = 'Done'; setTimeout(function() { fb.textContent = ''; }, 2000); }
+                    if (fb) { fb.textContent = doneText; setTimeout(function() { fb.textContent = ''; }, 2000); }
                 });
             }
 
@@ -520,7 +526,7 @@ export function getScript(): string {
                 } else if (msg && (msg.command === 'pricingSaved' || msg.command === 'pricingReset')) {
                     var fb = document.getElementById('pricingFeedback');
                     if (fb) {
-                        fb.textContent = msg.command === 'pricingSaved' ? '✓ Saved' : '✓ Reset';
+                        fb.textContent = msg.command === 'pricingSaved' ? savedText : resetText;
                         fb.style.opacity = '1';
                         setTimeout(function() { fb.style.opacity = '0'; }, 2000);
                     }
@@ -621,7 +627,7 @@ export function getScript(): string {
                             navigator.clipboard.writeText(rawEl.textContent || '').then(function() {
                                 newCopyBtn.classList.add('copied');
                                 var origHtml = newCopyBtn.innerHTML;
-                                newCopyBtn.textContent = '✓ Copied';
+                                newCopyBtn.textContent = copiedText;
                                 setTimeout(function() { newCopyBtn.innerHTML = origHtml; newCopyBtn.classList.remove('copied'); }, 1500);
                             });
                         });

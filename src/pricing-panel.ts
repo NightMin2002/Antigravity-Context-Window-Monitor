@@ -653,23 +653,38 @@ function buildCostSummary(rows: import('./pricing-store').ModelCostRow[], grandT
                 <span class="prc-cost-card-total">${fmtUsd(r.totalCost)}</span>
             </div>
             <div class="prc-cost-card-body">
-                <div class="prc-cost-item" data-tooltip="${fmt(r.inputTokens)} tok × $${r.pricing.input}/M">
+                <div class="prc-cost-item" data-tooltip="${tBi(
+                    `${fmt(r.inputTokens)} tok × $${r.pricing.input}/M`,
+                    `${fmt(r.inputTokens)} 令牌 × $${r.pricing.input}/百万`,
+                )}">
                     <span class="prc-cost-item-label"><span class="prc-cost-item-dot" style="background:#60a5fa"></span>${tBi('Input', '输入')}</span>
                     <span class="prc-cost-item-val">${fmtUsd(r.inputCost)}</span>
                 </div>
-                <div class="prc-cost-item" data-tooltip="${fmt(r.outputTokens)} tok × $${r.pricing.output}/M">
+                <div class="prc-cost-item" data-tooltip="${tBi(
+                    `${fmt(r.outputTokens)} tok × $${r.pricing.output}/M`,
+                    `${fmt(r.outputTokens)} 令牌 × $${r.pricing.output}/百万`,
+                )}">
                     <span class="prc-cost-item-label"><span class="prc-cost-item-dot" style="background:#a78bfa"></span>${tBi('Output', '输出')}</span>
                     <span class="prc-cost-item-val">${fmtUsd(r.outputCost)}</span>
                 </div>
-                <div class="prc-cost-item" data-tooltip="${fmt(r.cacheTokens)} tok × $${r.pricing.cacheRead}/M">
+                <div class="prc-cost-item" data-tooltip="${tBi(
+                    `${fmt(r.cacheTokens)} tok × $${r.pricing.cacheRead}/M`,
+                    `${fmt(r.cacheTokens)} 令牌 × $${r.pricing.cacheRead}/百万`,
+                )}">
                     <span class="prc-cost-item-label"><span class="prc-cost-item-dot" style="background:#22d3ee"></span>${tBi('Cache Read', '缓存读取')}</span>
                     <span class="prc-cost-item-val">${fmtUsd(r.cacheCost)}</span>
                 </div>
-                <div class="prc-cost-item" data-tooltip="${fmt(r.cacheWriteTokens)} tok × $${r.pricing.cacheWrite}/M">
+                <div class="prc-cost-item" data-tooltip="${tBi(
+                    `${fmt(r.cacheWriteTokens)} tok × $${r.pricing.cacheWrite}/M`,
+                    `${fmt(r.cacheWriteTokens)} 令牌 × $${r.pricing.cacheWrite}/百万`,
+                )}">
                     <span class="prc-cost-item-label"><span class="prc-cost-item-dot" style="background:#22d3ee"></span>${tBi('Cache Write', '缓存写入')}</span>
                     <span class="prc-cost-item-val">${fmtUsd(r.cacheWriteCost)}</span>
                 </div>
-                ${r.thinkingTokens > 0 ? `<div class="prc-cost-item" data-tooltip="${fmt(r.thinkingTokens)} tok × $${r.pricing.thinking}/M">
+                ${r.thinkingTokens > 0 ? `<div class="prc-cost-item" data-tooltip="${tBi(
+                    `${fmt(r.thinkingTokens)} tok × $${r.pricing.thinking}/M`,
+                    `${fmt(r.thinkingTokens)} 令牌 × $${r.pricing.thinking}/百万`,
+                )}">
                     <span class="prc-cost-item-label"><span class="prc-cost-item-dot" style="background:#fb923c"></span>${tBi('Thinking', '思考')}</span>
                     <span class="prc-cost-item-val">${fmtUsd(r.thinkingCost)}</span>
                 </div>` : ''}
@@ -705,7 +720,7 @@ function buildEditablePricingTable(
 
     const fields: (keyof ModelPricing)[] = ['input', 'output', 'cacheRead', 'cacheWrite', 'thinking'];
 
-    let html = `<h2 class="act-section-title">${tBi('Custom Pricing', '自定义价格')} <span style="font-size:0.82em;color:var(--color-text-dim)">(USD / 1M tokens)</span></h2>`;
+    let html = `<h2 class="act-section-title">${tBi('Custom Pricing', '自定义价格')} <span style="font-size:0.82em;color:var(--color-text-dim)">(${tBi('USD / 1M tokens', 'USD / 100万令牌')})</span></h2>`;
     html += `<div class="prc-edit-section">`;
     html += `<div class="prc-edit-grid">`;
 
@@ -757,7 +772,7 @@ function buildDefaultPricingTable(
 
     const fields: (keyof ModelPricing)[] = ['input', 'output', 'cacheRead', 'cacheWrite', 'thinking'];
 
-    let html = `<h2 class="act-section-title">${tBi('Custom Pricing', '自定义价格')} <span style="font-size:0.82em;color:var(--color-text-dim)">(USD / 1M tokens)</span></h2>`;
+    let html = `<h2 class="act-section-title">${tBi('Custom Pricing', '自定义价格')} <span style="font-size:0.82em;color:var(--color-text-dim)">(${tBi('USD / 1M tokens', 'USD / 100万令牌')})</span></h2>`;
     html += `<div class="prc-edit-section"><div class="prc-edit-grid">`;
 
     for (const [model, p] of entries) {

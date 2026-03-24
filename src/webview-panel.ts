@@ -437,8 +437,9 @@ function buildHtml(
     const calendarHtml = buildCalendarTabContent(lastDailyStore ?? undefined, calendarYear, calendarMonth);
 
     const currentLang = getLanguage();
+    const htmlLang = currentLang === 'zh' ? 'zh-CN' : currentLang === 'en' ? 'en' : 'zh-CN';
     return `<!DOCTYPE html>
-<html lang="en">
+<html lang="${htmlLang}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -484,7 +485,7 @@ ${getCalendarTabStyles()}
         <div class="disclaimer-body">
             ${tBi(
                 'Data is derived from <strong>internal interfaces that are undocumented and may change without notice</strong>. Items marked with a <strong style="color:var(--color-ok)">GM</strong> badge come from Generator Metadata and have <strong>higher per-call fidelity</strong>. Other metrics (context usage, token estimates) are derived from checkpoint snapshots or character-based heuristics and may have deviations. <strong>All numbers are best-effort approximations.</strong> This extension is an independent, community project with <strong>no official endorsement</strong>. Use this data as a reference only.',
-                '数据通过<strong>内部接口</strong>获取，这些接口<strong>未公开文档且可能随时变更</strong>。标有 <strong style="color:var(--color-ok)">GM</strong> 徽章的数据来自 Generator Metadata，<strong>精度较高</strong>。其余指标（上下文用量、Token 估算）基于 Checkpoint 快照或字符启发式计算，可能存在偏差。<strong>所有数值均为尽力计算的近似值。</strong>本扩展为独立社区项目，<strong>未获得官方认可</strong>。请仅将数据作为参考。'
+                '数据通过<strong>内部接口</strong>获取，这些接口<strong>未公开文档且可能随时变更</strong>。标有 <strong style="color:var(--color-ok)">GM</strong> 徽章的数据来自 <strong>Generator Metadata（生成元数据）</strong>，<strong>单次调用精度较高</strong>。其余指标（上下文用量、Token 估算）基于 <strong>Checkpoint（检查点）</strong> 快照或字符启发式计算，可能存在偏差。<strong>所有数值均为尽力计算的近似值。</strong>本扩展为独立社区项目，<strong>未获得官方认可</strong>。请仅将数据作为参考。'
             )}
         </div>
     </details>

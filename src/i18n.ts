@@ -186,7 +186,7 @@ export async function showLanguagePicker(context: vscode.ExtensionContext, state
         },
         {
             label: '$(globe) English',
-            description: 'English Only',
+            description: 'English Only — 仅显示英文',
             detail: currentLanguage === 'en' ? '✅ Current / 当前' : '',
         },
         {

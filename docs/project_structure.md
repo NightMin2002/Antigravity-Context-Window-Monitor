@@ -38,6 +38,7 @@ antigravity-context-monitor/
 │   ├── activity-panel.ts         # GM Data 统一标签页 HTML（Activity + GM 数据）
 │   ├── pricing-panel.ts          # Pricing 标签页 HTML
 │   ├── webview-calendar-tab.ts   # Calendar 标签页 HTML
+│   ├── i18n.ts                   # 国际化：语言模式、翻译表、偏好持久化
 │   └── images/                   # README 截图资源
 ├── __mocks__/
 │   └── vscode.ts                 # VS Code API mock（Vitest 用）
@@ -295,7 +296,9 @@ Unified "GM Data" tab merging Activity and GM precise data.
 
 ### 🌐 i18n.ts — 国际化
 
-三种语言模式：中文 (`zh`)、英文 (`en`)、双语 (`both`)。偏好现在既写入 VS Code state，也会镜像到 `durable-state.ts` 的外部文件。
+三种语言模式：中文 (`zh`)、英文 (`en`)、双语 (`both`)。启动时通过 `durable-state.ts` 读取偏好（缺失时回退并迁移自 VS Code state）；命令面板切换会同步写入 VS Code state 与外部文件，WebView 内切换当前仅写入 VS Code `globalState`。
+
+Three language modes: Chinese (`zh`), English (`en`), and bilingual (`both`). On startup the preference is restored via `durable-state.ts` with VS Code state fallback migration; command-palette switching writes both stores, while WebView switching currently writes VS Code `globalState` only.
 
 ---
 
@@ -307,10 +310,16 @@ Unified "GM Data" tab merging Activity and GM precise data.
 
 ## 模块依赖关系 / Module Dependencies
 
+下图展示源码中的主要直接依赖（省略 Node / VS Code 内建模块和少量局部工具依赖）。
+
+This diagram shows the main direct source-level dependencies (omitting Node / VS Code built-ins and a few minor local utility edges).
+
 ```text
 extension.ts (入口 + 调度)
 ├── durable-state.ts      ← 扩展外部持久化
 ├── monitor-store.ts      ← Monitor 快照持久化
+│   ├── tracker.ts (types)
+│   └── gm-tracker.ts (types)
 ├── pool-utils.ts         ← 配额池辅助
 ├── discovery.ts          ← LS 进程发现
 ├── tracker.ts            ← Token 计算 + 数据获取
@@ -319,27 +328,41 @@ extension.ts (入口 + 调度)
 │   │   └── i18n.ts       ← 国际化
 │   └── constants.ts      ← 常量
 ├── statusbar.ts          ← 状态栏 UI
+│   ├── tracker.ts
+│   ├── models.ts
+│   └── i18n.ts
+├── i18n.ts               ← 语言偏好 / 翻译
 ├── quota-tracker.ts      ← 额度追踪
 ├── activity-tracker.ts   ← 活动追踪
 │   ├── gm-tracker.ts (types)
 │   ├── rpc-client.ts
 │   ├── discovery.ts (LSInfo type)
-│   └── models.ts
+│   ├── models.ts
+│   └── i18n.ts
 ├── gm-tracker.ts         ← GM 数据层
 │   ├── rpc-client.ts
 │   ├── discovery.ts (LSInfo type)
 │   └── models.ts
 ├── pricing-store.ts      ← 定价数据层
+│   └── gm-tracker.ts (types)
 ├── daily-store.ts        ← 日历数据层
 │   ├── activity-tracker.ts (types)
 │   └── gm-tracker.ts (types)
 └── webview-panel.ts      ← WebView 面板
+    ├── i18n.ts
+    ├── tracker.ts (types)
+    ├── models.ts
+    ├── quota-tracker.ts
+    ├── activity-tracker.ts
+    ├── gm-tracker.ts
+    ├── pricing-store.ts
+    ├── daily-store.ts
     ├── webview-monitor-tab.ts
+    ├── webview-profile-tab.ts
     ├── webview-settings-tab.ts
     ├── activity-panel.ts
     ├── pricing-panel.ts
     ├── webview-calendar-tab.ts
-    ├── webview-profile-tab.ts
     ├── webview-history-tab.ts
     ├── webview-script.ts
     ├── webview-styles.ts
@@ -418,7 +441,7 @@ npx vsce package --no-dependencies
 
 | 测试文件 / Test File | 测试数 | 覆盖范围 / Coverage |
 |---|---|---|
-| `discovery.test.ts` | 22 | `buildExpectedWorkspaceId`（含百分号编码） / `extractPid` / `extractCsrfToken` / `extractWorkspaceId` / `filterLsProcessLines` / 端口提取 / `isWSL` / `selectMatchingProcessLine`（6 分支测试） / `extractWslDistro` / Remote-WSL |
+| `discovery.test.ts` | 22 | `buildExpectedWorkspaceId`（含百分号编码） / `extractPid` / `extractCsrfToken` / `extractWorkspaceId` / `filterLsProcessLines` / `extractPort` / `extractPortFromNetstat` / `extractPortFromSs` / `isWSL` / `selectMatchingProcessLine`（6 分支测试） |
 | `tracker.test.ts` | 22 | `normalizeUri`（file / vscode-remote / URL 解码）/ `estimateTokensFromText`（ASCII / 非 ASCII / 混合）/ `processSteps()` 纯函数 |
 | `statusbar.test.ts` | 11 | Token 格式化 / 上下文限额格式化 / 压缩统计计算 |
 | `quota-tracker.test.ts` | 27 | 状态机转换 / 额度重置检测 / 批量回调 / 同池去重 |

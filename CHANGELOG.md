@@ -104,6 +104,9 @@
 - **Project Structure Sync / 项目结构文档同步**: Updated `docs/project_structure.md` to reflect the current repository layout, refreshed `activity-tracker.ts` / `gm-tracker.ts` responsibilities, and aligned the Vitest count to **88 tests**.
   更新 `docs/project_structure.md`，同步当前仓库结构、刷新 `activity-tracker.ts` / `gm-tracker.ts` 的职责说明，并将 Vitest 数量更新为 **88 个测试**。
 
+- **Bilingual UX Copy Audit / 双语体验文案审查**: Performed a user-visible wording audit across notifications, status bar tooltip, QuickPick details, Monitor / Profile / Pricing tabs, and `readme_CN.md`. Localized remaining labels and units such as `tokens`, `cr`, `Cascade ID`, pricing-unit subtitles, and WebView action feedback, while clarifying Chinese-facing terminology in the disclaimer and README.
+  对通知、状态栏 tooltip、QuickPick 详情、Monitor / Profile / Pricing 标签页及 `readme_CN.md` 执行用户可见文案审查。补齐 `tokens`、`cr`、`Cascade ID`、价格单位副标题、WebView 操作反馈等残留文案的本地化，并同步优化免责声明与 README 的中文术语表述。
+
 ### Quality / 质量
 
 - **Codebase Health Check / 代码库体检**: Re-ran `npm run compile` and `npm test` against the current workspace state. Result: compile passes, **88/88** tests pass. During this review the primary desync found was documentation drift (test counts / structure description lagging behind code), which is now synchronized in `docs/project_structure.md`.
