@@ -79,7 +79,7 @@ Extension lifecycle management hub.
 |---|---|
 | `activate()` / `deactivate()` | 初始化所有子系统、注册命令、恢复 / 持久化关键状态 |
 | 全局轮询 / Global poll | `pollContextUsage()` 以可配置间隔执行（默认 5s） |
-| Activity 独立轮询 | `pollActivity()` 独立 3 秒循环，变化时立即刷新 UI |
+| Activity 统一轮询 / Unified activity poll | Activity 数据处理已合并至 `pollContextUsage()` 主循环，复用已获取的 trajectory 缓存，消除重复 RPC 调用 |
 | 会话选择 / Session selection | 按 RUNNING → 当前 tracked cascade 的 stepCount 变化 → 新会话 → 最近修改 的优先级选当前对话，已建立的当前会话会尽量保持稳定不被其他对话抢占 |
 | 额度池归档 / Pool archival | 使用 `groupModelIdsByResetPool()` 将一次 reset 回调拆成多个共享额度池，逐池归档 Activity + GM + Pricing + Calendar |
 | 持久化协调 / Persistence orchestration | 协调 `durable-state.ts`、`monitor-store.ts`、`activity-tracker.ts`、`gm-tracker.ts`、`daily-store.ts` 的恢复与写回 |
@@ -207,7 +207,7 @@ Tracks model activity details: reasoning count, tool usage, token consumption, t
 | 特性 / Feature | 说明 / Description |
 |---|---|
 | 步骤分类 / Step classification | 22 种步骤类型 → reasoning / tool / user / system |
-| 独立轮询 / Independent poll | 3 秒独立循环，不受全局 poll 影响 |
+| 统一轮询 / Unified poll | Activity 处理已合并至 `pollContextUsage()` 主循环（v1.13.6），复用 trajectory 缓存，消除独立 RPC 调用 |
 | GM 注入 / GM injection | 将 GM 精确 token / cache / credits 注入 Timeline |
 | 当前对话过滤 / Current-session timeline | GM Data 标签页默认只渲染当前 `cascadeId` 的最近操作，底层仍保留全量 `_recentSteps` 用于归档和恢复 |
 | 用户锚点 / GM user anchors | 从 `messagePrompts` 中提取 `<USER_REQUEST>` 恢复为 `gm_user` 事件，作为窗口外用户消息锚点 |

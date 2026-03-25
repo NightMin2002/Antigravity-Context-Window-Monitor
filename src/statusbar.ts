@@ -115,7 +115,7 @@ export class StatusBarManager {
     private cachedPlanName: string = '';
     private cachedTierName: string = '';
     /** User-configurable compression warning threshold (tokens). */
-    private warningThreshold: number = 200_000;
+    private warningThreshold: number = 150_000;
     /** Timer ID for reset countdown. */
     private resetCountdownTimer: NodeJS.Timeout | undefined;
     /** Status bar display preferences. */

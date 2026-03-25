@@ -32,7 +32,7 @@ export function buildSettingsContent(
     storage?: StorageDiagnostics,
 ): string {
     const cfg = vscode.workspace.getConfiguration('antigravityContextMonitor');
-    const currentThreshold = cfg.get<number>('compressionWarningThreshold', 200_000);
+    const currentThreshold = cfg.get<number>('compressionWarningThreshold', 150_000);
     const pollingInterval = cfg.get<number>('pollingInterval', 5);
     const contextLimits = cfg.get<Record<string, number>>('contextLimits', {});
     const showContext = cfg.get<boolean>('statusBar.showContext', true);

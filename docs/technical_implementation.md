@@ -155,8 +155,8 @@ Since v1.11.2, the plugin tracks real-time activity data per model (reasoning ca
 * **持久化 / Persistence**: 活动数据通过 `globalState` 序列化存储，30 秒节流写入。恢复时强制 warm-up 重校准实际计数。
   Activity data persisted via `globalState` serialization, throttled to 30s writes. On restore, forces warm-up to recalibrate actual counts.
 
-* **GM 数据持久化缓存 / GM Data Persistence Cache**: `ActivityTracker` 内部维护 `_gmTotals`（全局聚合 inputTokens/outputTokens/cacheRead/credits/retries）和 `_gmModelBreakdown`（按模型分组的 GM 详细数据），由 `injectGMData()` 写入，`getSummary()` 始终返回。这消除了 `pollContextUsage()`（5s 间隔）和 `pollActivity()`（3s 间隔）两个轮询路径竞争导致的 GM 数据闪烁问题。`serialize()`/`restore()` 完整持久化这些缓存。
-  `ActivityTracker` maintains internal `_gmTotals` (global aggregate inputTokens/outputTokens/cacheRead/credits/retries) and `_gmModelBreakdown` (per-model GM breakdown), written by `injectGMData()` and always returned by `getSummary()`. This eliminates GM data flickering caused by race conditions between `pollContextUsage()` (5s) and `pollActivity()` (3s). Both fields are fully persisted via `serialize()`/`restore()`.
+* **GM 数据持久化缓存 / GM Data Persistence Cache**: `ActivityTracker` 内部维护 `_gmTotals`（全局聚合 inputTokens/outputTokens/cacheRead/credits/retries）和 `_gmModelBreakdown`（按模型分组的 GM 详细数据），由 `injectGMData()` 写入，`getSummary()` 始终返回。自 v1.13.6 起，Activity 处理已合并至 `pollContextUsage()` 统一循环，复用已获取的 trajectory 缓存，消除独立 RPC 调用和 GM 数据闪烁。`serialize()`/`restore()` 完整持久化这些缓存。
+  `ActivityTracker` maintains internal `_gmTotals` (global aggregate inputTokens/outputTokens/cacheRead/credits/retries) and `_gmModelBreakdown` (per-model GM breakdown), written by `injectGMData()` and always returned by `getSummary()`. Since v1.13.6, activity processing is merged into the unified `pollContextUsage()` loop, reusing fetched trajectory cache and eliminating independent RPC calls and GM data flickering. Both fields are fully persisted via `serialize()`/`restore()`.
 
 * **低配额通知 / Low Quota Notification**: 当模型剩余配额低于用户设定阈值（默认 20%）时弹出警告通知，每个模型每次阈值跨越仅通知一次，恢复后重新启用。
   Warning notification when model quota drops below user-configured threshold (default 20%). Each model notifies only once per threshold crossing, re-arms when recovered.
