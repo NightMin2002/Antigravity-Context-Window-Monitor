@@ -102,16 +102,18 @@ describe('QuotaTracker state machine', () => {
             expect(session!.snapshots.length).toBe(2);
         });
 
-        it('should keep tracking active but mark session completed when fraction drops to 0', () => {
+        it('should stay active (completed=true) when fraction drops to 0 — waits for cycle end', () => {
             const now = new Date();
             const resetTime = futureReset(now, FIVE_HOURS);
 
             tracker.processUpdate([makeConfig('M1', 1.0, resetTime)]);
             tracker.processUpdate([makeConfig('M1', 0, resetTime)]);
 
-            expect(tracker.getActiveSessions().length).toBe(1);
+            // Session stays active — NOT archived until cycle ends
+            const active = tracker.getActiveSessions();
+            expect(active.length).toBe(1);
+            expect(active[0].completed).toBe(true);
             expect(tracker.getHistory().length).toBe(0);
-            expect(tracker.getActiveSessions()[0].completed).toBe(true);
         });
     });
 
@@ -256,7 +258,7 @@ describe('QuotaTracker state machine', () => {
             expect(session!.snapshots.length).toBeGreaterThanOrEqual(4);
         });
 
-        it('should keep completed-at-0 sessions active until reset actually happens', () => {
+        it('should mark completed at 0% but keep active until cycle ends', () => {
             const now = new Date();
             const resetTime = futureReset(now, FIVE_HOURS);
 
@@ -264,9 +266,18 @@ describe('QuotaTracker state machine', () => {
             tracker.processUpdate([makeConfig('M1', 0.5, resetTime)]);
             tracker.processUpdate([makeConfig('M1', 0, resetTime)]);
 
-            expect(tracker.getActiveSessions().length).toBe(1);
+            // Session stays active, marked completed but NOT archived
+            const active = tracker.getActiveSessions();
+            expect(active.length).toBe(1);
+            expect(active[0].completed).toBe(true);
             expect(tracker.getHistory().length).toBe(0);
-            expect(tracker.getActiveSessions()[0].completed).toBe(true);
+
+            // Archive happens when cycle ends (resetTime passes)
+            const newResetTime = futureReset(now, FIVE_HOURS * 2);
+            tracker.processUpdate([makeConfig('M1', 1.0, newResetTime)]);
+            expect(tracker.getActiveSessions().length).toBe(0);
+            expect(tracker.getHistory().length).toBe(1);
+            expect(tracker.getHistory()[0].completed).toBe(true);
         });
 
         it('should archive on genuine reset (fraction <1 → 1)', () => {
@@ -369,32 +380,38 @@ describe('QuotaTracker state machine', () => {
         });
     });
 
-    // ─── Zero / Rebound Handling ─────────────────────────────────────────────
+    // ─── Cycle-End / Rebound Handling ────────────────────────────────────────
 
-    describe('zero / rebound handling', () => {
-        it('should archive after a completed-at-0 session reaches a genuine reset', () => {
+    describe('cycle-end / rebound handling', () => {
+        it('should archive and fire reset callback when cycle ends after 0%', () => {
             const now = new Date();
             const resetTime = futureReset(now, FIVE_HOURS);
 
             tracker.processUpdate([makeConfig('M1', 1.0, resetTime)]);
             tracker.processUpdate([makeConfig('M1', 0.5, resetTime)]);
             tracker.processUpdate([makeConfig('M1', 0, resetTime)]);
+            // Still active — waiting for cycle end
+            expect(tracker.getActiveSessions().length).toBe(1);
             expect(tracker.getHistory().length).toBe(0);
 
-            tracker.processUpdate([makeConfig('M1', 1.0, futureReset(now, FIVE_HOURS * 2))]);
+            // Cycle ends: resetTime jumps
+            const newResetTime = futureReset(now, FIVE_HOURS * 2);
+            tracker.processUpdate([makeConfig('M1', 1.0, newResetTime)]);
             expect(tracker.getHistory().length).toBe(1);
             expect(resetCallback).toHaveBeenCalledWith(['M1']);
         });
 
-        it('should stay marked completed while fraction remains 0', () => {
+        it('should keep tracking at 0% without archiving until cycle ends', () => {
             const now = new Date();
             const resetTime = futureReset(now, FIVE_HOURS);
 
             tracker.processUpdate([makeConfig('M1', 1.0, resetTime)]);
             tracker.processUpdate([makeConfig('M1', 0, resetTime)]);
+            // Multiple polls at 0% — still active
             tracker.processUpdate([makeConfig('M1', 0, resetTime)]);
-            expect(tracker.getHistory().length).toBe(0);
+            tracker.processUpdate([makeConfig('M1', 0, resetTime)]);
             expect(tracker.getActiveSessions().length).toBe(1);
+            expect(tracker.getHistory().length).toBe(0);
             expect(tracker.getActiveSessions()[0].completed).toBe(true);
         });
 
@@ -409,6 +426,30 @@ describe('QuotaTracker state machine', () => {
             expect(tracker.getHistory().length).toBe(0);
             expect(tracker.getActiveSessions().length).toBe(1);
             expect(tracker.getActiveSessions()[0].completed).toBe(false);
+        });
+
+        it('should migrate legacy done state to idle on restore', () => {
+            const ctx = createMockContext();
+            const now = new Date();
+            const resetTime = futureReset(now, FIVE_HOURS);
+
+            // Pre-seed with legacy done state
+            ctx.globalState.update('quotaActiveTracking', {
+                'M1': {
+                    state: 'done', lastFraction: 0,
+                    last100Time: now.toISOString(),
+                    lastResetTime: resetTime, currentSession: null,
+                    baselineResetTime: resetTime, idleSince: now.toISOString(),
+                },
+            });
+
+            const t = new QuotaTracker(ctx);
+            t.setEnabled(true);
+            // Should be idle (migrated), not stuck in done
+            expect(t.getActiveSessions().length).toBe(0);
+            // New usage should start tracking normally
+            t.processUpdate([makeConfig('M1', 0.5, resetTime)]);
+            expect(t.getActiveSessions().length).toBe(1);
         });
     });
 
@@ -524,8 +565,10 @@ describe('QuotaTracker state machine', () => {
             const reset = futureReset(now, FIVE_HOURS);
 
             tracker.processUpdate([makeConfig('M1', 1.0, reset)]);
-            tracker.processUpdate([makeConfig('M1', 0, reset)]);
-            tracker.processUpdate([makeConfig('M1', 1.0, futureReset(now, FIVE_HOURS * 2))]);
+            tracker.processUpdate([makeConfig('M1', 0.5, reset)]);
+            // Complete cycle: fraction drops, then cycle ends via resetTime jump
+            const newReset = futureReset(now, FIVE_HOURS * 2);
+            tracker.processUpdate([makeConfig('M1', 1.0, newReset)]);
             expect(tracker.getHistory().length).toBe(1);
 
             tracker.resetTrackingStates();
@@ -553,16 +596,18 @@ describe('QuotaTracker state machine', () => {
             expect(tracker.getActiveSessions().length).toBe(0);
         });
 
-        it('should handle undefined remainingFraction as 0', () => {
+        it('should handle undefined remainingFraction as 0 (stays active, completed)', () => {
             const now = new Date();
             const reset = futureReset(now, FIVE_HOURS);
 
             tracker.processUpdate([makeConfig('M1', 1.0, reset)]);
             tracker.processUpdate([makeConfig('M1', undefined as any, reset)]);
 
+            // Session stays active (completed=true) — not archived until cycle ends
+            const active = tracker.getActiveSessions();
+            expect(active.length).toBe(1);
+            expect(active[0].completed).toBe(true);
             expect(tracker.getHistory().length).toBe(0);
-            expect(tracker.getActiveSessions().length).toBe(1);
-            expect(tracker.getActiveSessions()[0].completed).toBe(true);
         });
     });
 });

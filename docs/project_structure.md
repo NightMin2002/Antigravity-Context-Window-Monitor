@@ -192,9 +192,9 @@ Helpers for shared quota-pool operations based on `quotaInfo.resetTime`.
 
 ### ⚡ quota-tracker.ts — 额度消费追踪
 
-状态机追踪每个模型的额度消费过程，并按共享 resetTime 自动去重同池模型。
+状态机追踪每个模型的额度消费过程（`idle→tracking→(archive)→idle`），并按共享 resetTime 自动去重同池模型。v1.13.7 移除 `done` 状态，引入 `cycleResetTime` 和 `isCycleEnded()` 统一周期结束判定。
 
-State machine tracking per-model quota consumption with shared-pool deduplication.
+State machine tracking per-model quota consumption (`idle→tracking→(archive)→idle`) with shared-pool deduplication. v1.13.7 removes `done` state, adds `cycleResetTime` and `isCycleEnded()` for unified cycle-end detection.
 
 ---
 
@@ -444,12 +444,12 @@ npx vsce package --no-dependencies
 | `discovery.test.ts` | 22 | `buildExpectedWorkspaceId`（含百分号编码） / `extractPid` / `extractCsrfToken` / `extractWorkspaceId` / `filterLsProcessLines` / `extractPort` / `extractPortFromNetstat` / `extractPortFromSs` / `isWSL` / `selectMatchingProcessLine`（6 分支测试） |
 | `tracker.test.ts` | 22 | `normalizeUri`（file / vscode-remote / URL 解码）/ `estimateTokensFromText`（ASCII / 非 ASCII / 混合）/ `processSteps()` 纯函数 |
 | `statusbar.test.ts` | 11 | Token 格式化 / 上下文限额格式化 / 压缩统计计算 |
-| `quota-tracker.test.ts` | 27 | 状态机转换 / 额度重置检测 / 批量回调 / 同池去重 |
+| `quota-tracker.test.ts` | 28 | 状态机转换 / 额度重置检测 / 批量回调 / 同池去重 / 周期结束归档 / legacy done 迁移 |
 | `pool-utils.test.ts` | 3 | 配额池扩展 / 分组 / quota session 匹配 |
 | `monitor-store.test.ts` | 1 | Monitor 快照与 GM 会话快照恢复 |
 | `gm-tracker.test.ts` | 1 | `filterGMSummaryByModels()` 按模型池过滤 |
 | `durable-state.test.ts` | 1 | 外部持久化文件创建 / fallback 迁移 / 重装恢复 |
 
-共 88 个测试，使用 `__mocks__/vscode.ts` 模拟 VS Code API。
+共 92 个测试，使用 `__mocks__/vscode.ts` 模拟 VS Code API。
 
-88 total tests, using `__mocks__/vscode.ts` to mock VS Code API.
+92 total tests, using `__mocks__/vscode.ts` to mock VS Code API.
