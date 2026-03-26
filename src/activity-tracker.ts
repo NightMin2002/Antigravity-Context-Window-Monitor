@@ -404,6 +404,14 @@ function getMaxArchives(): number {
     } catch { return 20; }
 }
 
+/**
+ * Re-scan a small tail window so late-filled planner responses can replace
+ * earlier empty placeholder steps without rebuilding the whole timeline.
+ */
+const STEP_TAIL_REFRESH_WINDOW = 12;
+const STEP_TAIL_RESTORE_WINDOW = 64;
+const MAX_PENDING_PLANNER_REFRESH_ATTEMPTS = 6;
+
 export class ActivityTracker {
     // Model stats
     private _modelStats = new Map<string, ModelActivityStats>();
@@ -438,6 +446,8 @@ export class ActivityTracker {
 
     // Recent steps (ring buffer)
     private _recentSteps: StepEvent[] = [];
+    private _pendingPlannerSteps = new Map<string, Map<number, number>>();
+    private _tailRefreshQueue = new Set<string>();
     private _sessionStartTime: string;
 
     // Archive history
@@ -619,19 +629,30 @@ export class ActivityTracker {
             if (currSteps < entry.stepCount) {
                 entry.processedIndex = Math.min(entry.processedIndex, currSteps);
                 this._clearWindowOutsideAttribution(id);
+                this._clearPendingPlannerStepsFrom(id, currSteps);
                 this._recentSteps = this._recentSteps.filter(ev =>
                     ev.cascadeId !== id || ev.stepIndex === undefined || ev.stepIndex < currSteps
                 );
             }
 
+            const hasPendingPlannerSteps = this._hasPendingPlannerSteps(id);
+            const needsTailRefresh = this._tailRefreshQueue.has(id);
+
             // Skip if no new steps AND no status change
-            if (currSteps <= entry.processedIndex && !statusChanged) {
+            if (currSteps <= entry.processedIndex && !statusChanged && !hasPendingPlannerSteps && !needsTailRefresh) {
                 entry.stepCount = currSteps;
                 continue;
             }
 
             // Skip IDLE conversations only if stepCount hasn't changed.
-            if (entry.processedIndex > 0 && info.status !== 'CASCADE_RUN_STATUS_RUNNING' && currSteps <= entry.stepCount && !statusChanged) {
+            if (
+                entry.processedIndex > 0
+                && info.status !== 'CASCADE_RUN_STATUS_RUNNING'
+                && currSteps <= entry.stepCount
+                && !statusChanged
+                && !hasPendingPlannerSteps
+                && !needsTailRefresh
+            ) {
                 continue;
             }
 
@@ -659,6 +680,10 @@ export class ActivityTracker {
                     entry.processedIndex = steps.length;
                     entry.dominantModel = this._detectDominantModel(steps);
                     this._updateConversationBreakdown(id, steps);
+                    if (this._refreshTimelineTail(steps, absOffset, id)) {
+                        hasChanges = true;
+                    }
+                    this._tailRefreshQueue.delete(id);
                 } else {
                     // INCREMENTAL: re-fetch steps to capture new ones precisely.
                     // API returns earliest ~500 steps; any beyond that use estimation.
@@ -670,6 +695,7 @@ export class ActivityTracker {
                     // Process individually any NEW steps within API window
                     // stepIndex uses ABSOLUTE index (offset-based) to align with GM stepIndices
                     const incOffset = currSteps - fetchedSteps.length;
+                    const previousProcessedIndex = entry.processedIndex;
                     if (fetchedSteps.length > entry.processedIndex) {
                         const incModel = entry.dominantModel || this._detectDominantModel(fetchedSteps);
                         for (let i = entry.processedIndex; i < fetchedSteps.length; i++) {
@@ -688,6 +714,21 @@ export class ActivityTracker {
                         }
                         hasChanges = true;
                     }
+
+                    if (
+                        fetchedSteps.length > 0
+                        && (
+                            previousProcessedIndex !== entry.processedIndex
+                            || statusChanged
+                            || hasPendingPlannerSteps
+                            || needsTailRefresh
+                        )
+                    ) {
+                        if (this._refreshTimelineTail(fetchedSteps, incOffset, id)) {
+                            hasChanges = true;
+                        }
+                    }
+                    this._tailRefreshQueue.delete(id);
 
                     // Any steps beyond API window → delta estimation (fallback)
                     const beyondApi = currSteps - Math.max(fetchedSteps.length, entry.stepCount);
@@ -953,6 +994,9 @@ export class ActivityTracker {
                     source: 'step',
                     modelBasis: 'step',
                 });
+                this._clearPendingPlannerStep(cascadeId, stepIndex);
+            } else if (emitEvent) {
+                this._markPendingPlannerStep(cascadeId, stepIndex);
             }
 
         } else if (cls.category === 'tool') {
@@ -989,22 +1033,23 @@ export class ActivityTracker {
      * Uses LS's metadata.createdAt for timestamps since these are historical events.
      */
     private _injectTimelineEvent(step: Record<string, unknown>, stepIndex: number, cascadeId?: string): void {
-        // BUG FIX: deduplicate — skip if a step event with the same cascadeId+stepIndex
-        // already exists. Without this, every statusChanged transition re-injects the last
-        // 20 steps, producing duplicate timeline rows that accumulate over time.
-        if (cascadeId !== undefined) {
-            const exists = this._recentSteps.some(ev =>
-                ev.cascadeId === cascadeId && ev.stepIndex === stepIndex && ev.source === 'step'
-            );
-            if (exists) { return; }
+        const event = this._buildStepTimelineEvent(step, stepIndex, cascadeId);
+        if (event) {
+            this._upsertStepTimelineEvent(event);
+            this._clearPendingPlannerStep(cascadeId, stepIndex);
+            return;
         }
+        if ((step.type as string) === 'CORTEX_STEP_TYPE_PLANNER_RESPONSE') {
+            this._markPendingPlannerStep(cascadeId, stepIndex);
+        }
+    }
+
+    private _buildStepTimelineEvent(step: Record<string, unknown>, stepIndex: number, cascadeId?: string): StepEvent | null {
         const type = (step.type as string) || '';
         const meta = (step.metadata || {}) as Record<string, unknown>;
         const modelId = (meta.generatorModel as string) || '';
         const model = modelId ? getModelDisplayName(modelId) : '';
         const cls = classifyStep(type);
-
-        // Use LS createdAt for historical timestamp, fallback to session start
         const createdAt = (meta.createdAt as string) || '';
         const timestamp = createdAt || this._sessionStartTime;
 
@@ -1013,7 +1058,7 @@ export class ActivityTracker {
             const items = userInput?.items as Record<string, string>[] | undefined;
             const text = (Array.isArray(items) && items.length > 0 ? (items[0].text || '') : '')
                 || (typeof userInput?.userResponse === 'string' ? userInput.userResponse : '');
-            this._pushEvent({
+            return {
                 timestamp,
                 icon: cls.icon,
                 category: 'user',
@@ -1026,35 +1071,30 @@ export class ActivityTracker {
                 cascadeId,
                 source: 'step',
                 modelBasis: 'step',
-            });
-            return;
+            };
         }
 
-        // NOTIFY_USER — AI 回复用户的实际正文
         if (type === 'CORTEX_STEP_TYPE_NOTIFY_USER') {
             const nu = (step.notifyUser || {}) as Record<string, unknown>;
             const text = ((nu.notificationContent || nu.message || '') as string).trim();
-            if (text) {
-                this._pushEvent({
-                    timestamp,
-                    icon: '📢',
-                    category: 'reasoning',
-                    model: model || '',
-                    detail: '',
-                    durationMs: 0,
-                    aiResponse: truncate(text, 96),
-                    fullAiResponse: text.length > 96 ? truncate(text, 2000) : undefined,
-                    stepIndex,
-                    cascadeId,
-                    source: 'step',
-                    modelBasis: model ? 'step' : undefined,
-                });
-            }
-            return;
+            if (!text) { return null; }
+            return {
+                timestamp,
+                icon: '📢',
+                category: 'reasoning',
+                model: model || '',
+                detail: '',
+                durationMs: 0,
+                aiResponse: truncate(text, 96),
+                fullAiResponse: text.length > 96 ? truncate(text, 2000) : undefined,
+                stepIndex,
+                cascadeId,
+                source: 'step',
+                modelBasis: model ? 'step' : undefined,
+            };
         }
 
-        if (cls.category === 'system') { return; }
-        if (!model) { return; }
+        if (cls.category === 'system' || !model) { return null; }
 
         if (cls.category === 'reasoning') {
             const pr = step.plannerResponse as Record<string, unknown> | undefined;
@@ -1063,22 +1103,19 @@ export class ActivityTracker {
             if (Array.isArray(toolCalls) && toolCalls.length > 0) {
                 detail = `→ ${toolCalls.length} ${toolCalls.length === 1 ? 'tool' : 'tools'}`;
             }
-            const resp = ((pr?.modifiedResponse || pr?.response || '') as string);
             const tdStr = pr?.thinkingDuration as string | undefined;
-            let aiResp = resp;
-            // Fallback: extract notify_user Message from toolCalls (actual AI reply)
+            let aiResp = ((pr?.modifiedResponse || pr?.response || '') as string);
             const notifyMsg = extractNotifyMessage(toolCalls as unknown[] | undefined);
             if (!aiResp && notifyMsg) {
                 aiResp = notifyMsg;
-                detail = '';  // 清除 '→ N tools'
+                detail = '';
             }
             if (!aiResp && tdStr) {
                 aiResp = '正在思考';
             }
-            // BUG FIX: skip empty PLANNER_RESPONSE (no response, no toolCalls)
             const hasContent = aiResp || (Array.isArray(toolCalls) && toolCalls.length > 0);
-            if (!hasContent) { return; }
-            this._pushEvent({
+            if (!hasContent) { return null; }
+            return {
                 timestamp,
                 icon: cls.icon,
                 category: 'reasoning',
@@ -1091,24 +1128,156 @@ export class ActivityTracker {
                 cascadeId,
                 source: 'step',
                 modelBasis: 'step',
-            });
-        } else if (cls.category === 'tool') {
-            const dur = stepDurationTool(meta);
-            const detail = extractToolDetail(step);
-            const toolName = extractToolName(step, cls.label);
-            this._pushEvent({
+            };
+        }
+
+        if (cls.category === 'tool') {
+            return {
                 timestamp,
                 icon: cls.icon,
                 category: 'tool',
                 model,
-                detail,
-                durationMs: dur,
-                toolName,
+                detail: extractToolDetail(step),
+                durationMs: stepDurationTool(meta),
+                toolName: extractToolName(step, cls.label),
                 stepIndex,
                 cascadeId,
                 source: 'step',
                 modelBasis: 'step',
-            });
+            };
+        }
+
+        return null;
+    }
+
+    private _upsertStepTimelineEvent(event: StepEvent): boolean {
+        const existing = this._recentSteps.find(ev =>
+            ev.source === 'step'
+            && ev.cascadeId === event.cascadeId
+            && ev.stepIndex === event.stepIndex
+        );
+        if (!existing) {
+            this._pushEvent(event);
+            return true;
+        }
+
+        let changed = false;
+        const mergeKeys: Array<keyof StepEvent> = [
+            'timestamp',
+            'icon',
+            'category',
+            'model',
+            'detail',
+            'durationMs',
+            'userInput',
+            'fullUserInput',
+            'aiResponse',
+            'fullAiResponse',
+            'browserSub',
+            'toolName',
+            'modelBasis',
+        ];
+        for (const key of mergeKeys) {
+            if (existing[key] !== event[key]) {
+                existing[key] = event[key] as never;
+                changed = true;
+            }
+        }
+        if (changed) {
+            this._sortRecentSteps();
+        }
+        return changed;
+    }
+
+    private _refreshTimelineTail(steps: Record<string, unknown>[], absOffset: number, cascadeId: string): boolean {
+        if (steps.length === 0) { return false; }
+
+        const pending = this._pendingPlannerSteps.get(cascadeId);
+        const targetIndices = new Set<number>();
+        const tailStart = Math.max(0, steps.length - STEP_TAIL_REFRESH_WINDOW);
+        for (let i = tailStart; i < steps.length; i++) {
+            targetIndices.add(i);
+        }
+        if (pending) {
+            for (const stepIndex of pending.keys()) {
+                const localIndex = stepIndex - absOffset;
+                if (localIndex >= 0 && localIndex < steps.length) {
+                    targetIndices.add(localIndex);
+                }
+            }
+        }
+
+        let changed = false;
+        for (const localIndex of [...targetIndices].sort((a, b) => a - b)) {
+            const step = steps[localIndex];
+            const stepIndex = localIndex + absOffset;
+            const event = this._buildStepTimelineEvent(step, stepIndex, cascadeId);
+            if (event) {
+                if (this._upsertStepTimelineEvent(event)) {
+                    changed = true;
+                }
+                this._clearPendingPlannerStep(cascadeId, stepIndex);
+                continue;
+            }
+
+            if ((step.type as string) !== 'CORTEX_STEP_TYPE_PLANNER_RESPONSE') {
+                continue;
+            }
+            if (this._markPendingPlannerStep(cascadeId, stepIndex)) {
+                changed = true;
+            }
+        }
+
+        return changed;
+    }
+
+    private _hasPendingPlannerSteps(cascadeId: string): boolean {
+        return (this._pendingPlannerSteps.get(cascadeId)?.size || 0) > 0;
+    }
+
+    private _markPendingPlannerStep(cascadeId?: string, stepIndex?: number): boolean {
+        if (!cascadeId || stepIndex === undefined) { return false; }
+        let pending = this._pendingPlannerSteps.get(cascadeId);
+        if (!pending) {
+            pending = new Map<number, number>();
+            this._pendingPlannerSteps.set(cascadeId, pending);
+        }
+        const attempts = pending.get(stepIndex);
+        if (attempts === undefined) {
+            pending.set(stepIndex, 0);
+            return true;
+        }
+        if (attempts + 1 >= MAX_PENDING_PLANNER_REFRESH_ATTEMPTS) {
+            pending.delete(stepIndex);
+            if (pending.size === 0) {
+                this._pendingPlannerSteps.delete(cascadeId);
+            }
+            return false;
+        }
+        pending.set(stepIndex, attempts + 1);
+        return false;
+    }
+
+    private _clearPendingPlannerStep(cascadeId?: string, stepIndex?: number): void {
+        if (!cascadeId || stepIndex === undefined) { return; }
+        const pending = this._pendingPlannerSteps.get(cascadeId);
+        if (!pending) { return; }
+        pending.delete(stepIndex);
+        if (pending.size === 0) {
+            this._pendingPlannerSteps.delete(cascadeId);
+        }
+    }
+
+    private _clearPendingPlannerStepsFrom(cascadeId: string, minStepIndexExclusive: number): void {
+        const pending = this._pendingPlannerSteps.get(cascadeId);
+        if (!pending) { return; }
+        for (const stepIndex of [...pending.keys()]) {
+            if (stepIndex >= minStepIndexExclusive) {
+                pending.delete(stepIndex);
+            }
+        }
+        if (pending.size === 0) {
+            this._pendingPlannerSteps.delete(cascadeId);
         }
     }
 
@@ -1870,6 +2039,8 @@ export class ActivityTracker {
             this._totalCheckpoints = 0;
             this._totalErrors = 0;
             this._recentSteps = [];
+            this._pendingPlannerSteps.clear();
+            this._tailRefreshQueue.clear();
             this._gmTotals = null;
             this._gmModelBreakdown = null;
             this._windowOutsideAttribution.clear();
@@ -1895,6 +2066,8 @@ export class ActivityTracker {
         this._totalCheckpoints = 0;
         this._totalErrors = 0;
         this._recentSteps = [];
+        this._pendingPlannerSteps.clear();
+        this._tailRefreshQueue.clear();
         this._archives = [];
         this._gmTotals = null;
         this._gmModelBreakdown = null;
@@ -2066,6 +2239,8 @@ export class ActivityTracker {
             tracker._totalCheckpoints = 0;
             tracker._totalErrors = 0;
             tracker._recentSteps = [];
+            tracker._pendingPlannerSteps.clear();
+            tracker._tailRefreshQueue.clear();
             tracker._windowOutsideAttribution.clear();
             for (const [id, t] of tracker._trajectories) {
                 tracker._trajectories.set(id, { ...t, processedIndex: 0 });
@@ -2073,6 +2248,11 @@ export class ActivityTracker {
             tracker._warmedUp = false; // force full re-warm-up
         } else if (Object.keys(data.trajectoryBaselines || {}).length > 0) {
             tracker._warmedUp = true;  // use incremental path — only new steps
+            for (const [id, baseline] of Object.entries(data.trajectoryBaselines || {})) {
+                if (baseline.processedIndex > 0 && baseline.stepCount > 0 && baseline.stepCount <= STEP_TAIL_RESTORE_WINDOW) {
+                    tracker._tailRefreshQueue.add(id);
+                }
+            }
         } else {
             tracker._warmedUp = false; // no baselines: full warm-up needed
         }

@@ -16,10 +16,19 @@
 - **Reset Time Display Now Includes Date Context / 重置时间显示补上日期语义**: Reset UI no longer renders long-window resets as a misleading bare clock like `09:05`. Status bar, Profile, and Quota Tracking views now format reset information as countdown plus local date/time, e.g. `1d19h (03/28 09:05)`, making long rolling windows immediately understandable.
   重置时间显示不再把长周期重置渲染成容易误解的裸时分，例如 `09:05`。状态栏、Profile 和 Quota Tracking 现在统一显示为“倒计时 + 本地日期时间”，例如 `1d19h (03/28 09:05)`，长滚动窗口的语义更直观。
 
+- **Recent Activity Late-Fill Recovery / 最近操作补票恢复**: Fixed a timeline gap where some models could surface a `PLANNER_RESPONSE` step before its final `response/modifiedResponse` text was filled in. The old tracker advanced `processedIndex` immediately, skipped the empty step, and never revisited it if `stepCount` stayed unchanged, causing user anchors to appear without the matching AI reply. `activity-tracker.ts` now keeps a short-lived pending set for empty planner steps, re-scans the visible tail even when `stepCount` does not grow, and repairs late-filled responses in place. This is model-agnostic and applies to any provider that emits placeholder planner steps first, although it was most visible on Gemini Pro conversations.
+  修复“最近操作”时间线漏记问题：某些模型会先暴露 `PLANNER_RESPONSE` 步骤，再晚一点补上最终 `response/modifiedResponse` 文本。旧逻辑会立刻推进 `processedIndex`，把这个空步骤跳过；如果之后 `stepCount` 没变化，就永远不会回头补，结果表现为用户锚点已经出现，但对应 AI 回复缺失。现在 `activity-tracker.ts` 会为这类空 planner step 维护一个短生命周期的待补集合，并在 `stepCount` 不增长时也重扫可见尾部，把后补完成的回复原位修复。该修复是模型无关的，适用于任何先发占位 planner step、后补正文的 provider，只是此前在 Gemini Pro 对话里最明显。
+
+- **Deterministic Recent-Activity Ordering / 最近操作确定性排序**: Added a render-time fallback sort in `activity-panel.ts` using `timestamp → stepIndex → source` so restored state, GM enrichment, and late repairs cannot accidentally shuffle the timeline order. The view remains a debugging-oriented execution timeline, but row order is now stable even when events are patched after the first render.
+  在 `activity-panel.ts` 中新增渲染前兜底排序，按 `timestamp → stepIndex → source` 做确定性排序。这样即使遇到持久化恢复、GM 富化或后补修复，时间线也不会因为事件晚到而发生偶发乱序。视图仍然保持调试型执行时间线语义，但顺序更稳定。
+
 ### ✅ Tests / 测试
 
 - Added `reset-time.test.ts` to lock the new reset-time formatting behavior and expanded `quota-tracker.test.ts` to cover `0%` completion persistence, genuine reset archival, and rebound recovery.
   新增 `reset-time.test.ts` 锁定新的重置时间格式化行为，并扩展 `quota-tracker.test.ts`，覆盖 `0%` 完成态保持、真实 reset 归档，以及额度回弹恢复追踪。
+
+- Added `activity-tracker.test.ts` coverage for late-filled planner responses: one case verifies that an empty planner step is repaired when the same `stepIndex` later gains a real response without `stepCount` growth, and another verifies that short restored conversations self-heal on the next poll.
+  新增 `activity-tracker.test.ts`，覆盖延迟补全文本的 planner response：一条用例验证同一 `stepIndex` 在 `stepCount` 不增长的情况下后补正文时可被修复，另一条验证短对话在恢复持久化状态后会于下一轮轮询自动自愈。
 
 ## [1.13.7] - 2026-03-26
 
