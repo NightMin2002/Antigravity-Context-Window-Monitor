@@ -37,6 +37,9 @@
 - **Recent Activity Stale-Row Cleanup / 最近操作失效旧行清理**: Fixed another timeline corruption case where a later poll could insert internal non-rendered steps (such as image-generation or ephemeral system steps) before a final planner response, shifting the visible step numbers. The old repair logic added the new rows but failed to delete the obsolete reasoning row that previously occupied that `stepIndex`, making Claude conversations appear to "send the same AI message twice". `activity-tracker.ts` now removes stale `step` events whenever a tail re-scan proves that a given `stepIndex` now belongs to a non-rendered internal step. This is the same model-agnostic repair path used for step reordering, not a Claude-only special case.
   修复另一种“最近操作”时间线损坏场景：后续轮询可能会在最终 planner response 之前插入图片生成或系统瞬时消息等内部步骤，导致可见 `stepIndex` 重新排列。旧的修复逻辑只会补入新行，却不会删掉原本占据该 `stepIndex` 的旧推理行，于是 Claude 对话里会看起来像“同一句 AI 回复发了两次”。现在 `activity-tracker.ts` 在尾部重扫时，如果确认某个 `stepIndex` 现在属于不该渲染的内部步骤，就会主动移除对应的失效 `step` 事件。该修复走的是同一套模型无关的 step 重排修复路径，不是只对 Claude 特判。
 
+- **Cross-Language Model Bucket Merge / 跨语言模型桶合并**: Fixed a persistence bug where Activity and GM summaries used localized display labels as internal keys. If stats were saved in English and later restored in Chinese (or vice versa), the same model could split into parallel buckets such as `Gemini 3.1 Pro (High)` and `Gemini 3.1 Pro (强)`, causing duplicate model cards and incomplete per-pool archival on quota reset. The tracker now normalizes `modelId / English label / Chinese label / bilingual label` to one canonical current-language display name before aggregation, restore, cache reuse, and archive filtering.
+  修复 Activity / GM 汇总把本地化显示名直接当内部 key 的持久化问题。如果一段统计在英文模式保存、随后在中文模式恢复（或反之），同一模型会被拆成并行桶，例如 `Gemini 3.1 Pro (High)` 和 `Gemini 3.1 Pro (强)`，表现为模型卡片重复、额度重置时只归档其中一份。现在追踪器会在聚合、恢复、缓存复用和归档过滤前，把 `modelId / 英文名 / 中文名 / 双语名` 统一归一到当前语言下的唯一显示名。
+
 ### ✅ Tests / 测试
 
 - Added `reset-time.test.ts` to lock the new reset-time formatting behavior and expanded `quota-tracker.test.ts` to cover `0%` completion persistence, genuine reset archival, and rebound recovery.
@@ -47,6 +50,9 @@
 
 - Expanded `activity-tracker.test.ts` again to cover step-index shifts caused by later insertion of internal non-rendered steps. The test asserts that stale reasoning rows are removed and only the final, still-valid response remains visible in the timeline.
   继续扩展 `activity-tracker.test.ts`，覆盖“后续插入内部不可渲染步骤导致 stepIndex 重排”的场景。测试会断言旧的推理残留行会被清掉，时间线中只保留最终仍然有效的那条响应。
+
+- Added cross-language restore regression coverage for model-key normalization: Activity restore now merges English and Chinese historical buckets into the current-language model card, and `gm-tracker.test.ts` verifies that restored GM summaries no longer surface duplicate model cards after language switching.
+  新增跨语言恢复回归测试：Activity 恢复态现在会把英文/中文历史桶合并到当前语言模型卡片中，`gm-tracker.test.ts` 也会验证语言切换后恢复出来的 GM 汇总不再冒出重复模型卡片。
 
 ## [1.13.7] - 2026-03-26
 
