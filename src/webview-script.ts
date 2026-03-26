@@ -20,6 +20,27 @@ export function getScript(): string {
             var activeTab = savedState.activeTab || 'monitor';
             var tabBtns = document.querySelectorAll('.tab-btn');
             var tabPanes = document.querySelectorAll('.tab-pane');
+
+            // ─── Tab Slider: position & color ───
+            var colorMap = {
+                blue: '96,165,250', green: '74,222,128', orange: '251,146,60',
+                purple: '167,139,250', cyan: '34,211,238', yellow: '250,204,21',
+                gray: '148,163,184'
+            };
+            function updateTabSlider() {
+                var bar = document.querySelector('.tab-bar');
+                var slider = document.querySelector('.tab-slider');
+                var active = document.querySelector('.tab-btn.active');
+                if (!bar || !slider || !active) return;
+                var barRect = bar.getBoundingClientRect();
+                var btnRect = active.getBoundingClientRect();
+                slider.style.left = (btnRect.left - barRect.left) + 'px';
+                slider.style.width = btnRect.width + 'px';
+                var c = active.dataset.color;
+                if (c && colorMap[c]) {
+                    slider.style.setProperty('--slider-c', colorMap[c]);
+                }
+            }
             function switchTab(tabName) {
                 // Save outgoing tab scroll position
                 var s = vscode.getState() || {};
@@ -37,6 +58,8 @@ export function getScript(): string {
                 s.activeTab = tabName;
                 vscode.setState(s);
 
+                updateTabSlider();
+
                 // Restore incoming tab scroll position
                 tabScrolls = ts; // Update local ref
                 var targetY = ts[tabName] || 0;
@@ -44,6 +67,8 @@ export function getScript(): string {
             }
             // Restore active tab from state
             if (activeTab !== 'monitor') { switchTab(activeTab); }
+            // Init slider position (must wait for layout)
+            requestAnimationFrame(function() { updateTabSlider(); });
 
             // ─── Calendar: Restore expanded date after refresh ───
             var calSelectedDate = savedState.calendarSelectedDate || '';

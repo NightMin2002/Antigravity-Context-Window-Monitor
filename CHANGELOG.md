@@ -1,5 +1,28 @@
 # 变更日志 / Changelog
 
+## [1.13.7] - 2026-03-26
+
+### ✨ Added / 新增
+
+- **Capsule Tab Bar with Color Themes / 胶囊彩色 Tab 导航栏**: Replaced the flat underline tab bar with a pill-shaped capsule container featuring a sliding indicator. Each tab has a unique theme color (Monitor=blue, Profile=green, GM Data=orange, Pricing=purple, Calendar=cyan, Quota=yellow, Settings=gray). The slider smoothly transitions between tabs with spring easing (`cubic-bezier(.34,1.56,.64,1)`) and its color dynamically follows the active tab's theme via CSS custom properties (`--tab-c`, `--slider-c`).
+  将平面下划线 Tab 栏重构为胶囊容器 + 滑动指示器。7 个 Tab 各有专属主题色（监控=蓝、个人=绿、GM 数据=橙、价格=紫、日历=青、额度=黄、设置=灰）。滑块使用弹簧缓动平滑过渡，颜色通过 CSS 自定义属性动态跟随当前 Tab。
+
+- **Heartbeat Animation / 心跳动画**: Added a pulsing heart icon (`ICON.heart`) with a double-peak CSS `@keyframes heartbeat` animation (1.4s cycle) to the GitHub support banner. The animation mimics a natural cardiac rhythm using `transform: scale()` keyframes.
+  在 GitHub 支持横幅末尾新增心跳心形图标，使用双峰 `scale()` 关键帧模拟自然心跳节律。
+
+- **Star Twinkle Animation / 星星闪烁动画**: Added a breathing `@keyframes starTwinkle` animation (2.4s cycle) to the star icon, using `opacity` and `transform: rotate()` oscillation. The desynchronized rhythm (1.4s vs 2.4s) prevents mechanical synchronization with the heartbeat.
+  为星标图标添加呼吸式闪烁动画，与心跳节律刻意错开避免机械同步。
+
+### Changed / 变更
+
+- **Quota Tab Label Shortened / 额度 Tab 标签精简**: "Quota Tracking / 额度追踪" shortened to "Quota / 额度" for better fit in the capsule tab bar.
+  "额度追踪"精简为"额度"以适配胶囊 Tab 栏宽度。
+
+### Accessibility / 无障碍
+
+- All new animations include `@media (prefers-reduced-motion: reduce)` overrides to disable motion for users who prefer reduced motion. Tab slider transition is also disabled under this preference.
+  所有新增动画均包含 `prefers-reduced-motion` 降级，关闭运动偏好时禁用动画。胶囊滑块过渡同样在此偏好下禁用。
+
 ## [1.13.6] - 2026-03-25
 
 ### ⚡ Refactored / 重构
