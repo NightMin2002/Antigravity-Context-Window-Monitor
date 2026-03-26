@@ -18,6 +18,7 @@ import { buildCalendarTabContent, getCalendarTabStyles } from './webview-calenda
 import { DailyStore } from './daily-store';
 import { getScript } from './webview-script';
 import { getStyles } from './webview-styles';
+import type { StateBucket } from './durable-state';
 
 // ─── Panel State ──────────────────────────────────────────────────────────────
 
@@ -38,6 +39,12 @@ let lastGMConversations: Record<string, GMConversationData> = {};
 let lastPricingStore: PricingStore | undefined;
 let lastDailyStore: DailyStore | undefined;
 let lastStorageDiagnostics: StorageDiagnostics | undefined;
+let panelDurableState: StateBucket | undefined;
+
+/** Provide a durable state bucket for panel-level persistence (zoom, etc.). */
+export function setPanelDurableState(state: StateBucket): void {
+    panelDurableState = state;
+}
 
 function clamp(value: number, min: number, max: number): number {
     return Math.min(Math.max(value, min), max);
@@ -247,6 +254,14 @@ export function showMonitorPanel(
             const exists = await vscode.workspace.fs.stat(uri).then(() => true, () => false);
             const target = exists ? uri : vscode.Uri.file(path.dirname(lastStorageDiagnostics.stateFilePath));
             await vscode.commands.executeCommand('revealFileInOS', target);
+        } else if (msg.command === 'clearActiveTracking') {
+            if (lastQuotaTracker) {
+                lastQuotaTracker.resetTrackingStates();
+                refreshLocalStorageDiagnostics();
+                if (panel) {
+                    panel.webview.html = buildHtml(lastUsage, lastAllUsages, lastConfigs, lastUserInfo, isPaused, lastQuotaTracker);
+                }
+            }
         } else if (msg.command === 'clearQuotaHistory') {
             if (lastQuotaTracker) {
                 lastQuotaTracker.resetTrackingStates();
@@ -269,6 +284,11 @@ export function showMonitorPanel(
                 if (panel) {
                     panel.webview.html = buildHtml(lastUsage, lastAllUsages, lastConfigs, lastUserInfo, isPaused, lastQuotaTracker);
                 }
+            }
+        } else if (msg.command === 'setZoomLevel' && typeof msg.value === 'number') {
+            const zoom = clamp(Math.round(msg.value as number), 50, 200);
+            if (panelDurableState) {
+                panelDurableState.update('panelZoomLevel', zoom);
             }
         } else if (msg.command === 'clearActivityData') {
             if (lastActivityTracker) {
@@ -449,7 +469,7 @@ ${getPricingTabStyles()}
 ${getCalendarTabStyles()}
 </style>
 </head>
-<body data-privacy-default="true">
+<body data-privacy-default="true" data-zoom="${panelDurableState?.get<number>('panelZoomLevel', 100) ?? 100}">
     <header class="panel-header">
         <h1>
             ${ICON.chart}
@@ -482,6 +502,7 @@ ${getCalendarTabStyles()}
             )}
             <span class="star-inline">${ICON.star}</span>
             ${tBi('would be appreciated.', '就是最大的支持。')}
+            <span class="heart-inline">${ICON.heart}</span>
         </span>
         <a class="info-banner-link" href="https://github.com/AGI-is-going-to-arrive/Antigravity-Context-Window-Monitor" target="_blank" rel="noopener noreferrer">
             ${ICON.externalLink} GitHub
@@ -512,13 +533,14 @@ ${getCalendarTabStyles()}
         </div>
     </details>
     <nav class="tab-bar">
-        <button class="tab-btn active" data-tab="monitor">${ICON.chart} ${tBi('Monitor', '监控')}</button>
-        <button class="tab-btn" data-tab="profile">${ICON.user} ${tBi('Profile', '个人')}</button>
-        <button class="tab-btn" data-tab="gmdata">${ICON.bolt} ${tBi('GM Data', 'GM 数据')}</button>
-        <button class="tab-btn" data-tab="pricing"><svg class="icon" viewBox="0 0 16 16"><path fill="currentColor" d="M4 10.781c.148 1.667 1.513 2.85 3.591 3.003V15h1.043v-1.216c2.27-.179 3.678-1.438 3.678-3.315 0-1.667-1.104-2.512-3.233-3.037l-.445-.107V3.63c1.213.183 1.968.91 2.141 1.88h1.762c-.112-1.796-1.519-2.965-3.455-3.124V1.036H8.59v1.383C6.408 2.583 5.008 3.9 5.003 5.54c0 1.592 1.063 2.457 3.146 2.963l.399.1v3.979c-1.29-.183-2.113-.879-2.275-1.8H4zm4.586-4.34C7.494 6.137 6.94 5.695 6.94 5.092c0-.66.52-1.183 1.575-1.37v2.72h.071zm.889 2.283c1.335.36 1.942.846 1.942 1.548 0 .781-.633 1.35-1.823 1.493V8.851l-.119-.127z"/></svg> ${tBi('Pricing', '价格')}</button>
-        <button class="tab-btn" data-tab="calendar"><svg class="icon" viewBox="0 0 16 16"><path fill="currentColor" d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5M1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4z"/></svg> ${tBi('Calendar', '日历')}</button>
-        <button class="tab-btn" data-tab="history">${ICON.timeline} ${tBi('Quota Tracking', '额度追踪')}</button>
-        <button class="tab-btn" data-tab="settings">${ICON.shield} ${tBi('Settings', '设置')}</button>
+        <div class="tab-slider"></div>
+        <button class="tab-btn active" data-tab="monitor" data-color="blue">${ICON.chart} ${tBi('Monitor', '监控')}</button>
+        <button class="tab-btn" data-tab="profile" data-color="green">${ICON.user} ${tBi('Profile', '个人')}</button>
+        <button class="tab-btn" data-tab="gmdata" data-color="orange">${ICON.bolt} ${tBi('GM Data', 'GM 数据')}</button>
+        <button class="tab-btn" data-tab="pricing" data-color="purple"><svg class="icon" viewBox="0 0 16 16"><path fill="currentColor" d="M4 10.781c.148 1.667 1.513 2.85 3.591 3.003V15h1.043v-1.216c2.27-.179 3.678-1.438 3.678-3.315 0-1.667-1.104-2.512-3.233-3.037l-.445-.107V3.63c1.213.183 1.968.91 2.141 1.88h1.762c-.112-1.796-1.519-2.965-3.455-3.124V1.036H8.59v1.383C6.408 2.583 5.008 3.9 5.003 5.54c0 1.592 1.063 2.457 3.146 2.963l.399.1v3.979c-1.29-.183-2.113-.879-2.275-1.8H4zm4.586-4.34C7.494 6.137 6.94 5.695 6.94 5.092c0-.66.52-1.183 1.575-1.37v2.72h.071zm.889 2.283c1.335.36 1.942.846 1.942 1.548 0 .781-.633 1.35-1.823 1.493V8.851l-.119-.127z"/></svg> ${tBi('Pricing', '价格')}</button>
+        <button class="tab-btn" data-tab="calendar" data-color="cyan"><svg class="icon" viewBox="0 0 16 16"><path fill="currentColor" d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5M1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4z"/></svg> ${tBi('Calendar', '日历')}</button>
+        <button class="tab-btn" data-tab="history" data-color="yellow">${ICON.timeline} ${tBi('Quota', '额度')}</button>
+        <button class="tab-btn" data-tab="settings" data-color="gray">${ICON.shield} ${tBi('Settings', '设置')}</button>
     </nav>
     <div class="tab-pane active" id="tab-monitor">
         ${monitorHtml}

@@ -117,11 +117,45 @@ export function getStyles(): string {
             display: inline-flex;
             vertical-align: middle;
             color: var(--color-warn);
+            animation: starTwinkle 2.4s ease-in-out infinite;
         }
 
         .star-inline .icon {
             width: 12px;
             height: 12px;
+        }
+
+        @keyframes starTwinkle {
+            0%, 100% { opacity: 1; transform: scale(1) rotate(0deg); }
+            50%      { opacity: 0.5; transform: scale(0.85) rotate(-12deg); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .star-inline { animation: none; }
+        }
+
+        .heart-inline {
+            display: inline-flex;
+            vertical-align: middle;
+            color: var(--color-danger);
+            animation: heartbeat 1.4s ease-in-out infinite;
+        }
+
+        .heart-inline .icon {
+            width: 12px;
+            height: 12px;
+        }
+
+        @keyframes heartbeat {
+            0%, 100% { transform: scale(1); }
+            14%      { transform: scale(1.25); }
+            28%      { transform: scale(1); }
+            42%      { transform: scale(1.18); }
+            56%      { transform: scale(1); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .heart-inline { animation: none; }
         }
 
         .github-banner {
@@ -1822,46 +1856,84 @@ export function getStyles(): string {
         }
 
         /* ─── Tab Bar ─────────────────── */
+        /* ─── Tab Color Tokens ───────── */
+        .tab-btn[data-color="blue"]   { --tab-c: 96, 165, 250; }
+        .tab-btn[data-color="green"]  { --tab-c: 74, 222, 128; }
+        .tab-btn[data-color="orange"] { --tab-c: 251, 146, 60; }
+        .tab-btn[data-color="purple"] { --tab-c: 167, 139, 250; }
+        .tab-btn[data-color="cyan"]   { --tab-c: 34, 211, 238; }
+        .tab-btn[data-color="yellow"] { --tab-c: 250, 204, 21; }
+        .tab-btn[data-color="gray"]   { --tab-c: 148, 163, 184; }
+
         .tab-bar {
             display: flex;
-            gap: 0;
+            gap: 2px;
             margin-bottom: var(--space-4);
-            border-bottom: 1px solid var(--color-border);
+            background: var(--color-surface);
+            border-radius: var(--radius-full, 9999px);
+            padding: 3px;
+            position: relative;
+            overflow-x: auto;
+            overflow-y: hidden;
+        }
+
+        /* Hide scrollbar on tab-bar */
+        .tab-bar::-webkit-scrollbar { display: none; }
+
+        .tab-slider {
+            position: absolute;
+            top: 3px;
+            bottom: 3px;
+            border-radius: var(--radius-full, 9999px);
+            background: rgba(var(--slider-c, 96, 165, 250), 0.18);
+            transition: left 0.35s cubic-bezier(.34,1.56,.64,1),
+                        width 0.35s cubic-bezier(.34,1.56,.64,1),
+                        background 0.3s cubic-bezier(.4,0,.2,1);
+            pointer-events: none;
+            z-index: 0;
         }
 
         .tab-btn {
             appearance: none;
             background: transparent;
             border: none;
-            border-bottom: 2px solid transparent;
             color: var(--color-text-dim);
             font-family: inherit;
-            font-size: 0.85em;
-            font-weight: 600;
-            padding: var(--space-2) var(--space-4);
+            font-size: 0.78em;
+            font-weight: 500;
+            padding: var(--space-1) var(--space-3);
             cursor: pointer;
             display: flex;
             align-items: center;
             gap: var(--space-1);
-            transition: color 0.15s cubic-bezier(.4,0,.2,1), border-color 0.15s cubic-bezier(.4,0,.2,1);
+            border-radius: var(--radius-full, 9999px);
+            white-space: nowrap;
+            position: relative;
+            z-index: 1;
+            transition: color 0.2s cubic-bezier(.4,0,.2,1);
         }
 
         .tab-btn:focus-visible {
             outline: none;
-            box-shadow: 0 0 0 2px var(--color-info);
+            box-shadow: 0 0 0 2px rgba(var(--tab-c, 96, 165, 250), 0.6);
         }
 
-        .tab-btn:active { transform: scale(0.98); }
+        .tab-btn:active { transform: scale(0.97); }
 
         .tab-btn.active {
-            color: var(--color-info);
-            border-bottom-color: var(--color-info);
+            color: rgb(var(--tab-c, 96, 165, 250));
+            font-weight: 700;
         }
 
         @media (hover: hover) {
             .tab-btn:not(.active):hover {
                 color: var(--color-text);
+                background: rgba(255,255,255,0.04);
             }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .tab-slider { transition: none; }
         }
 
         .tab-pane {
@@ -2203,6 +2275,20 @@ export function getStyles(): string {
                 color: var(--color-danger);
                 border-color: var(--color-danger);
             }
+        }
+
+        /* ─── Card Header Row (title + action side by side) ─── */
+        .card-header-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: var(--space-3);
+        }
+        .card-header-row h2 { margin: 0; }
+        .card-header-row .qt-clear-active {
+            flex-shrink: 0;
+            font-size: 0.75em;
+            padding: var(--space-1) var(--space-3);
         }
 
         /* ─── Timeline Card ───────────── */
