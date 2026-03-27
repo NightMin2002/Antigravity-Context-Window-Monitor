@@ -423,7 +423,7 @@ function buildTabContents(
     tracker?: QuotaTracker,
 ): Record<string, string> {
     return {
-        monitor: buildMonitorSections(usage, allUsages, configs, userInfo, lastGMSummary, lastGMConversations),
+        monitor: buildMonitorSections(usage, allUsages, configs, userInfo, lastGMSummary, lastGMConversations, tracker, lastPricingStore),
         gmdata: buildGMDataTabContent(lastActivitySummary, lastGMSummary, usage),
         pricing: lastPricingStore
             ? buildPricingTabContent(lastGMSummary, lastPricingStore)
@@ -453,7 +453,7 @@ function buildHtml(
     paused = false,
     tracker?: QuotaTracker,
 ): string {
-    const monitorHtml = buildMonitorSections(usage, allUsages, configs, userInfo, lastGMSummary, lastGMConversations);
+    const monitorHtml = buildMonitorSections(usage, allUsages, configs, userInfo, lastGMSummary, lastGMConversations, tracker, lastPricingStore);
     const gmDataHtml = buildGMDataTabContent(lastActivitySummary, lastGMSummary, usage);
     const pricingHtml = lastPricingStore
         ? buildPricingTabContent(lastGMSummary, lastPricingStore)
@@ -529,7 +529,7 @@ ${getCalendarTabStyles()}
                     ${tBi('would be appreciated.', '就是最大的支持。')}
                     <span class="heart-inline">${ICON.heart}</span>
                 </span>
-                <a class="info-banner-link" href="https://github.com/AGI-is-going-to-arrive/Antigravity-Context-Window-Monitor" target="_blank" rel="noopener noreferrer">
+<a class="info-banner-link" href="https://github.com/AGI-is-going-to-arrive/Antigravity-Context-Window-Monitor" target="_blank" rel="noopener noreferrer">
                     ${ICON.externalLink} GitHub
                 </a>
             </div>
@@ -547,8 +547,8 @@ ${getCalendarTabStyles()}
         <div class="chip-dropdown chip-dropdown-disclaimer" id="chip-disclaimer" hidden>
             <div class="chip-dropdown-content disclaimer-body">
                 ${tBi(
-                    '<p>Data is derived from <strong>internal interfaces that are undocumented and may change without notice</strong>. Items marked with a <strong style="color:var(--color-ok)">GM</strong> badge come from Generator Metadata and have <strong>higher per-call fidelity</strong>. Other metrics (context usage, token estimates) are derived from checkpoint snapshots or character-based heuristics and may have deviations. <strong>All numbers are best-effort approximations.</strong> This extension is an independent, community project with <strong>no official endorsement</strong>. Use this data as a reference only.</p><p style="margin-top:var(--space-2)"><strong>⚠️ Context Window Limitation:</strong> Antigravity (Windsurf) does not utilize the full 1M context window advertised by the underlying model. The effective context is roughly <strong>128K–200K tokens</strong>. The compression warning threshold defaults to <strong>150K</strong> accordingly.</p><p style="margin-top:var(--space-2)"><strong>🌐 Language:</strong> This extension supports <strong>Chinese / English / Bilingual</strong> display. Use the <strong>中文 | EN | 双语</strong> buttons in the top-right corner of this panel to switch.</p>',
-                    '<p>数据通过<strong>内部接口</strong>获取，这些接口<strong>未公开文档且可能随时变更</strong>。标有 <strong style="color:var(--color-ok)">GM</strong> 徽章的数据来自 <strong>Generator Metadata（生成元数据）</strong>，<strong>单次调用精度较高</strong>。其余指标（上下文用量、Token 估算）基于 <strong>Checkpoint（检查点）</strong> 快照或字符启发式计算，可能存在偏差。<strong>所有数值均为尽力计算的近似值。</strong>本扩展为独立社区项目，<strong>未获得官方认可</strong>。请仅将数据作为参考。</p><p style="margin-top:var(--space-2)"><strong>⚠️ 上下文窗口限制：</strong>Antigravity（Windsurf）并未适配底层模型标称的 1M 上下文窗口，实际有效上下文大致为 <strong>128K–200K Token</strong>。压缩警告阈值默认设为 <strong>150K</strong>。</p><p style="margin-top:var(--space-2)"><strong>🌐 语言切换：</strong>本插件支持 <strong>中文 / English / 双语</strong> 显示。请使用面板右上角的 <strong>中文 | EN | 双语</strong> 按钮切换。</p>'
+                    '<p style="margin-bottom:var(--space-2); color:var(--vscode-editorError-foreground);"><strong>⚠️ Disclaimer: This is an unofficial community project and is not affiliated with, endorsed by, or associated with Google. It acts strictly in read-only mode to visualize usage data. Use at your own risk.</strong></p><p>Data is derived from <strong>internal interfaces that are undocumented and may change without notice</strong>. Items marked with a <strong style="color:var(--color-ok)">GM</strong> badge come from Generator Metadata and have <strong>higher per-call fidelity</strong>. Other metrics (context usage, token estimates) are derived from checkpoint snapshots or character-based heuristics and may have deviations. <strong>All numbers are best-effort approximations.</strong> Use this data as a reference only.</p><p style="margin-top:var(--space-2)"><strong>⚠️ Context Window Limitation:</strong> Antigravity (Windsurf) does not utilize the full 1M context window advertised by the underlying model. The effective context is roughly <strong>128K–200K tokens</strong>. The compression warning threshold defaults to <strong>150K</strong> accordingly.</p><p style="margin-top:var(--space-2)"><strong>🌐 Language:</strong> This extension supports <strong>Chinese / English / Bilingual</strong> display. Use the <strong>中文 | EN | 双语</strong> buttons in the top-right corner of this panel to switch.</p>',
+                    '<p style="margin-bottom:var(--space-2); color:var(--vscode-editorError-foreground);"><strong>⚠️ 极客免责声明：本分支扩展为非官方社区开源项目，与 Google 没有任何关联或官方背书。本工具仅以只读模式监控本地内部 API 用于可视化个人日常数据，产生的所有可能影响由使用者自行承担，使用风险自负。</strong></p><p>数据通过<strong>内部接口</strong>获取，这些接口<strong>未公开文档且可能随时变更</strong>。标有 <strong style="color:var(--color-ok)">GM</strong> 徽章的数据来自 <strong>Generator Metadata（生成元数据）</strong>，<strong>单次调用精度较高</strong>。其余指标（上下文用量、Token 估算）基于 <strong>Checkpoint（检查点）</strong> 快照或字符启发式计算，可能存在偏差。<strong>所有数值均为尽力计算的近似值。</strong>请仅将数据作为参考。</p><p style="margin-top:var(--space-2)"><strong>⚠️ 上下文窗口限制：</strong>Antigravity（Windsurf）并未适配底层模型标称的 1M 上下文窗口，实际有效上下文大致为 <strong>128K–200K Token</strong>。压缩警告阈值默认设为 <strong>150K</strong>。</p><p style="margin-top:var(--space-2)"><strong>🌐 语言切换：</strong>本插件支持 <strong>中文 / English / 双语</strong> 显示。请使用面板右上角的 <strong>中文 | EN | 双语</strong> 按钮切换。</p>'
                 )}
             </div>
         </div>

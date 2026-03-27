@@ -56,6 +56,23 @@
 - Added `model-dna-store.test.ts` to lock the new persistence semantics: model DNA remains available after archive even when the current-cycle GM summary becomes empty, while the live counters still follow the active quota cycle.
   新增 `model-dna-store.test.ts`，锁定新的持久化语义：即使归档后当前周期 GM 汇总已经为空，模型 DNA 仍然保留；而实时计数继续跟随当前额度周期。
 
+### Changed / 变更
+
+- **Monitor Tab Upgraded from Session View to Overview Dashboard / 监控页从会话页升级为总览仪表盘**: Reworked the `Monitor / 监控` tab into a real overview surface instead of a quota-only landing page. The top section now combines four concise summaries: model quota health, GM totals, cost snapshot, and quota-tracking status, while the current session and other-session sections remain below. This makes the first tab answer the core questions immediately: "what am I using now, how much have I called, how much did it cost, and which quotas are still active?"
+  将 `监控` 页从“只看配额和当前会话”的入口重组为真正的总览仪表盘。顶部现在集中展示模型配额、GM 总览、成本快照和额度追踪状态，下面再接当前会话与其他会话。这样首页就能直接回答最关键的几个问题：现在在用什么、这一周期调用了多少、花了多少、哪些额度还在追踪。
+
+- **Quota Overview Simplified / 配额概览改成关键信息首页卡**: Removed the old `Details / 详情` 跳转按钮 and replaced the previous one-line quota pills with a denser quota-health card. The monitor page now shows all visible models directly, highlights the current model, lowest remaining model, and nearest reset, and keeps each model's reset countdown inside the card instead of pushing the user elsewhere for basic quota awareness.
+  移除了旧的 `详情` 跳转按钮，把原来一排轻量 pill 的配额区改成更适合首页的关键信息卡。监控页现在会直接展示全部模型，突出当前模型、最低剩余额度模型和最近重置模型，并把每个模型自己的重置倒计时直接放进卡片里，不再要求用户为了看基础配额信息反复跳页。
+
+- **Mini GM Summary + Dense Model Call Grid / GM 总览补充模型调用分布**: Added a compact GM overview card with calls, input, output, thinking, cache hit rate, and average TTFT, then filled the previously empty lower area with a dense top-4 model call grid. Each mini card now shows the model name, call count, and call-share percentage so the monitor page exposes useful GM trends without requiring users to jump into the full `GM 数据` tab for every glance.
+  新增 GM 总览卡，集中显示调用、输入、输出、思考、缓存命中率和平均 TTFT；同时把原来偏空的下半区补成前四模型调用分布。每个小卡会展示模型名、调用次数和调用占比，让 `监控` 页也能承担 GM 趋势总览，而不是每次都要切去完整的 `GM 数据` 页。
+
+- **Cost Snapshot Now Uses Total-Cost Share / 成本速览改成按总成本占比展示**: The cost list in the monitor tab no longer uses a "relative to the most expensive model" progress bar, which looked visually full even when the real share was much smaller. Bars now represent each model's share of the total cycle cost, and each row shows the model's call count, total-cost percentage, and final USD estimate. This makes the mini cost panel behave like a real bill summary rather than an ambiguous ranking strip.
+  监控页里的成本列表不再使用“相对最高成本模型”的进度条，那种条宽会让用户误以为某个模型几乎占满总成本。现在每条进度条都表示“占本周期总成本的比例”，并在同一行直接展示调用次数、成本占比和美元估值，让这块更像真正的账单摘要，而不是语义模糊的排行榜。
+
+- **Quota Tracking Snapshot Redesigned / 追踪快照重做为全宽状态卡**: The quota-tracking summary is no longer reduced to a single "lowest remaining" number. It has been redesigned as a full-width active-tracking card that lists each currently tracked model with status, remaining percentage, elapsed tracking time, reset countdown, and absolute reset time. This makes the monitor page much more useful for judging whether tracking is alive and whether archive timing still looks sane.
+  `追踪快照` 不再只剩一个“最低剩余比例”数字，而是重做成一张全宽的活跃状态卡。现在它会列出每个正在追踪的模型，包含状态、剩余百分比、已追踪时长、重置倒计时和绝对重置时间，更适合在首页判断追踪系统是否在正常工作、归档节奏是否合理。
+
 ## [1.13.8] - 2026-03-26
 
 ### ✨ Added / 新增
