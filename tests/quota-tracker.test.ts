@@ -617,6 +617,32 @@ describe('QuotaTracker state machine', () => {
             expect(sessions[0].poolModels).toEqual(['Alpha', 'Beta', 'Charlie']);
         });
 
+        it('should keep Gemini Flash separate from Gemini Pro even when resetTime matches', () => {
+            const now = new Date();
+            const reset = futureReset(now, FIVE_HOURS);
+
+            tracker.processUpdate([
+                makeConfig('MODEL_PLACEHOLDER_M37', 1.0, reset, 'Gemini 3.1 Pro (High)'),
+                makeConfig('MODEL_PLACEHOLDER_M36', 1.0, reset, 'Gemini 3.1 Pro (Low)'),
+                makeConfig('MODEL_PLACEHOLDER_M47', 1.0, reset, 'Gemini 3 Flash'),
+            ]);
+            tracker.processUpdate([
+                makeConfig('MODEL_PLACEHOLDER_M37', 0.5, reset, 'Gemini 3.1 Pro (High)'),
+                makeConfig('MODEL_PLACEHOLDER_M36', 0.5, reset, 'Gemini 3.1 Pro (Low)'),
+                makeConfig('MODEL_PLACEHOLDER_M47', 0.5, reset, 'Gemini 3 Flash'),
+            ]);
+
+            const sessions = tracker.getActiveSessions();
+            expect(sessions.length).toBe(2);
+            expect(sessions.some(s => s.modelId === 'MODEL_PLACEHOLDER_M37')).toBe(true);
+            expect(sessions.some(s => s.modelId === 'MODEL_PLACEHOLDER_M47')).toBe(true);
+            expect(sessions.find(s => s.modelId === 'MODEL_PLACEHOLDER_M37')?.poolModels).toEqual([
+                'Gemini 3.1 Pro (High)',
+                'Gemini 3.1 Pro (Low)',
+            ]);
+            expect(sessions.find(s => s.modelId === 'MODEL_PLACEHOLDER_M47')?.poolModels).toBeUndefined();
+        });
+
         it('should keep an already-tracking pool representative stable so passed resetTime can archive correctly', () => {
             const ctx = createMockContext();
             const now = new Date();

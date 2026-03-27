@@ -10,10 +10,19 @@
 - **Quota Active-Session Sanitization / 额度活跃会话自愈**: Hardened restore and tracking-start logic against dirty persisted sessions. The tracker now clamps future `startTime` values, drops future/invalid snapshots, re-sorts restored snapshots, and recomputes elapsed durations so corrupted sessions no longer render impossible timelines such as `0s` duration with older snapshots beneath them.
   强化额度活跃会话的恢复与建档自愈逻辑。追踪器现在会钳制未来 `startTime`、丢弃未来或无效快照、重新排序恢复出来的快照，并重算持续时间，避免脏状态继续渲染出类似“顶部 0s、下面却挂着更早快照”的不可能时间线。
 
+- **Explicit Quota-Pool Mapping / 显式额度池映射**: Replaced the old “same resetTime means same pool” assumption with explicit known pool rules. Gemini Pro High/Low now share one pool, Gemini Flash is tracked independently, and Claude Sonnet / Claude Opus / GPT-OSS remain in the same shared pool. This prevents independent models that happen to refresh at the same moment from being incorrectly archived together.
+  用显式已知池规则替代了旧的“`resetTime` 相同就视为同池”的假设。现在 Gemini Pro High/Low 共池，Gemini Flash 独立追踪，Claude Sonnet / Claude Opus / GPT-OSS 继续共用同一池。这样就不会再把“只是恰好同一时刻刷新”的独立模型误归档到一起。
+
+- **Targeted GM Residue Repair / 定向 GM 残留修复**: Startup-time GM repair is now limited to clearly provable historical contamination only. The extension only prunes GM calls when old quota history explicitly shows a session’s recorded `poolModels` contained models that do not belong to that model’s real pool, avoiding accidental removal of valid current-cycle counts before archive.
+  启动时的 GM 修理逻辑已收窄为“仅处理有明确证据的历史污染”。只有当旧 quota 历史明确记录某条 session 的 `poolModels` 混入了不属于该真实额度池的模型时，扩展才会剪掉对应的旧 GM 调用，避免在归档前误清正常的当前周期计数。
+
 ### ✅ Tests / 测试
 
 - Expanded `quota-tracker.test.ts` again to cover shared-pool representative stability and dirty active-session sanitization, including the case where a previously tracking pool member must remain the representative so `resetTime`-based archival still triggers correctly.
   继续扩展 `quota-tracker.test.ts`，覆盖共享额度池代表稳定性和脏 active session 自愈，特别是“已在 tracking 的池成员必须继续保留代表位，才能正确触发基于 `resetTime` 的归档”这一场景。
+
+- Added pool-regression coverage so Gemini Flash and Gemini Pro remain separate even when their `resetTime` happens to be identical, and expanded GM tracker tests to verify only historically contaminated residual calls are repaired during startup.
+  新增额度池回归测试，确保 Gemini Flash 与 Gemini Pro 即使 `resetTime` 完全相同也仍然分池；同时扩展 GM Tracker 测试，验证启动时只会修理历史污染留下的残留调用，不会误删当前周期的正常计数。
 
 ## [1.13.8] - 2026-03-26
 

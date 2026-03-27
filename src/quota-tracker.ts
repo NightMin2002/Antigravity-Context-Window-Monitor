@@ -6,7 +6,7 @@
 // TRACKING: recording snapshots until cycle ends (resetTime passes or shifts)
 
 import * as vscode from 'vscode';
-import { ModelConfig } from './models';
+import { getQuotaPoolKey, ModelConfig } from './models';
 import type { StateBucket } from './durable-state';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -127,23 +127,22 @@ export class QuotaTracker {
             this.sanitizeModelState(modelId, ms, nowDate);
         }
 
-        // ── Pool deduplication: group models sharing the same resetTime ──
-        // Same-pool models (e.g., Claude Sonnet/Opus/GPT-OSS) share quota and
-        // identical resetTime. Only track one representative per pool to avoid
-        // cluttering history with duplicate sessions.
-        const poolByResetTime = new Map<string, ModelConfig[]>();
+        // ── Pool deduplication: group models by stable quota-pool key ──
+        // Known pools are model-family based (e.g. Gemini Pro High/Low, Claude+OSS),
+        // not merely "same resetTime". Different independent pools can refresh at the
+        // same moment, so resetTime equality alone is not sufficient.
+        const poolByKey = new Map<string, ModelConfig[]>();
         for (const c of configs) {
-            const rt = c.quotaInfo?.resetTime;
-            if (!rt) { continue; }
-            let pool = poolByResetTime.get(rt);
-            if (!pool) { pool = []; poolByResetTime.set(rt, pool); }
+            const key = getQuotaPoolKey(c.model, c.quotaInfo?.resetTime);
+            let pool = poolByKey.get(key);
+            if (!pool) { pool = []; poolByKey.set(key, pool); }
             pool.push(c);
         }
         // For multi-model pools, pick the representative: prefer lowest fraction
         // (most usage evidence), then alphabetical label as tie-break.
         const poolSkip = new Set<string>();
         const poolLabelsForModel = new Map<string, string[]>();
-        for (const pool of poolByResetTime.values()) {
+        for (const pool of poolByKey.values()) {
             if (pool.length <= 1) { continue; }
             pool.sort((a, b) => {
                 const aTracking = this.modelStates.get(a.model)?.state === 'tracking'

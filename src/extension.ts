@@ -229,6 +229,20 @@ export function activate(context: vscode.ExtensionContext): void {
         statusBar.setPlanName(savedPlan, savedTier);
     }
 
+    if (lastGMSummary && cachedModelConfigs.length > 0) {
+        const repairedGMSummary = gmTracker.repairSummaryFromQuotaHistory(
+            lastGMSummary,
+            quotaTracker.getHistory(),
+            cachedModelConfigs,
+        );
+        if (repairedGMSummary !== lastGMSummary) {
+            lastGMSummary = repairedGMSummary;
+            durableGlobalState.update('gmTrackerState', gmTracker.serialize());
+            durableFileGlobalState.update('gmDetailedSummary', lastGMSummary);
+            log('GM summary repaired from quota history during startup');
+        }
+    }
+
     // Register commands
     context.subscriptions.push(
         vscode.commands.registerCommand('antigravity-context-monitor.showDetails', () => {
