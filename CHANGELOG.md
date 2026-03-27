@@ -1,5 +1,20 @@
 # 变更日志 / Changelog
 
+## [1.13.9] - 2026-03-27
+
+### 🐛 Fixed / 修复
+
+- **Quota Pool Representative Stability / 额度池代表稳定性**: Fixed a pool-dedup edge case where an already-tracking representative model could be replaced by another member of the same shared `resetTime` pool on a later poll. Once replaced, the old representative stopped receiving cycle-end checks, so a session could remain stuck in "tracking" even after its `cycleResetTime` had already passed. Pool selection now prefers members that are already actively tracking, ensuring reset archival still fires on time.
+  修复共享 `resetTime` 额度池中的代表模型切换问题：旧逻辑会在后续轮询中让同池其他成员抢走代表位，导致已经处于 tracking 的旧代表不再执行周期结束判定，进而出现 `cycleResetTime` 已经过了却仍卡在“追踪中”的情况。现在额度池会优先保留已经处于活跃追踪的成员作为代表，确保到期后仍能正常归档。
+
+- **Quota Active-Session Sanitization / 额度活跃会话自愈**: Hardened restore and tracking-start logic against dirty persisted sessions. The tracker now clamps future `startTime` values, drops future/invalid snapshots, re-sorts restored snapshots, and recomputes elapsed durations so corrupted sessions no longer render impossible timelines such as `0s` duration with older snapshots beneath them.
+  强化额度活跃会话的恢复与建档自愈逻辑。追踪器现在会钳制未来 `startTime`、丢弃未来或无效快照、重新排序恢复出来的快照，并重算持续时间，避免脏状态继续渲染出类似“顶部 0s、下面却挂着更早快照”的不可能时间线。
+
+### ✅ Tests / 测试
+
+- Expanded `quota-tracker.test.ts` again to cover shared-pool representative stability and dirty active-session sanitization, including the case where a previously tracking pool member must remain the representative so `resetTime`-based archival still triggers correctly.
+  继续扩展 `quota-tracker.test.ts`，覆盖共享额度池代表稳定性和脏 active session 自愈，特别是“已在 tracking 的池成员必须继续保留代表位，才能正确触发基于 `resetTime` 的归档”这一场景。
+
 ## [1.13.8] - 2026-03-26
 
 ### ✨ Added / 新增
