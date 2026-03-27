@@ -19,6 +19,12 @@
 - **Dev Reset Simulation Now Clears Activity for Real / 模拟额度重置现在会真正清空 Activity 当前周期**: The dev reset button previously passed a fake model scope into `activityTracker.archiveAndReset()`, which meant GM/Cost/Model panes reset while `GM 数据` 里的 Activity 统计还残留。 The simulation path now performs a real global Activity archive/reset before rebuilding GM summaries, so the test result matches actual quota-cycle behavior.
   修复“模拟额度重置”按钮只重置 GM、不真正清空 Activity 当前周期的问题。旧实现给 `activityTracker.archiveAndReset()` 传了假的模型范围，导致 `GM 数据` 页里仍残留旧的推理 / 工具 / 步数统计。现在模拟路径会先做真正的全局 Activity 归档与清空，再重建 GM 摘要，测试结果终于和真实额度归档一致。
 
+- **Gemini Recent Activity Duplicate / Replacement Fix / Gemini 最近操作重复与串行替换修复**: Fixed a timeline bug that was most visible on Gemini Pro conversations, where user messages could appear twice, earlier AI replies could be repeated, or GM exact data could make a user row look like it had been "replaced". The tracker no longer treats `stepIndex` as the only stable identity for recent-step deduplication. Real step rows now carry a stable fingerprint built from conversation, step type, and creation time, so recent activity remains consistent even when the visible steps window shifts.
+  修复 Gemini Pro 对话里“最近操作”出现用户消息重复、AI 回复重复、甚至用户行看起来像被替换的问题。时间线现在不再把 `stepIndex` 当成最近步骤去重的唯一身份，而是给真实 step 行增加由对话、步骤类型和创建时间组成的稳定指纹。这样即使可见步骤窗口发生重映射，最近操作也不会再把同一条消息重复灌进去，或把不同步骤错误地贴到同一个编号上。
+
+- **Startup Timeline Self-Healing / 启动时自动清洗历史脏时间线**: Added a startup repair pass for persisted recent activity state. When the extension restores old timeline data containing duplicated step rows or user rows polluted by GM metadata, it now compacts and sanitizes that state immediately and writes the cleaned result back to persistence, so users do not need to wait for later polls to gradually self-heal stale duplicates.
+  新增启动时的历史时间线自愈。扩展恢复旧的最近操作状态时，如果发现持久化里已经存在重复 step 行，或者用户行被 GM 元数据污染，现在会立即完成压缩清洗并把修正后的结果回写到持久化状态里，不需要再等后续轮询慢慢自愈。
+
 ### Changed / 变更
 
 - **Reset Test Tools Are Now Reversible / 重置测试工具支持回滚**: The Settings tab's debug tools now revolve around a single safe flow: `模拟额度重置` captures a snapshot first, performs the reset simulation, and exposes a shared `恢复快照` button to roll Activity / GM / Calendar back to the pre-test state in the same extension session.
@@ -34,6 +40,9 @@
 
 - Expanded `gm-tracker.test.ts` with a regression case covering archived GM calls being refetched under a different `executionId`, ensuring they stay hidden after reset.
   扩展 `gm-tracker.test.ts`，新增“同一条历史 GM 调用换了 `executionId` 再次被抓回”这一回归用例，确保归档后的旧调用不会再复活。
+
+- Expanded `activity-tracker.test.ts` with Gemini-specific timeline regressions covering unstable `stepIndex` remapping, user-row GM pollution, and persisted duplicate cleanup on restore.
+  扩展 `activity-tracker.test.ts`，新增 Gemini 时间线回归用例，覆盖 `stepIndex` 重映射导致的重复、用户行被 GM 数据污染，以及恢复旧状态时自动清理历史重复时间线。
 
 ## [1.13.9] - 2026-03-27
 

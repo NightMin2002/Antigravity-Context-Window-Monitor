@@ -236,6 +236,13 @@ export function activate(context: vscode.ExtensionContext): void {
     // Initialize activity tracker
     const savedActivity = durableGlobalState.get<ActivityTrackerState | undefined>('activityTrackerState', undefined);
     activityTracker = savedActivity ? ActivityTracker.restore(savedActivity) : new ActivityTracker();
+    if (savedActivity) {
+        const normalizedActivityState = activityTracker.serialize();
+        if (JSON.stringify(savedActivity) !== JSON.stringify(normalizedActivityState)) {
+            durableGlobalState.update('activityTrackerState', normalizedActivityState);
+            log('Activity tracker state normalized during startup repair');
+        }
+    }
     const savedGM = durableGlobalState.get<GMTrackerState | undefined>('gmTrackerState', undefined);
     gmTracker = savedGM ? GMTracker.restore(savedGM) : new GMTracker();
     lastGMSummary = durableFileGlobalState.get<GMSummary | null>('gmDetailedSummary', gmTracker.getCachedSummary());
