@@ -55,6 +55,7 @@ antigravity-context-monitor/
 │   ├── pool-utils.test.ts        # pool-utils 单元测试
 │   ├── quota-tracker.test.ts     # quota-tracker 单元测试（含 0% 回弹恢复）
 │   ├── reset-time.test.ts        # reset-time 单元测试
+│   ├── daily-store.test.ts       # daily-store 单元测试（日历导入回填）
 │   ├── statusbar.test.ts         # statusbar 单元测试
 │   └── tracker.test.ts           # tracker 单元测试
 ├── docs/
@@ -479,12 +480,13 @@ npx vsce package --no-dependencies
 | `quota-tracker.test.ts` | 33 | 状态机转换 / 额度重置检测 / 批量回调 / 同池去重 / 周期结束归档 / legacy done 迁移 / 0% 回弹恢复 / 稳定池代表 / 脏 active session 自愈 |
 | `pool-utils.test.ts` | 4 | 配额池扩展 / 分组 / quota session 匹配 / 已知模型固定池规则 |
 | `monitor-store.test.ts` | 1 | Monitor 快照与 GM 会话快照恢复 |
-| `gm-tracker.test.ts` | 3 | `filterGMSummaryByModels()` 按模型池过滤 / 跨语言恢复回归 / 历史残留 GM 修理 |
-| `activity-tracker.test.ts` | 4 | planner step 延迟补全 / 短对话恢复自愈 / stepIndex 重排清理 / 跨语言模型桶合并 |
+| `gm-tracker.test.ts` | 4 | `filterGMSummaryByModels()` 按模型池过滤 / 跨语言恢复回归 / 历史残留 GM 修理 / GM 归档复活回归 |
+| `activity-tracker.test.ts` | 7 | planner step 延迟补全 / 短对话恢复自愈 / stepIndex 重排清理 / 跨语言模型桶合并 / Gemini stepIndex 重映射去重 / 用户行 GM 污染清洗 / 恢复时历史重复自愈 |
+| `daily-store.test.ts` | 2 | 日历导入回填（新 cycle 插入 / 旧 cycle 字段补全） |
 | `model-dna-store.test.ts` | 1 | 模型静态信息跨周期持久化 |
 | `reset-time.test.ts` | 3 | 倒计时格式化 / 绝对日期时间格式化 / 上下文拼接格式 |
 | `durable-state.test.ts` | 1 | 外部持久化文件创建 / fallback 迁移 / 重装恢复 |
 
-共 109 个测试，使用 `__mocks__/vscode.ts` 模拟 VS Code API。
+共 114 个测试，使用 `__mocks__/vscode.ts` 模拟 VS Code API。
 
-109 total tests, using `__mocks__/vscode.ts` to mock VS Code API.
+114 total tests, using `__mocks__/vscode.ts` to mock VS Code API.
