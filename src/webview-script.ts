@@ -535,37 +535,8 @@ export function getScript(): string {
                 });
             }
 
-            // ─── Persistent State File Helpers ───
-            var copyStatePathBtn = document.getElementById('copyStatePath');
-            if (copyStatePathBtn) {
-                copyStatePathBtn.addEventListener('click', function() {
-                    vscode.postMessage({ command: 'copyStatePath' });
-                });
-            }
-            var openStateFileBtn = document.getElementById('openStateFile');
-            if (openStateFileBtn) {
-                openStateFileBtn.addEventListener('click', function() {
-                    vscode.postMessage({ command: 'openStateFile' });
-                });
-            }
-            var revealStateFileBtn = document.getElementById('revealStateFile');
-            if (revealStateFileBtn) {
-                revealStateFileBtn.addEventListener('click', function() {
-                    vscode.postMessage({ command: 'revealStateFile' });
-                });
-            }
-            var restoreTabHintBtn = document.getElementById('restoreTabScrollHint');
-            if (restoreTabHintBtn) {
-                restoreTabHintBtn.addEventListener('click', function() {
-                    setTabHintState(true);
-                    var hint = document.getElementById('tabScrollHint');
-                    if (hint) {
-                        hint.setAttribute('data-force-show', 'true');
-                        hint.hidden = false;
-                    }
-                    vscode.postMessage({ command: 'setPanelPref', key: 'panelShowTabScrollHint', value: true });
-                });
-            }
+            // copyStatePath / openStateFile / revealStateFile / restoreTabScrollHint:
+            // handled by body delegation below
 
             // pricing Save/Reset: handled by body delegation below
 
@@ -673,6 +644,30 @@ export function getScript(): string {
                         tgts[k].textContent = m ? tgts[k].getAttribute('data-masked') : tgts[k].getAttribute('data-real');
                     }
                     pBtn.classList.toggle('active', m);
+                    return;
+                }
+
+                // ── Settings: State File Actions (delegation) ──
+                if (target.closest && target.closest('#copyStatePath')) {
+                    vscode.postMessage({ command: 'copyStatePath' });
+                    return;
+                }
+                if (target.closest && target.closest('#openStateFile')) {
+                    vscode.postMessage({ command: 'openStateFile' });
+                    return;
+                }
+                if (target.closest && target.closest('#revealStateFile')) {
+                    vscode.postMessage({ command: 'revealStateFile' });
+                    return;
+                }
+                if (target.closest && target.closest('#restoreTabScrollHint')) {
+                    setTabHintState(true);
+                    var hint = document.getElementById('tabScrollHint');
+                    if (hint) {
+                        hint.setAttribute('data-force-show', 'true');
+                        hint.hidden = false;
+                    }
+                    vscode.postMessage({ command: 'setPanelPref', key: 'panelShowTabScrollHint', value: true });
                     return;
                 }
 

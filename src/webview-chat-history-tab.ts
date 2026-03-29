@@ -59,15 +59,6 @@ function exists(targetPath: string): boolean {
     }
 }
 
-function countPbFiles(): number {
-    try {
-        const conversationsDir = path.join(getAntigravityRoot(), 'conversations');
-        return fs.readdirSync(conversationsDir).filter(name => name.endsWith('.pb')).length;
-    } catch {
-        return 0;
-    }
-}
-
 function fileUriToPath(uri: string): string {
     if (!uri) { return ''; }
     if (uri.startsWith('file:///')) {
@@ -198,43 +189,20 @@ function renderSummary(entries: HistoryEntry[], groups: HistoryGroup[]): string 
     const currentWorkspaceCount = entries.filter(entry => entry.isCurrentWorkspace).length;
     const runningCount = entries.filter(entry => entry.status === 'RUNNING').length;
     const recordableCount = entries.filter(entry => entry.hasBrain || entry.hasPb || entry.hasRecording).length;
-    const rawPbCount = countPbFiles();
-    const invisibleRawCount = Math.max(0, rawPbCount - entries.length);
 
     return `
         <div class="history-stats-grid">
             <section class="card history-stat-card">
-                <div class="history-stat-kicker">${tBi('Catalog', '目录')}</div>
                 <div class="history-stat-value">${entries.length}</div>
-                <div class="history-stat-label">${tBi('Conversations', '对话总数')}</div>
+                <div class="history-stat-label">${tBi('Conversations', '对话')} · ${groups.length} ${tBi('groups', '组')}</div>
             </section>
             <section class="card history-stat-card">
-                <div class="history-stat-kicker">${tBi('Folders', '文件夹')}</div>
-                <div class="history-stat-value">${groups.length}</div>
-                <div class="history-stat-label">${tBi('Workspace Groups', '工作区分组')}</div>
-            </section>
-            <section class="card history-stat-card">
-                <div class="history-stat-kicker">${tBi('Current', '当前')}</div>
                 <div class="history-stat-value">${currentWorkspaceCount}</div>
-                <div class="history-stat-label">${tBi('Current Workspace', '当前工作区')}</div>
+                <div class="history-stat-label">${tBi('Workspace', '工作区')} · ${runningCount} ${tBi('running', '运行中')}</div>
             </section>
             <section class="card history-stat-card">
-                <div class="history-stat-kicker">${tBi('Backup', '备份')}</div>
                 <div class="history-stat-value">${recordableCount}</div>
-                <div class="history-stat-label">${tBi('Recordable Items', '可定位记录')}</div>
-            </section>
-            <section class="card history-stat-card">
-                <div class="history-stat-kicker">${tBi('Running', '运行中')}</div>
-                <div class="history-stat-value">${runningCount}</div>
-                <div class="history-stat-label">${tBi('Active Conversations', '活跃对话')}</div>
-            </section>
-            <section class="card history-stat-card">
-                <div class="history-stat-kicker">${tBi('Raw PB', '原始 PB')}</div>
-                <div class="history-stat-value">${rawPbCount}</div>
-                <div class="history-stat-label">${invisibleRawCount > 0
-                    ? tBi(`${invisibleRawCount} raw archives are not title-resolved by LS`, `${invisibleRawCount} 个原始档案未被 LS 解析出标题`)
-                    : tBi('All raw archives are currently title-resolved', '当前原始档案都已解析出标题')
-                }</div>
+                <div class="history-stat-label">${tBi('Recordable', '可备份')}</div>
             </section>
         </div>`;
 }
@@ -319,17 +287,6 @@ function renderToolbar(): string {
                     <button class="history-filter-btn" data-history-filter="recordable">${tBi('Recordable', '可备份')}</button>
                 </div>
             </div>
-            <p class="history-toolbar-note">
-                ${tBi(
-                    '“Record Folder” prefers brain/<id>, then browser_recordings/<id>, and finally the conversations store.',
-                    '“记录目录”优先定位 brain/<id>，其次 browser_recordings/<id>，最后回退到 conversations 存储目录。',
-                )}
-                ${' '}
-                ${tBi(
-                    'This catalog is built from LS-visible trajectories. Local raw .pb archives may be more numerous, but rows without LS-resolved titles are not promoted as normal sessions.',
-                    '这个目录基于 LS 当前可见的 trajectories。磁盘上的原始 .pb 档案可能更多，但没有被 LS 解析出标题的条目不会直接提升成普通会话行。',
-                )}
-            </p>
         </section>`;
 }
 
@@ -405,9 +362,8 @@ function renderGroup(group: HistoryGroup, index: number): string {
                         </div>
                     </div>
                     <div class="history-row-foot">
-                        <span class="history-foot-item">${tBi('Modified', '最后修改')} ${formatTime(entry.lastModifiedTime)}</span>
+                        <span class="history-foot-item">${tBi('Modified', '修改')} ${formatTime(entry.lastModifiedTime)}</span>
                         <span class="history-foot-item">${tBi('Created', '创建')} ${formatTime(entry.createdTime)}</span>
-                        <span class="history-foot-item">${tBi('Last Input', '最后输入')} ${formatTime(entry.lastUserInputTime)}</span>
                         ${gmBits.length > 0 ? `<span class="history-foot-item is-gm">${gmBits.join(' · ')}</span>` : ''}
                     </div>
                     ${storageBadges.length > 0 ? `<div class="history-storage-row">${storageBadges.join('')}</div>` : ''}

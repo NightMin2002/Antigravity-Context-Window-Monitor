@@ -13,6 +13,14 @@
 - **GM Credit Display in Activity Panel / GM 数据面板积分展示**: Conversation distribution section now shows total credit consumption per session, and session list entries display short cascade IDs alongside credit usage.
   对话分布区新增每会话积分消耗展示，会话列表条目显示短 cascadeId 和积分用量。
 
+### ✨ Improved / 改进
+
+- **Sessions Tab UI Overhaul / 会话标签页 UI 重设计**: Consolidated 6 stat cards into 3 compact dual-metric cards (Conversations·Groups / Workspace·Running / Recordable). Shortcut cards switched from `grid auto-fit` to `flex` equal-width layout with hidden redundant "固定入口" kicker. Removed verbose toolbar note paragraph. Reduced per-session footer from 3 timestamps to 2 (dropped "Last Input"). Spotlight sub-panels switched from `grid` to compact `flex` layout with reduced padding and font-weight. Action buttons downsized from large `flex: 1 1 140px` to small `inline-flex` with separator border-top.
+  会话标签页统计卡从 6 个精简为 3 个双指标卡（对话·分组 / 工作区·运行中 / 可备份）。快捷入口从 `grid auto-fit` 改为 flex 等宽布局并隐藏冗余 kicker 文字。移除工具栏底部冗长说明。每条会话时间戳从 3 个减至 2 个。聚光灯子面板改为紧凑 flex 排列。操作按钮缩小并以 border-top 分隔。
+
+- **Settings Button Upgrade / 设置按钮美化**: Global `.action-btn` upgraded from icon-only style (`padding: space-1`, transparent bg) to text+icon hybrid with proper `gap`, `font-size`, `font-weight`, gradient background, and hover shadow lift. Added `.stg-card .action-btn` override for increased padding and micro-gradient. Added `.danger-action` variant with red color scheme. `.storage-actions` children now respect `flex: 0 1 auto` sizing.
+  全局 `.action-btn` 从图标按钮升级为文字+图标混合按钮，增加 `gap`、`font-size`、渐变背景和 hover 上浮阴影。设置面板内按钮增加内边距和微渐变。新增 `.danger-action` 红色样式变体。
+
 ### ⚡ Refactored / 重构
 
 - **`makePanelPayload()` Helper / 面板参数构建统一化**: Extracted a `makePanelPayload()` helper in `extension.ts` that constructs the full `PanelPayload` from cached state. Replaced 7 inline payload object literals across `showMonitorPanel` / `updateMonitorPanel` call sites, eliminating parameter duplication and ensuring consistent data delivery. Also added `lastTrajectories` caching to avoid redundant RPC calls.
@@ -29,6 +37,11 @@
 - **Settings Hint Badge Not Updating in Real-Time / 设置界面提示状态徽章未实时更新**: Fixed the "Panel Tips" section in Settings where the enabled/disabled badge did not react to the `panelPrefUpdated` message when toggling the hint from the hint bar itself. The `configSaved` feedback path now correctly maps `panelShowTabScrollHint` to its feedback element.
   修复设置中「界面提示」区域的启用/禁用徽章在从提示条本身切换时不随 `panelPrefUpdated` 消息更新的问题。`configSaved` 反馈路径现已正确映射 `panelShowTabScrollHint` 到其反馈元素。
 
+### 🗑 Removed / 移除
+
+- **Dead Code Cleanup / 死代码清理**: Removed `countPbFiles()` function (file system scan no longer needed after stat card consolidation). Removed ~30 lines of orphaned toolbar note HTML template.
+  移除 `countPbFiles()`（统计卡合并后不再需要文件系统扫描）。移除约 30 行工具栏说明残留 HTML 模板。
+
 ### Changed / 变更
 
 - **Tab Bar Compacted / 标签栏紧凑化**: Reduced tab bar `gap` (6px→4px), `padding` (6px→4px), tab button `padding` (10px 16px→7px 12px), `font-size` (0.8em→0.76em), `gap` (6px→5px), and slider inset (6px→4px) to better accommodate 9 tabs within typical VS Code panel widths.
@@ -39,10 +52,11 @@
 
 ### 📊 Stats / 统计
 
-- **Files changed**: 7 (6 modified + 1 new)
+- **Files changed**: 8 (7 modified + 1 new)
 - **TypeScript compile**: Zero errors
-- **New file**: `src/webview-chat-history-tab.ts` (484 lines)
+- **New file**: `src/webview-chat-history-tab.ts` (440 lines)
 - **Net addition**: ~900+ lines across styles, script logic, and tab content
+
 
 ## [1.14.2] - 2026-03-28
 

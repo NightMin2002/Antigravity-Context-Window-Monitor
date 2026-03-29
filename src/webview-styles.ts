@@ -406,16 +406,44 @@ export function getStyles(): string {
         /* ─── Action Button ─────────── */
         .action-btn {
             appearance: none;
-            background: transparent;
+            background: rgba(255,255,255,0.04);
             color: var(--color-text-dim);
             border: 1px solid var(--color-border);
             border-radius: var(--radius-md);
-            padding: var(--space-1);
+            padding: var(--space-1) var(--space-3);
             cursor: pointer;
-            display: flex;
+            display: inline-flex;
             align-items: center;
             justify-content: center;
-            transition: background 0.15s cubic-bezier(.4,0,.2,1), color 0.15s cubic-bezier(.4,0,.2,1), border-color 0.15s cubic-bezier(.4,0,.2,1);
+            gap: 6px;
+            font: inherit;
+            font-size: 0.82em;
+            font-weight: 600;
+            line-height: 1.5;
+            white-space: nowrap;
+            -webkit-tap-highlight-color: transparent;
+            transition: background 0.18s cubic-bezier(.4,0,.2,1), color 0.18s cubic-bezier(.4,0,.2,1), border-color 0.18s cubic-bezier(.4,0,.2,1), transform 0.12s cubic-bezier(.4,0,.2,1), box-shadow 0.18s cubic-bezier(.4,0,.2,1);
+        }
+
+        .action-btn svg {
+            width: 14px;
+            height: 14px;
+            fill: currentColor;
+            flex-shrink: 0;
+        }
+
+        /* Accent variant inside settings panels */
+        .stg-card .action-btn {
+            padding: 8px var(--space-3);
+            border-radius: var(--radius-md);
+            background:
+                linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+        }
+
+        .danger-action {
+            color: var(--color-danger);
+            border-color: rgba(248, 113, 113, 0.24);
+            background: rgba(248, 113, 113, 0.08);
         }
         .action-btn:disabled {
             cursor: not-allowed;
@@ -434,14 +462,26 @@ export function getStyles(): string {
 
         @media (hover: hover) {
             .action-btn:hover {
-                background: var(--color-surface-hover);
+                background: rgba(255,255,255,0.10);
                 color: var(--color-text);
                 border-color: var(--color-border-hover);
+                box-shadow: 0 2px 8px rgba(0,0,0,0.10);
             }
             .action-btn:disabled:hover {
                 background: rgba(255,255,255,0.01);
                 color: var(--color-text-dim);
                 border-color: var(--color-border);
+                box-shadow: none;
+            }
+            .stg-card .action-btn:hover {
+                background: rgba(255,255,255,0.12);
+                transform: translateY(-1px);
+                box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+            }
+            .danger-action:hover {
+                background: rgba(248, 113, 113, 0.15);
+                border-color: rgba(248, 113, 113, 0.40);
+                color: #fca5a5;
             }
         }
 
@@ -2150,7 +2190,7 @@ export function getStyles(): string {
         /* ─── Chat History ────────────── */
         .history-stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(124px, 1fr));
+            grid-template-columns: repeat(3, 1fr);
             gap: var(--space-2);
             margin-bottom: var(--space-3);
         }
@@ -2159,31 +2199,34 @@ export function getStyles(): string {
             position: relative;
             overflow: hidden;
             background:
-                radial-gradient(circle at top right, rgba(96, 165, 250, 0.12), transparent 52%),
-                linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+                radial-gradient(circle at top right, rgba(96, 165, 250, 0.10), transparent 55%),
+                linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015));
             border: 1px solid var(--color-border);
-            padding: var(--space-3);
+            padding: var(--space-2) var(--space-3);
             margin-bottom: 0;
+            text-align: center;
         }
 
         .history-stat-kicker {
             color: var(--color-text-dim);
-            font-size: 0.75em;
+            font-size: 0.68em;
             text-transform: uppercase;
-            letter-spacing: 0.08em;
+            letter-spacing: 0.06em;
         }
 
         .history-stat-value {
-            font-size: clamp(1.35rem, 2.5vw, 1.8rem);
+            font-size: clamp(1.2rem, 2.2vw, 1.5rem);
             font-weight: 700;
             color: var(--color-text);
-            margin-top: 2px;
+            margin-top: 1px;
+            line-height: 1.2;
         }
 
         .history-stat-label {
-            margin-top: var(--space-1);
+            margin-top: 2px;
             color: var(--color-text-dim);
-            font-size: 0.82em;
+            font-size: 0.72em;
+            line-height: 1.3;
         }
 
         .history-toolbar-card {
@@ -2195,8 +2238,7 @@ export function getStyles(): string {
         }
 
         .history-shortcuts-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            display: flex;
             gap: var(--space-2);
             margin-bottom: var(--space-3);
         }
@@ -2204,23 +2246,23 @@ export function getStyles(): string {
         .history-shortcut-card {
             appearance: none;
             text-align: left;
-            border: 1px solid rgba(255,255,255,0.10);
+            border: 1px solid rgba(255,255,255,0.08);
             border-radius: var(--radius-lg);
-            padding: 12px;
+            padding: var(--space-2) var(--space-3);
             background:
-                radial-gradient(circle at top right, rgba(34, 211, 238, 0.14), transparent 54%),
-                linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+                linear-gradient(135deg, rgba(34, 211, 238, 0.08), transparent 50%),
+                linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015));
             color: var(--color-text);
             cursor: pointer;
             transition: border-color 0.2s cubic-bezier(.4,0,.2,1), transform 0.18s cubic-bezier(.4,0,.2,1), box-shadow 0.2s cubic-bezier(.4,0,.2,1), background-color 0.2s cubic-bezier(.4,0,.2,1);
             -webkit-tap-highlight-color: transparent;
             min-width: 0;
-            width: 100%;
+            flex: 1 1 0;
         }
 
         .history-shortcut-card.is-disabled {
             cursor: not-allowed;
-            opacity: 0.5;
+            opacity: 0.45;
         }
 
         .history-shortcut-card:focus {
@@ -2232,17 +2274,17 @@ export function getStyles(): string {
         }
 
         .history-shortcut-card:active {
-            transform: scale(0.98);
+            transform: scale(0.97);
         }
 
         @media (hover: hover) {
             .history-shortcut-card:hover {
                 border-color: rgba(34, 211, 238, 0.30);
-                box-shadow: 0 14px 26px rgba(0,0,0,0.16);
+                box-shadow: 0 8px 20px rgba(0,0,0,0.14);
                 transform: translateY(-1px);
             }
             .history-shortcut-card.is-disabled:hover {
-                border-color: rgba(255,255,255,0.10);
+                border-color: rgba(255,255,255,0.08);
                 box-shadow: none;
                 transform: none;
             }
@@ -2252,43 +2294,47 @@ export function getStyles(): string {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: var(--space-2);
+            gap: var(--space-1);
         }
 
         .history-shortcut-kicker {
-            color: var(--color-text-dim);
-            font-size: 0.74em;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
+            display: none;  /* redundant label — count pill is self-explanatory */
         }
 
         .history-shortcut-count {
-            min-width: 30px;
-            padding: 2px 8px;
+            min-width: 22px;
+            padding: 1px 7px;
             border-radius: var(--radius-full, 9999px);
             background: rgba(34, 211, 238, 0.12);
             color: #67e8f9;
-            font-size: 0.78em;
+            font-size: 0.74em;
             font-weight: 700;
             text-align: center;
+            line-height: 1.6;
         }
 
         .history-shortcut-title {
             display: inline-flex;
             align-items: center;
-            gap: var(--space-1);
-            margin-top: var(--space-1);
-            font-size: 0.94rem;
+            gap: 5px;
+            margin-top: 4px;
+            font-size: 0.84em;
             font-weight: 700;
-            line-height: 1.35;
+            line-height: 1.3;
             overflow-wrap: anywhere;
         }
 
+        .history-shortcut-title svg {
+            width: 13px;
+            height: 13px;
+            flex-shrink: 0;
+        }
+
         .history-shortcut-subtitle {
-            margin-top: 6px;
+            margin-top: 4px;
             color: var(--color-text-dim);
-            font-size: 0.76em;
-            line-height: 1.55;
+            font-size: 0.72em;
+            line-height: 1.45;
         }
 
         .history-toolbar-grid {
@@ -2519,28 +2565,28 @@ export function getStyles(): string {
         }
 
         .history-row {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr);
+            display: flex;
+            flex-direction: column;
             gap: var(--space-2);
-            padding: 12px;
-            border: 1px solid rgba(255,255,255,0.07);
+            padding: var(--space-3);
+            border: 1px solid rgba(255,255,255,0.06);
             border-radius: var(--radius-lg);
             background:
-                linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02)),
-                radial-gradient(circle at top right, rgba(250, 204, 21, 0.08), transparent 58%);
+                linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.015));
             transition: border-color 0.2s cubic-bezier(.4,0,.2,1), box-shadow 0.2s cubic-bezier(.4,0,.2,1), transform 0.18s cubic-bezier(.4,0,.2,1);
-            min-height: 100%;
         }
 
         .history-row.is-current-session {
-            border-color: rgba(74, 222, 128, 0.26);
-            box-shadow: inset 0 0 0 1px rgba(74, 222, 128, 0.08);
+            border-color: rgba(74, 222, 128, 0.22);
+            background:
+                linear-gradient(135deg, rgba(74, 222, 128, 0.06), transparent 45%),
+                linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.015));
         }
 
         @media (hover: hover) {
             .history-row:hover {
-                border-color: rgba(255,255,255,0.18);
-                box-shadow: 0 12px 24px rgba(0,0,0,0.16);
+                border-color: rgba(255,255,255,0.15);
+                box-shadow: 0 6px 18px rgba(0,0,0,0.12);
                 transform: translateY(-1px);
             }
         }
@@ -2559,21 +2605,25 @@ export function getStyles(): string {
         .history-row-title-wrap {
             display: flex;
             flex-direction: column;
-            gap: 2px;
+            gap: 1px;
             min-width: 0;
         }
 
         .history-row-title {
-            font-size: clamp(0.98rem, 2vw, 1.08rem);
+            font-size: 0.92em;
             font-weight: 700;
             color: var(--color-text);
             line-height: 1.35;
             word-break: break-word;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
         }
 
         .history-row-subtitle {
             color: var(--color-text-dim);
-            font-size: 0.78em;
+            font-size: 0.74em;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -2583,7 +2633,8 @@ export function getStyles(): string {
             display: flex;
             flex-wrap: wrap;
             justify-content: flex-end;
-            gap: var(--space-1);
+            gap: 4px;
+            flex-shrink: 0;
         }
 
         .history-row-meta,
@@ -2591,69 +2642,70 @@ export function getStyles(): string {
         .history-storage-row {
             display: flex;
             flex-wrap: wrap;
-            gap: var(--space-1);
-            margin-top: 10px;
+            gap: 4px;
+            margin-top: var(--space-1);
         }
 
         .history-row-foot {
             gap: var(--space-2);
         }
 
+        /* ── Inline credit/model display (compact) ── */
         .history-spotlight-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            display: flex;
             gap: var(--space-2);
-            margin-top: 10px;
+            margin-top: var(--space-1);
         }
 
         .history-spotlight-card {
-            border: 1px solid rgba(255,255,255,0.08);
+            flex: 1 1 0;
+            border: 1px solid rgba(255,255,255,0.06);
             border-radius: var(--radius-md);
-            padding: 12px;
-            background: rgba(255,255,255,0.04);
+            padding: var(--space-2);
+            background: rgba(255,255,255,0.025);
         }
 
         .history-spotlight-card.is-credit {
             background:
-                radial-gradient(circle at top right, rgba(248, 113, 113, 0.16), transparent 58%),
-                rgba(255,255,255,0.04);
-            border-color: rgba(248, 113, 113, 0.18);
+                linear-gradient(135deg, rgba(248, 113, 113, 0.10), transparent 55%),
+                rgba(255,255,255,0.025);
+            border-color: rgba(248, 113, 113, 0.12);
         }
 
         .history-spotlight-card.is-model {
             background:
-                radial-gradient(circle at top right, rgba(96, 165, 250, 0.16), transparent 58%),
-                rgba(255,255,255,0.04);
-            border-color: rgba(96, 165, 250, 0.18);
+                linear-gradient(135deg, rgba(96, 165, 250, 0.10), transparent 55%),
+                rgba(255,255,255,0.025);
+            border-color: rgba(96, 165, 250, 0.12);
         }
 
         .history-spotlight-card.is-muted {
-            opacity: 0.58;
+            opacity: 0.5;
         }
 
         .history-spotlight-label {
             color: var(--color-text-dim);
-            font-size: 0.74em;
+            font-size: 0.68em;
             text-transform: uppercase;
-            letter-spacing: 0.08em;
+            letter-spacing: 0.06em;
         }
 
         .history-spotlight-value {
-            margin-top: 6px;
+            margin-top: 2px;
             color: var(--color-text);
-            font-size: clamp(1.02rem, 2vw, 1.24rem);
-            font-weight: 800;
+            font-size: 0.92em;
+            font-weight: 700;
             line-height: 1.3;
         }
 
         .history-spotlight-value.is-model-name {
-            font-size: 0.98rem;
+            font-size: 0.82em;
             word-break: break-word;
         }
 
         .history-foot-item {
             color: var(--color-text-dim);
-            font-size: 0.78em;
+            font-size: 0.72em;
         }
 
         .history-foot-item.is-gm {
@@ -2662,38 +2714,41 @@ export function getStyles(): string {
 
         .history-row-actions {
             display: flex;
-            flex-direction: row;
             flex-wrap: wrap;
-            gap: var(--space-2);
-            align-items: stretch;
-            min-width: 0;
-            margin-top: 2px;
+            gap: var(--space-1);
+            margin-top: auto;
+            padding-top: var(--space-1);
+            border-top: 1px solid rgba(255,255,255,0.04);
         }
 
         .history-action-btn {
             appearance: none;
-            border: 1px solid rgba(255,255,255,0.10);
-            border-radius: var(--radius-md);
-            background: rgba(255,255,255,0.04);
-            color: var(--color-text);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: var(--radius-sm);
+            background: rgba(255,255,255,0.03);
+            color: var(--color-text-dim);
             font: inherit;
-            font-size: 0.78em;
+            font-size: 0.72em;
             font-weight: 600;
-            padding: 9px 12px;
+            padding: 5px 10px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: 6px;
+            gap: 4px;
             cursor: pointer;
-            transition: border-color 0.2s cubic-bezier(.4,0,.2,1), background-color 0.2s cubic-bezier(.4,0,.2,1), color 0.2s cubic-bezier(.4,0,.2,1), transform 0.15s cubic-bezier(.4,0,.2,1), box-shadow 0.2s cubic-bezier(.4,0,.2,1);
+            transition: border-color 0.2s cubic-bezier(.4,0,.2,1), background-color 0.2s cubic-bezier(.4,0,.2,1), color 0.2s cubic-bezier(.4,0,.2,1), transform 0.15s cubic-bezier(.4,0,.2,1);
             -webkit-tap-highlight-color: transparent;
-            flex: 1 1 140px;
+        }
+
+        .history-action-btn svg {
+            width: 12px;
+            height: 12px;
         }
 
         .history-action-btn.is-accent {
             color: #67e8f9;
-            border-color: rgba(34, 211, 238, 0.24);
-            background: rgba(34, 211, 238, 0.09);
+            border-color: rgba(34, 211, 238, 0.18);
+            background: rgba(34, 211, 238, 0.06);
         }
 
         .history-action-btn:focus {
@@ -2701,31 +2756,33 @@ export function getStyles(): string {
         }
 
         .history-action-btn:focus-visible {
-            box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.18);
+            box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.18);
         }
 
         .history-action-btn:active {
-            transform: scale(0.98);
+            transform: scale(0.97);
         }
 
         .history-action-btn:disabled {
             cursor: not-allowed;
-            opacity: 0.5;
-            background: rgba(255,255,255,0.02);
+            opacity: 0.4;
+            background: transparent;
         }
 
         @media (hover: hover) {
             .history-action-btn:hover {
-                border-color: rgba(255,255,255,0.22);
-                background: rgba(255,255,255,0.08);
+                color: var(--color-text);
+                border-color: rgba(255,255,255,0.18);
+                background: rgba(255,255,255,0.06);
             }
             .history-action-btn.is-accent:hover {
-                border-color: rgba(34, 211, 238, 0.44);
-                background: rgba(34, 211, 238, 0.15);
+                border-color: rgba(34, 211, 238, 0.35);
+                background: rgba(34, 211, 238, 0.12);
             }
             .history-action-btn:disabled:hover {
-                border-color: rgba(255,255,255,0.10);
-                background: rgba(255,255,255,0.02);
+                color: var(--color-text-dim);
+                border-color: rgba(255,255,255,0.08);
+                background: transparent;
             }
         }
 
@@ -2958,6 +3015,11 @@ export function getStyles(): string {
             align-items: center;
             gap: var(--space-2);
             margin-bottom: var(--space-3);
+            padding-top: var(--space-1);
+        }
+
+        .storage-actions .action-btn {
+            flex: 0 1 auto;
         }
 
         .storage-stat-grid {
