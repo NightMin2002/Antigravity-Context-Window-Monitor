@@ -15,6 +15,25 @@ export function getScript(): string {
             var doneText = ${JSON.stringify(`✓ ${tBi('Done', '完成')}`)};
             var savedText = ${JSON.stringify(`✓ ${tBi('Saved', '已保存')}`)};
             var resetText = ${JSON.stringify(`✓ ${tBi('Reset', '已重置')}`)};
+            var openingText = ${JSON.stringify(tBi('Opening...', '正在打开...'))};
+            var revealingText = ${JSON.stringify(tBi('Revealing...', '正在定位...'))};
+            var openedText = ${JSON.stringify(`✓ ${tBi('Opened', '已打开')}`)};
+            var revealedText = ${JSON.stringify(`✓ ${tBi('Revealed', '已定位')}`)};
+            var openFailedText = ${JSON.stringify(tBi('Open failed', '打开失败'))};
+            var revealFailedText = ${JSON.stringify(tBi('Reveal failed', '定位失败'))};
+
+            function setFeedback(id, text) {
+                var el = document.getElementById(id);
+                if (!el) { return; }
+                el.textContent = text || '';
+                el.style.opacity = text ? '1' : '0';
+            }
+
+            function flashFeedback(id, text, delay) {
+                setFeedback(id, text);
+                if (!delay || delay <= 0) { return; }
+                setTimeout(function() { setFeedback(id, ''); }, delay);
+            }
 
             // ─── Tab System ───
             var activeTab = savedState.activeTab || 'monitor';
@@ -442,6 +461,15 @@ export function getScript(): string {
                         }
                     }
                 }
+                if (msg.command === 'stateFileActionResult') {
+                    var text = '';
+                    if (msg.ok) {
+                        text = msg.action === 'reveal' ? revealedText : openedText;
+                    } else {
+                        text = msg.message || (msg.action === 'reveal' ? revealFailedText : openFailedText);
+                    }
+                    flashFeedback('statePathFeedback', text, 3200);
+                }
             });
 
             // ─── Threshold Settings ───
@@ -581,17 +609,20 @@ export function getScript(): string {
                 }, 150);
             });
             document.body.addEventListener('click', function(e) {
-                var target = e.target;
+                var target = e.target instanceof Element
+                    ? e.target
+                    : (e.target && e.target.parentElement ? e.target.parentElement : null);
+                if (!target || !target.closest) { return; }
 
                 // ── data-switch-tab links (e.g. Monitor → Profile "Details →") ──
-                var switchLink = target.closest && target.closest('[data-switch-tab]');
+                var switchLink = target.closest('[data-switch-tab]');
                 if (switchLink) {
                     switchTab(switchLink.dataset.switchTab);
                     return;
                 }
 
                 // ── Copy Raw JSON ──
-                if (target.closest && target.closest('#copyRawJson')) {
+                if (target.closest('#copyRawJson')) {
                     var cpyBtn = target.closest('#copyRawJson');
                     var rawEl = document.getElementById('rawJsonContent');
                     if (!rawEl) return;
@@ -605,7 +636,7 @@ export function getScript(): string {
                 }
 
                 // ── Pricing Save ──
-                if (target.closest && target.closest('#pricingSaveBtn')) {
+                if (target.closest('#pricingSaveBtn')) {
                     var inputs = document.querySelectorAll('.pricing-input');
                     var data = {};
                     for (var pi = 0; pi < inputs.length; pi++) {
@@ -621,19 +652,19 @@ export function getScript(): string {
                 }
 
                 // ── Pricing Reset ──
-                if (target.closest && target.closest('#pricingResetBtn')) {
+                if (target.closest('#pricingResetBtn')) {
                     vscode.postMessage({ command: 'resetPricing' });
                     return;
                 }
 
                 // ── Clear Active Tracking ──
-                if (target.closest && target.closest('#clearActiveTracking')) {
+                if (target.closest('#clearActiveTracking')) {
                     vscode.postMessage({ command: 'clearActiveTracking' });
                     return;
                 }
 
                 // ── Privacy Mask Toggle ──
-                if (target.closest && target.closest('#privacyToggle')) {
+                if (target.closest('#privacyToggle')) {
                     var pBtn = target.closest('#privacyToggle');
                     var st = vscode.getState() || {};
                     var m = !st.privacyMasked;
@@ -648,19 +679,21 @@ export function getScript(): string {
                 }
 
                 // ── Settings: State File Actions (delegation) ──
-                if (target.closest && target.closest('#copyStatePath')) {
+                if (target.closest('#copyStatePath')) {
                     vscode.postMessage({ command: 'copyStatePath' });
                     return;
                 }
-                if (target.closest && target.closest('#openStateFile')) {
+                if (target.closest('#openStateFile')) {
+                    setFeedback('statePathFeedback', openingText);
                     vscode.postMessage({ command: 'openStateFile' });
                     return;
                 }
-                if (target.closest && target.closest('#revealStateFile')) {
+                if (target.closest('#revealStateFile')) {
+                    setFeedback('statePathFeedback', revealingText);
                     vscode.postMessage({ command: 'revealStateFile' });
                     return;
                 }
-                if (target.closest && target.closest('#restoreTabScrollHint')) {
+                if (target.closest('#restoreTabScrollHint')) {
                     setTabHintState(true);
                     var hint = document.getElementById('tabScrollHint');
                     if (hint) {
@@ -672,7 +705,7 @@ export function getScript(): string {
                 }
 
                 // ── Timeline: expand/collapse full text ──
-                var tlItem = target.closest && target.closest('[data-expand-target]');
+                var tlItem = target.closest('[data-expand-target]');
                 if (tlItem) {
                     var expandId = tlItem.getAttribute('data-expand-target');
                     if (expandId) {
@@ -691,7 +724,7 @@ export function getScript(): string {
                 }
 
                 // ── Date Cell Click: expand/collapse detail panel ──
-                var cell = target.closest && target.closest('.cal-cell.has-data');
+                var cell = target.closest('.cal-cell.has-data');
                 if (cell) {
                     var date = cell.getAttribute('data-cal-date');
                     if (!date) return;
@@ -725,13 +758,13 @@ export function getScript(): string {
                 }
 
                 // ── Clear History Button ──
-                if (target.closest && target.closest('#clearCalendarBtn')) {
+                if (target.closest('#clearCalendarBtn')) {
                     vscode.postMessage({ command: 'clearCalendarHistory' });
                     return;
                 }
 
                 // ── Chat History actions ──
-                var historyBtn = target.closest && target.closest('[data-history-action]');
+                var historyBtn = target.closest('[data-history-action]');
                 if (historyBtn) {
                     if (historyBtn.disabled) { return; }
                     vscode.postMessage({
@@ -744,7 +777,7 @@ export function getScript(): string {
                 }
 
                 // ── Month Navigation Buttons ──
-                var navBtn = target.closest && target.closest('.cal-nav-btn');
+                var navBtn = target.closest('.cal-nav-btn');
                 if (navBtn) {
                     var yr = navBtn.getAttribute('data-cal-year');
                     var mo = navBtn.getAttribute('data-cal-month');

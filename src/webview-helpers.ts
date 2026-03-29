@@ -44,3 +44,17 @@ export function formatDuration(ms: number): string {
     if (m > 0) { return `${m}m ${s}s`; }
     return `${s}s`;
 }
+
+/** Format byte count to human-readable size string (e.g. "1.2 MB"). */
+export function formatFileSize(bytes: number): string {
+    if (!Number.isFinite(bytes) || bytes <= 0) {
+        return '0 B';
+    }
+    if (bytes < 1024) {
+        return `${Math.round(bytes)} B`;
+    }
+    if (bytes < 1024 * 1024) {
+        return `${(bytes / 1024).toFixed(bytes >= 10 * 1024 ? 0 : 1)} KB`;
+    }
+    return `${(bytes / (1024 * 1024)).toFixed(bytes >= 10 * 1024 * 1024 ? 0 : 1)} MB`;
+}

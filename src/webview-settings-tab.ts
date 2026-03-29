@@ -7,11 +7,13 @@ import { tBi } from './i18n';
 import { ModelConfig } from './models';
 import { QuotaTracker } from './quota-tracker';
 import { ICON } from './webview-icons';
-import { esc } from './webview-helpers';
+import { esc, formatFileSize } from './webview-helpers';
 
 export interface StorageDiagnostics {
     stateFilePath: string;
     stateFileExists: boolean;
+    stateFileSizeBytes: number;
+    stateFileOpenWarnBytes: number;
     monitorSnapshotCount: number;
     monitorGMConversationCount: number;
     gmConversationCount: number;
@@ -27,6 +29,8 @@ export interface StorageDiagnostics {
 export interface PanelHintPreferences {
     showTabScrollHint: boolean;
 }
+
+
 
 // ─── Public API ──────────────────────────────────────────────────────────────
 
@@ -46,6 +50,8 @@ export function buildSettingsContent(
     const showResetCountdown = cfg.get<boolean>('statusBar.showResetCountdown', true);
     const quotaNotifyThreshold = cfg.get<number>('quotaNotificationThreshold', 20);
     const tabScrollHintEnabled = panelPrefs?.showTabScrollHint ?? true;
+    const stateFileSizeLabel = storage ? formatFileSize(storage.stateFileSizeBytes) : '0 B';
+    const stateFileOpenWarnLabel = storage ? formatFileSize(storage.stateFileOpenWarnBytes) : '0 B';
 
     const modelLimitRows = configs.map(c => {
         const customLimit = contextLimits[c.model];
@@ -85,7 +91,13 @@ export function buildSettingsContent(
                 <button class="action-btn" id="revealStateFile">${ICON.folder} ${tBi('Reveal', '定位文件')}</button>
                 <span id="statePathFeedback" class="threshold-feedback"></span>
             </div>
+            <p class="raw-desc">${tBi(
+                `Current file size: ${stateFileSizeLabel}. Large-file warning appears at ${stateFileOpenWarnLabel}, because opening huge JSON directly may stall the editor.`,
+                `当前文件大小：${stateFileSizeLabel}。超过 ${stateFileOpenWarnLabel} 时会先弹出大文件警告，因为直接打开超大 JSON 可能导致编辑器卡顿。`,
+            )}</p>
             <div class="storage-stat-grid">
+                <div class="storage-stat"><span class="storage-stat-val">${stateFileSizeLabel}</span><span class="storage-stat-label">${tBi('File Size', '文件大小')}</span></div>
+                <div class="storage-stat"><span class="storage-stat-val">${stateFileOpenWarnLabel}</span><span class="storage-stat-label">${tBi('Open Warn At', '打开警告阈值')}</span></div>
                 <div class="storage-stat"><span class="storage-stat-val">${storage.monitorSnapshotCount}</span><span class="storage-stat-label">${tBi('Monitor Sessions', '监控会话')}</span></div>
                 <div class="storage-stat"><span class="storage-stat-val">${storage.monitorGMConversationCount}</span><span class="storage-stat-label">${tBi('Monitor GM Snapshots', '监控 GM 快照')}</span></div>
                 <div class="storage-stat"><span class="storage-stat-val">${storage.gmConversationCount}</span><span class="storage-stat-label">${tBi('GM Conversations', 'GM 对话')}</span></div>

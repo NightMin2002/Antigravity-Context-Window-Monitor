@@ -1,3 +1,4 @@
+import * as fs from 'fs';
 import * as vscode from 'vscode';
 import { discoverLanguageServer, LSInfo } from './discovery';
 import {
@@ -13,7 +14,7 @@ import {
 } from './tracker';
 import { StatusBarManager, formatContextLimit } from './statusbar';
 import { initI18n, initI18nFromState, showLanguagePicker, tBi } from './i18n';
-import { showMonitorPanel, updateMonitorPanel, isMonitorPanelVisible, setPanelDurableState, PanelPayload } from './webview-panel';
+import { showMonitorPanel, updateMonitorPanel, isMonitorPanelVisible, setPanelDurableState, PanelPayload, LARGE_STATE_FILE_WARN_BYTES } from './webview-panel';
 import { ActivityTracker, ActivityTrackerState } from './activity-tracker';
 import { CascadeStatus, MAX_BACKOFF_INTERVAL_MS, COMPRESSION_PERSIST_POLLS } from './constants';
 import { QuotaTracker } from './quota-tracker';
@@ -999,6 +1000,9 @@ function checkQuotaNotification(configs: import('./models').ModelConfig[]): void
 }
 
 function getStorageDiagnostics(): StorageDiagnostics {
+    const stateFilePath = durableState.getFilePath();
+    const stateFileExists = durableState.exists();
+    const stateFileSizeBytes = stateFileExists ? fs.statSync(stateFilePath).size : 0;
     let calendarCycleCount = 0;
     if (dailyStore) {
         for (const date of dailyStore.getDatesWithData()) {
@@ -1010,8 +1014,10 @@ function getStorageDiagnostics(): StorageDiagnostics {
     }
 
     return {
-        stateFilePath: durableState.getFilePath(),
-        stateFileExists: durableState.exists(),
+        stateFilePath,
+        stateFileExists,
+        stateFileSizeBytes,
+        stateFileOpenWarnBytes: LARGE_STATE_FILE_WARN_BYTES,
         monitorSnapshotCount: monitorStore?.getAll().length || 0,
         monitorGMConversationCount: Object.keys(monitorStore?.getGMConversations() || {}).length,
         gmConversationCount: lastGMSummary?.conversations.length || 0,

@@ -21,6 +21,15 @@
 - **Settings Button Upgrade / 设置按钮美化**: Global `.action-btn` upgraded from icon-only style (`padding: space-1`, transparent bg) to text+icon hybrid with proper `gap`, `font-size`, `font-weight`, gradient background, and hover shadow lift. Added `.stg-card .action-btn` override for increased padding and micro-gradient. Added `.danger-action` variant with red color scheme. `.storage-actions` children now respect `flex: 0 1 auto` sizing.
   全局 `.action-btn` 从图标按钮升级为文字+图标混合按钮，增加 `gap`、`font-size`、渐变背景和 hover 上浮阴影。设置面板内按钮增加内边距和微渐变。新增 `.danger-action` 红色样式变体。
 
+- **Persistent Storage Diagnostics Expanded / 持久化存储诊断增强**: The Settings "Persistent Storage" card now displays the real external state file size and the current large-file open warning threshold. Users can see why the large-file guard triggers before attempting to open the JSON file, instead of guessing or blindly tuning values.
+  设置中的「持久化存储」卡片现在直接显示外部状态文件的真实大小，以及当前“大文件打开警告”阈值。用户在尝试打开 JSON 前就能知道为什么会触发保护，不必靠猜测或盲目调值。
+
+- **State File Open Flow Hardened / 状态文件打开链路加固**: WebView click handling now normalizes delegated targets and returns explicit success/failure feedback for "Open File" and "Reveal". The open path prefers command-level `vscode.open` and falls back to editor APIs only when needed, improving compatibility with non-standard VS Code-like hosts.
+  WebView 对「打开文件 / 定位文件」的点击处理现在会先归一化委托目标，并把成功/失败结果明确反馈回设置页。打开路径优先走命令级 `vscode.open`，仅在必要时回退到编辑器 API，从而提升对非标准 VS Code-like 宿主的兼容性。
+
+- **Large State File Safety Guard / 大状态文件保护**: Opening the external state JSON now checks the real file size first. Files at or above `1 MB` trigger a warning dialog with three outcomes: open anyway, reveal in file manager instead, or cancel. This reduces the chance of users freezing the editor by opening a very large JSON blob directly.
+  现在在打开外部状态 JSON 前会先检查真实文件大小。文件达到或超过 `1 MB` 时，会先弹出警告对话框，提供「仍然打开 / 改为定位 / 取消」三种结果，减少用户直接打开超大 JSON 导致编辑器卡死的概率。
+
 ### ⚡ Refactored / 重构
 
 - **`makePanelPayload()` Helper / 面板参数构建统一化**: Extracted a `makePanelPayload()` helper in `extension.ts` that constructs the full `PanelPayload` from cached state. Replaced 7 inline payload object literals across `showMonitorPanel` / `updateMonitorPanel` call sites, eliminating parameter duplication and ensuring consistent data delivery. Also added `lastTrajectories` caching to avoid redundant RPC calls.
@@ -29,6 +38,12 @@
 - **`restoreDetailsState()` Extraction / `<details>` 状态恢复提取**: Extracted `<details>` open/closed state restoration into a reusable `restoreDetailsState()` function in `webview-script.ts`, called both on initial load and after each `updateTabs` incremental refresh. Eliminates the previous pattern of duplicating restoration logic in two places.
   将 `<details>` 展开/收起状态恢复提取为 `webview-script.ts` 中的可复用函数 `restoreDetailsState()`，在初始加载和每次 `updateTabs` 增量刷新后统一调用，消除两处重复的恢复逻辑。
 
+- **`formatFileSize()` Unified / 字节格式化函数统一**: Merged duplicate `formatFileSize()` (webview-panel.ts) and `formatStorageBytes()` (webview-settings-tab.ts) into a single canonical export in `webview-helpers.ts`. Both consumers now import from the shared module.
+  合并 `webview-panel.ts` 中的 `formatFileSize()` 和 `webview-settings-tab.ts` 中的 `formatStorageBytes()` 到 `webview-helpers.ts` 统一导出，消除重复定义。
+
+- **`reportStateFileError()` Extraction / 状态文件错误处理提取**: Extracted repeated 4-line catch-block pattern into a dedicated `reportStateFileError()` helper in `webview-panel.ts`. Replaced 3 duplicate catch blocks with single-line calls.
+  将重复的 4 行 catch 块模式提取为 `webview-panel.ts` 中的 `reportStateFileError()` 辅助函数，3 处重复 catch 块简化为单行调用。
+
 ### 🐛 Fixed / 修复
 
 - **Tab Scroll Hint Disappearing After "Show Now" / 点击「立即显示」后提示框闪现即消**: Fixed a race condition where clicking "Show hint now" in Settings triggered a `setPanelPref` message round-trip. The backend responded with `panelPrefUpdated`, which called `updateTabOverflowHint()` — this re-checked overflow width and hid the hint if tabs didn't overflow at that moment. Fix: introduced `data-force-show` attribute mechanism. When user manually shows the hint, the attribute is set on `#tabScrollHint`, and `updateTabOverflowHint()` skips auto-hide when it detects this attribute. The attribute is only removed when user explicitly clicks the dismiss button.
@@ -36,6 +51,10 @@
 
 - **Settings Hint Badge Not Updating in Real-Time / 设置界面提示状态徽章未实时更新**: Fixed the "Panel Tips" section in Settings where the enabled/disabled badge did not react to the `panelPrefUpdated` message when toggling the hint from the hint bar itself. The `configSaved` feedback path now correctly maps `panelShowTabScrollHint` to its feedback element.
   修复设置中「界面提示」区域的启用/禁用徽章在从提示条本身切换时不随 `panelPrefUpdated` 消息更新的问题。`configSaved` 反馈路径现已正确映射 `panelShowTabScrollHint` 到其反馈元素。
+
+- **Settings "Open File" Button Silent No-Op / 设置中“打开文件”按钮静默无反应**: Fixed the Settings "Open File" action silently doing nothing in some hosts. Root cause was a combination of brittle delegated click targeting inside the WebView and host-specific differences in editor-opening behavior. The button now reliably posts its message, reports action status back to the UI, and opens through a host-tolerant command-first path.
+  修复某些宿主环境下设置页「打开文件」按钮点击后静默无反应的问题。根因是 WebView 内部委托点击目标匹配过于脆弱，再叠加不同宿主对编辑器打开行为的差异。现在按钮会稳定发出消息、把动作结果回传到界面，并通过更耐宿主差异的“命令优先”路径打开文件。
+
 
 ### 🗑 Removed / 移除
 
@@ -54,6 +73,7 @@
 
 - **Files changed**: 8 (7 modified + 1 new)
 - **TypeScript compile**: Zero errors
+- **Vitest**: 14 files / 123 cases — all passing
 - **New file**: `src/webview-chat-history-tab.ts` (440 lines)
 - **Net addition**: ~900+ lines across styles, script logic, and tab content
 

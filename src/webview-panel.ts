@@ -12,6 +12,7 @@ import { buildPricingTabContent, getPricingTabStyles } from './pricing-panel';
 import { PricingStore, ModelPricing } from './pricing-store';
 import { GMSummary, GMConversationData } from './gm-tracker';
 import { ICON } from './webview-icons';
+import { formatFileSize } from './webview-helpers';
 import { buildMonitorSections } from './webview-monitor-tab';
 import { buildModelsTabContent } from './webview-models-tab';
 import { buildProfileContent } from './webview-profile-tab';
@@ -72,6 +73,7 @@ let lastDailyStore: DailyStore | undefined;
 let lastStorageDiagnostics: StorageDiagnostics | undefined;
 let panelDurableState: StateBucket | undefined;
 let lastModelDNA: Record<string, PersistedModelDNA> = {};
+export const LARGE_STATE_FILE_WARN_BYTES = 1 * 1024 * 1024;
 
 /** Provide a durable state bucket for panel-level persistence (zoom, etc.). */
 export function setPanelDurableState(state: StateBucket): void {
@@ -109,6 +111,8 @@ function sanitizeConfigValue(key: string, value: unknown): unknown {
 
 function refreshLocalStorageDiagnostics(): void {
     if (!lastStorageDiagnostics) { return; }
+    const stateFileExists = fs.existsSync(lastStorageDiagnostics.stateFilePath);
+    const stateFileSizeBytes = stateFileExists ? fs.statSync(lastStorageDiagnostics.stateFilePath).size : 0;
     let calendarCycleCount = 0;
     if (lastDailyStore) {
         for (const date of lastDailyStore.getDatesWithData()) {
@@ -120,6 +124,9 @@ function refreshLocalStorageDiagnostics(): void {
     }
     lastStorageDiagnostics = {
         ...lastStorageDiagnostics,
+        stateFileExists,
+        stateFileSizeBytes,
+        stateFileOpenWarnBytes: LARGE_STATE_FILE_WARN_BYTES,
         monitorSnapshotCount: lastAllUsages.length,
         monitorGMConversationCount: Object.keys(lastGMConversations).length,
         gmConversationCount: lastGMSummary?.conversations.length || 0,
@@ -135,6 +142,54 @@ function refreshLocalStorageDiagnostics(): void {
 function clearDisposedPanel(): void {
     panel = undefined;
     isPaused = false;
+}
+
+export async function openUriInEditor(target: vscode.Uri): Promise<void> {
+    const options: vscode.TextDocumentShowOptions = {
+        preview: false,
+        preserveFocus: false,
+        viewColumn: panel?.viewColumn ?? vscode.ViewColumn.Active,
+    };
+    try {
+        await vscode.commands.executeCommand('vscode.open', target, options);
+        return;
+    } catch {
+        const doc = await vscode.workspace.openTextDocument(target);
+        await vscode.window.showTextDocument(doc, options);
+    }
+}
+
+function reportStateFileError(action: 'open' | 'reveal', err: unknown): void {
+    const reason = err instanceof Error ? err.message : String(err);
+    const warning = action === 'open'
+        ? tBi('Failed to open state file.', '打开状态文件失败。')
+        : tBi('Failed to reveal state file.', '定位状态文件失败。');
+    void vscode.window.showWarningMessage(`${warning} ${reason}`);
+    safePostMessage({ command: 'stateFileActionResult', action, ok: false, message: warning });
+}
+
+// formatFileSize is re-exported from webview-helpers for external consumers
+export { formatFileSize } from './webview-helpers';
+
+export async function confirmLargeStateFileOpen(fileSizeBytes: number): Promise<'open' | 'reveal' | 'cancel'> {
+    if (fileSizeBytes < LARGE_STATE_FILE_WARN_BYTES) {
+        return 'open';
+    }
+
+    const openLabel = tBi('Open Anyway', '仍然打开');
+    const revealLabel = tBi('Reveal Instead', '改为定位');
+    const message = tBi(
+        `The state file is ${formatFileSize(fileSizeBytes)}. Opening it as plain text may stall the editor. Recommended: reveal it in the file manager instead.`,
+        `状态文件大小为 ${formatFileSize(fileSizeBytes)}。直接作为文本打开可能导致编辑器卡顿。更推荐先在文件管理器中定位它。`,
+    );
+    const choice = await vscode.window.showWarningMessage(message, { modal: true }, openLabel, revealLabel);
+    if (choice === openLabel) {
+        return 'open';
+    }
+    if (choice === revealLabel) {
+        return 'reveal';
+    }
+    return 'cancel';
 }
 
 function getPanelHintPreferences(): PanelHintPreferences {
@@ -327,18 +382,48 @@ export function showMonitorPanel(p: PanelPayload): void {
             safePostMessage({ command: 'configSaved', key: 'statePath' });
         } else if (msg.command === 'openStateFile' && lastStorageDiagnostics?.stateFilePath) {
             const uri = vscode.Uri.file(lastStorageDiagnostics.stateFilePath);
-            const exists = await vscode.workspace.fs.stat(uri).then(() => true, () => false);
-            if (!exists) {
-                void vscode.window.showWarningMessage(tBi('State file has not been created yet.', '状态文件尚未生成。'));
+            const stat = await vscode.workspace.fs.stat(uri).then(result => result, () => null);
+            if (!stat) {
+                const warning = tBi('State file has not been created yet.', '状态文件尚未生成。');
+                void vscode.window.showWarningMessage(warning);
+                safePostMessage({ command: 'stateFileActionResult', action: 'open', ok: false, message: warning });
                 return;
             }
-            const doc = await vscode.workspace.openTextDocument(uri);
-            await vscode.window.showTextDocument(doc, { preview: false, preserveFocus: true });
+            const decision = await confirmLargeStateFileOpen(typeof stat.size === 'number' ? stat.size : 0);
+            if (decision === 'cancel') {
+                safePostMessage({
+                    command: 'stateFileActionResult',
+                    action: 'open',
+                    ok: false,
+                    message: tBi('Open cancelled.', '已取消打开。'),
+                });
+                return;
+            }
+            if (decision === 'reveal') {
+                try {
+                    await vscode.commands.executeCommand('revealFileInOS', uri);
+                    safePostMessage({ command: 'stateFileActionResult', action: 'reveal', ok: true });
+                } catch (err) {
+                    reportStateFileError('reveal', err);
+                }
+                return;
+            }
+            try {
+                await openUriInEditor(uri);
+                safePostMessage({ command: 'stateFileActionResult', action: 'open', ok: true });
+            } catch (err) {
+                reportStateFileError('open', err);
+            }
         } else if (msg.command === 'revealStateFile' && lastStorageDiagnostics?.stateFilePath) {
             const uri = vscode.Uri.file(lastStorageDiagnostics.stateFilePath);
             const exists = await vscode.workspace.fs.stat(uri).then(() => true, () => false);
             const target = exists ? uri : vscode.Uri.file(path.dirname(lastStorageDiagnostics.stateFilePath));
-            await vscode.commands.executeCommand('revealFileInOS', target);
+            try {
+                await vscode.commands.executeCommand('revealFileInOS', target);
+                safePostMessage({ command: 'stateFileActionResult', action: 'reveal', ok: true });
+            } catch (err) {
+                reportStateFileError('reveal', err);
+            }
         } else if (msg.command === 'historyAction' && msg.action) {
             if (msg.action === 'workspace') {
                 await revealUriOrParent(workspaceTargetFromUri(msg.uri || ''));
