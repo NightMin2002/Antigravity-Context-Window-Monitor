@@ -1,7 +1,9 @@
-import * as vscode from 'vscode';
+import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
+import * as vscode from 'vscode';
 import { tBi, getLanguage, setLanguage, Language } from './i18n';
-import { ContextUsage } from './tracker';
+import { ContextUsage, TrajectorySummary } from './tracker';
 import { ModelConfig, UserStatusInfo } from './models';
 import { QuotaTracker } from './quota-tracker';
 import { ActivityTracker, ActivitySummary, ActivityArchive } from './activity-tracker';
@@ -10,12 +12,14 @@ import { buildPricingTabContent, getPricingTabStyles } from './pricing-panel';
 import { PricingStore, ModelPricing } from './pricing-store';
 import { GMSummary, GMConversationData } from './gm-tracker';
 import { ICON } from './webview-icons';
+import { formatFileSize } from './webview-helpers';
 import { buildMonitorSections } from './webview-monitor-tab';
 import { buildModelsTabContent } from './webview-models-tab';
 import { buildProfileContent } from './webview-profile-tab';
-import { buildSettingsContent, StorageDiagnostics } from './webview-settings-tab';
+import { buildSettingsContent, StorageDiagnostics, PanelHintPreferences } from './webview-settings-tab';
 import { buildHistoryHtml } from './webview-history-tab';
 import { buildCalendarTabContent, getCalendarTabStyles } from './webview-calendar-tab';
+import { buildChatHistoryTabContent } from './webview-chat-history-tab';
 import { DailyStore } from './daily-store';
 import { getScript } from './webview-script';
 import { getStyles } from './webview-styles';
@@ -28,8 +32,10 @@ import type { PersistedModelDNA } from './model-dna-store';
 export interface PanelPayload {
     currentUsage: ContextUsage | null;
     allTrajectoryUsages: ContextUsage[];
+    allTrajectories?: TrajectorySummary[];
     modelConfigs: ModelConfig[];
     userInfo: UserStatusInfo | null;
+    workspaceUri?: string;
     context?: vscode.ExtensionContext;
     tracker?: QuotaTracker;
     activitySummary?: ActivitySummary | null;
@@ -52,8 +58,10 @@ let extensionCtx: vscode.ExtensionContext | undefined;
 /** Cached data for re-rendering after language switch. */
 let lastUsage: ContextUsage | null = null;
 let lastAllUsages: ContextUsage[] = [];
+let lastTrajectories: TrajectorySummary[] = [];
 let lastConfigs: ModelConfig[] = [];
 let lastUserInfo: UserStatusInfo | null = null;
+let lastWorkspaceUri = '';
 let lastQuotaTracker: QuotaTracker | undefined;
 let lastActivitySummary: ActivitySummary | null = null;
 let lastActivityTracker: ActivityTracker | undefined;
@@ -65,6 +73,7 @@ let lastDailyStore: DailyStore | undefined;
 let lastStorageDiagnostics: StorageDiagnostics | undefined;
 let panelDurableState: StateBucket | undefined;
 let lastModelDNA: Record<string, PersistedModelDNA> = {};
+export const LARGE_STATE_FILE_WARN_BYTES = 1 * 1024 * 1024;
 
 /** Provide a durable state bucket for panel-level persistence (zoom, etc.). */
 export function setPanelDurableState(state: StateBucket): void {
@@ -102,6 +111,8 @@ function sanitizeConfigValue(key: string, value: unknown): unknown {
 
 function refreshLocalStorageDiagnostics(): void {
     if (!lastStorageDiagnostics) { return; }
+    const stateFileExists = fs.existsSync(lastStorageDiagnostics.stateFilePath);
+    const stateFileSizeBytes = stateFileExists ? fs.statSync(lastStorageDiagnostics.stateFilePath).size : 0;
     let calendarCycleCount = 0;
     if (lastDailyStore) {
         for (const date of lastDailyStore.getDatesWithData()) {
@@ -113,6 +124,9 @@ function refreshLocalStorageDiagnostics(): void {
     }
     lastStorageDiagnostics = {
         ...lastStorageDiagnostics,
+        stateFileExists,
+        stateFileSizeBytes,
+        stateFileOpenWarnBytes: LARGE_STATE_FILE_WARN_BYTES,
         monitorSnapshotCount: lastAllUsages.length,
         monitorGMConversationCount: Object.keys(lastGMConversations).length,
         gmConversationCount: lastGMSummary?.conversations.length || 0,
@@ -128,6 +142,120 @@ function refreshLocalStorageDiagnostics(): void {
 function clearDisposedPanel(): void {
     panel = undefined;
     isPaused = false;
+}
+
+export async function openUriInEditor(target: vscode.Uri): Promise<void> {
+    const options: vscode.TextDocumentShowOptions = {
+        preview: false,
+        preserveFocus: false,
+        viewColumn: panel?.viewColumn ?? vscode.ViewColumn.Active,
+    };
+    try {
+        await vscode.commands.executeCommand('vscode.open', target, options);
+        return;
+    } catch {
+        const doc = await vscode.workspace.openTextDocument(target);
+        await vscode.window.showTextDocument(doc, options);
+    }
+}
+
+function reportStateFileError(action: 'open' | 'reveal', err: unknown): void {
+    const reason = err instanceof Error ? err.message : String(err);
+    const warning = action === 'open'
+        ? tBi('Failed to open state file.', '打开状态文件失败。')
+        : tBi('Failed to reveal state file.', '定位状态文件失败。');
+    void vscode.window.showWarningMessage(`${warning} ${reason}`);
+    safePostMessage({ command: 'stateFileActionResult', action, ok: false, message: warning });
+}
+
+// formatFileSize is re-exported from webview-helpers for external consumers
+export { formatFileSize } from './webview-helpers';
+
+export async function confirmLargeStateFileOpen(fileSizeBytes: number): Promise<'open' | 'reveal' | 'cancel'> {
+    if (fileSizeBytes < LARGE_STATE_FILE_WARN_BYTES) {
+        return 'open';
+    }
+
+    const openLabel = tBi('Open Anyway', '仍然打开');
+    const revealLabel = tBi('Reveal Instead', '改为定位');
+    const message = tBi(
+        `The state file is ${formatFileSize(fileSizeBytes)}. Opening it as plain text may stall the editor. Recommended: reveal it in the file manager instead.`,
+        `状态文件大小为 ${formatFileSize(fileSizeBytes)}。直接作为文本打开可能导致编辑器卡顿。更推荐先在文件管理器中定位它。`,
+    );
+    const choice = await vscode.window.showWarningMessage(message, { modal: true }, openLabel, revealLabel);
+    if (choice === openLabel) {
+        return 'open';
+    }
+    if (choice === revealLabel) {
+        return 'reveal';
+    }
+    return 'cancel';
+}
+
+function getPanelHintPreferences(): PanelHintPreferences {
+    return {
+        showTabScrollHint: panelDurableState?.get<boolean>('panelShowTabScrollHint', true) ?? true,
+    };
+}
+
+function getAntigravityRoot(): string {
+    return path.join(os.homedir(), '.gemini', 'antigravity');
+}
+
+function workspaceTargetFromUri(workspaceUri: string): vscode.Uri | null {
+    if (!workspaceUri) { return null; }
+    if (workspaceUri.startsWith('file:')) {
+        try {
+            return vscode.Uri.parse(workspaceUri);
+        } catch {
+            return null;
+        }
+    }
+    try {
+        return vscode.Uri.file(workspaceUri);
+    } catch {
+        return null;
+    }
+}
+
+function getConversationTarget(cascadeId: string, kind: 'record' | 'pb'): vscode.Uri {
+    const root = getAntigravityRoot();
+    const pbPath = path.join(root, 'conversations', `${cascadeId}.pb`);
+    if (kind === 'pb') {
+        return vscode.Uri.file(pbPath);
+    }
+
+    const brainDir = path.join(root, 'brain', cascadeId);
+    const recordingDir = path.join(root, 'browser_recordings', cascadeId);
+    const conversationDir = path.join(root, 'conversations');
+    const preferred = [brainDir, recordingDir, conversationDir];
+    for (const target of preferred) {
+        if (fs.existsSync(target)) {
+            return vscode.Uri.file(target);
+        }
+    }
+    return vscode.Uri.file(conversationDir);
+}
+
+async function revealUriOrParent(target: vscode.Uri | null): Promise<void> {
+    if (!target) {
+        void vscode.window.showWarningMessage(tBi('Unable to resolve that location.', '无法解析这个定位目标。'));
+        return;
+    }
+    const exists = await vscode.workspace.fs.stat(target).then(() => true, () => false);
+    if (exists) {
+        await vscode.commands.executeCommand('revealFileInOS', target);
+        return;
+    }
+    if (target.scheme === 'file') {
+        const parent = vscode.Uri.file(path.dirname(target.fsPath));
+        const parentExists = await vscode.workspace.fs.stat(parent).then(() => true, () => false);
+        if (parentExists) {
+            await vscode.commands.executeCommand('revealFileInOS', parent);
+            return;
+        }
+    }
+    void vscode.window.showWarningMessage(tBi('The target path does not exist yet.', '目标路径当前不存在。'));
 }
 
 function isDisposedWebviewError(err: unknown): boolean {
@@ -167,8 +295,10 @@ let calendarMonth = new Date().getMonth() + 1;
 export function showMonitorPanel(p: PanelPayload): void {
     lastUsage = p.currentUsage;
     lastAllUsages = p.allTrajectoryUsages;
+    if (p.allTrajectories) { lastTrajectories = p.allTrajectories; }
     lastConfigs = p.modelConfigs;
     lastUserInfo = p.userInfo;
+    if (p.workspaceUri) { lastWorkspaceUri = p.workspaceUri; }
     if (p.context) { extensionCtx = p.context; }
     if (p.tracker) { lastQuotaTracker = p.tracker; }
     if (p.activitySummary !== undefined) { lastActivitySummary = p.activitySummary; }
@@ -198,7 +328,7 @@ export function showMonitorPanel(p: PanelPayload): void {
     panel.webview.html = buildHtml(p.currentUsage, p.allTrajectoryUsages, p.modelConfigs, p.userInfo, isPaused, lastQuotaTracker);
     if (p.initialTab) { setTimeout(() => safePostMessage({ command: 'switchToTab', tab: p.initialTab }), 100); }
 
-    panel.webview.onDidReceiveMessage(async (msg: { command: string; lang?: string; value?: unknown; key?: string }) => {
+    panel.webview.onDidReceiveMessage(async (msg: { command: string; lang?: string; value?: unknown; key?: string; action?: string; cascadeId?: string; uri?: string }) => {
         if (msg.command === 'switchLanguage' && msg.lang && extensionCtx) {
             await setLanguage(msg.lang as Language, extensionCtx);
             if (panel) {
@@ -252,18 +382,60 @@ export function showMonitorPanel(p: PanelPayload): void {
             safePostMessage({ command: 'configSaved', key: 'statePath' });
         } else if (msg.command === 'openStateFile' && lastStorageDiagnostics?.stateFilePath) {
             const uri = vscode.Uri.file(lastStorageDiagnostics.stateFilePath);
-            const exists = await vscode.workspace.fs.stat(uri).then(() => true, () => false);
-            if (!exists) {
-                void vscode.window.showWarningMessage(tBi('State file has not been created yet.', '状态文件尚未生成。'));
+            const stat = await vscode.workspace.fs.stat(uri).then(result => result, () => null);
+            if (!stat) {
+                const warning = tBi('State file has not been created yet.', '状态文件尚未生成。');
+                void vscode.window.showWarningMessage(warning);
+                safePostMessage({ command: 'stateFileActionResult', action: 'open', ok: false, message: warning });
                 return;
             }
-            const doc = await vscode.workspace.openTextDocument(uri);
-            await vscode.window.showTextDocument(doc, { preview: false, preserveFocus: true });
+            const decision = await confirmLargeStateFileOpen(typeof stat.size === 'number' ? stat.size : 0);
+            if (decision === 'cancel') {
+                safePostMessage({
+                    command: 'stateFileActionResult',
+                    action: 'open',
+                    ok: false,
+                    message: tBi('Open cancelled.', '已取消打开。'),
+                });
+                return;
+            }
+            if (decision === 'reveal') {
+                try {
+                    await vscode.commands.executeCommand('revealFileInOS', uri);
+                    safePostMessage({ command: 'stateFileActionResult', action: 'reveal', ok: true });
+                } catch (err) {
+                    reportStateFileError('reveal', err);
+                }
+                return;
+            }
+            try {
+                await openUriInEditor(uri);
+                safePostMessage({ command: 'stateFileActionResult', action: 'open', ok: true });
+            } catch (err) {
+                reportStateFileError('open', err);
+            }
         } else if (msg.command === 'revealStateFile' && lastStorageDiagnostics?.stateFilePath) {
             const uri = vscode.Uri.file(lastStorageDiagnostics.stateFilePath);
             const exists = await vscode.workspace.fs.stat(uri).then(() => true, () => false);
             const target = exists ? uri : vscode.Uri.file(path.dirname(lastStorageDiagnostics.stateFilePath));
-            await vscode.commands.executeCommand('revealFileInOS', target);
+            try {
+                await vscode.commands.executeCommand('revealFileInOS', target);
+                safePostMessage({ command: 'stateFileActionResult', action: 'reveal', ok: true });
+            } catch (err) {
+                reportStateFileError('reveal', err);
+            }
+        } else if (msg.command === 'historyAction' && msg.action) {
+            if (msg.action === 'workspace') {
+                await revealUriOrParent(workspaceTargetFromUri(msg.uri || ''));
+            } else if ((msg.action === 'record' || msg.action === 'pb') && msg.cascadeId) {
+                await revealUriOrParent(getConversationTarget(msg.cascadeId, msg.action));
+            }
+        } else if (msg.command === 'setPanelPref' && msg.key === 'panelShowTabScrollHint') {
+            if (panelDurableState) {
+                panelDurableState.update('panelShowTabScrollHint', !!msg.value);
+            }
+            safePostMessage({ command: 'panelPrefUpdated', key: msg.key, value: !!msg.value });
+            safePostMessage({ command: 'configSaved', key: msg.key });
         } else if (msg.command === 'clearActiveTracking') {
             if (lastQuotaTracker) {
                 lastQuotaTracker.resetTrackingStates();
@@ -387,8 +559,10 @@ export function showMonitorPanel(p: PanelPayload): void {
 export function updateMonitorPanel(p: PanelPayload): void {
     lastUsage = p.currentUsage;
     lastAllUsages = p.allTrajectoryUsages;
+    if (p.allTrajectories) { lastTrajectories = p.allTrajectories; }
     lastConfigs = p.modelConfigs;
     lastUserInfo = p.userInfo;
+    if (p.workspaceUri) { lastWorkspaceUri = p.workspaceUri; }
     if (p.tracker) { lastQuotaTracker = p.tracker; }
     if (p.activitySummary !== undefined) { lastActivitySummary = p.activitySummary; }
     if (p.archives) { lastArchives = p.archives; }
@@ -417,6 +591,7 @@ function buildTabContents(
     return {
         monitor: buildMonitorSections(usage, allUsages, configs, userInfo, lastGMSummary, lastGMConversations, tracker, lastPricingStore),
         gmdata: buildGMDataTabContent(lastActivitySummary, lastGMSummary, usage),
+        chats: buildChatHistoryTabContent(lastTrajectories, usage, lastGMSummary, lastGMConversations, lastWorkspaceUri),
         pricing: lastPricingStore
             ? buildPricingTabContent(lastGMSummary, lastPricingStore)
             : `<p class="empty-msg">${tBi('Initializing...', '初始化中...')}</p>`,
@@ -447,6 +622,7 @@ function buildHtml(
 ): string {
     const monitorHtml = buildMonitorSections(usage, allUsages, configs, userInfo, lastGMSummary, lastGMConversations, tracker, lastPricingStore);
     const gmDataHtml = buildGMDataTabContent(lastActivitySummary, lastGMSummary, usage);
+    const chatsHtml = buildChatHistoryTabContent(lastTrajectories, usage, lastGMSummary, lastGMConversations, lastWorkspaceUri);
     const pricingHtml = lastPricingStore
         ? buildPricingTabContent(lastGMSummary, lastPricingStore)
         : `<p class="empty-msg">${tBi('Initializing...', '初始化中...')}</p>`;
@@ -454,7 +630,8 @@ function buildHtml(
     const historyHtml = buildHistoryHtml(tracker);
     const calendarHtml = buildCalendarTabContent(lastDailyStore ?? undefined, calendarYear, calendarMonth);
     const profileHtml = buildProfileContent(userInfo, configs);
-    const settingsHtml = buildSettingsContent(configs, tracker, lastStorageDiagnostics);
+    const settingsHtml = buildSettingsContent(configs, tracker, lastStorageDiagnostics, getPanelHintPreferences());
+    const panelHintPrefs = getPanelHintPreferences();
 
     const currentLang = getLanguage();
     const htmlLang = currentLang === 'zh' ? 'zh-CN' : currentLang === 'en' ? 'en' : 'zh-CN';
@@ -470,7 +647,7 @@ ${getPricingTabStyles()}
 ${getCalendarTabStyles()}
 </style>
 </head>
-<body data-privacy-default="true" data-zoom="${panelDurableState?.get<number>('panelZoomLevel', 100) ?? 100}">
+<body data-privacy-default="true" data-zoom="${panelDurableState?.get<number>('panelZoomLevel', 100) ?? 100}" data-tab-hint-enabled="${panelHintPrefs.showTabScrollHint ? 'true' : 'false'}">
     <div class="panel-topbar">
         <header class="topbar-title">
             <h1>
@@ -548,6 +725,7 @@ ${getCalendarTabStyles()}
         <div class="tab-slider"></div>
         <button class="tab-btn active" data-tab="monitor" data-color="blue">${ICON.chart} ${tBi('Monitor', '监控')}</button>
         <button class="tab-btn" data-tab="gmdata" data-color="orange">${ICON.bolt} ${tBi('GM Data', 'GM 数据')}</button>
+        <button class="tab-btn" data-tab="chats" data-color="cyan">${ICON.chat} ${tBi('Sessions', '会话')}</button>
         <button class="tab-btn" data-tab="pricing" data-color="purple"><svg class="icon" viewBox="0 0 16 16"><path fill="currentColor" d="M4 10.781c.148 1.667 1.513 2.85 3.591 3.003V15h1.043v-1.216c2.27-.179 3.678-1.438 3.678-3.315 0-1.667-1.104-2.512-3.233-3.037l-.445-.107V3.63c1.213.183 1.968.91 2.141 1.88h1.762c-.112-1.796-1.519-2.965-3.455-3.124V1.036H8.59v1.383C6.408 2.583 5.008 3.9 5.003 5.54c0 1.592 1.063 2.457 3.146 2.963l.399.1v3.979c-1.29-.183-2.113-.879-2.275-1.8H4zm4.586-4.34C7.494 6.137 6.94 5.695 6.94 5.092c0-.66.52-1.183 1.575-1.37v2.72h.071zm.889 2.283c1.335.36 1.942.846 1.942 1.548 0 .781-.633 1.35-1.823 1.493V8.851l-.119-.127z"/></svg> ${tBi('Cost', '成本')}</button>
         <button class="tab-btn" data-tab="models" data-color="green">${ICON.bolt} ${tBi('Models', '模型')}</button>
         <button class="tab-btn" data-tab="history" data-color="yellow">${ICON.timeline} ${tBi('Quota Tracking', '额度追踪')}</button>
@@ -555,12 +733,21 @@ ${getCalendarTabStyles()}
         <button class="tab-btn" data-tab="profile" data-color="gray">${ICON.user} ${tBi('Profile', '个人')}</button>
         <button class="tab-btn" data-tab="settings" data-color="gray">${ICON.shield} ${tBi('Settings', '设置')}</button>
     </nav>
+    <div class="tab-scroll-hint" id="tabScrollHint" hidden>
+        <span class="tab-scroll-hint-text">${ICON.timeline} <span>${tBi('Too many tabs? Hold Shift and use the mouse wheel to scroll horizontally.', '标签过多时，可按住 Shift 再滚动鼠标滚轮进行横向滚动。')}</span></span>
+        <button class="tab-scroll-hint-close" id="dismissTabScrollHint" aria-label="${tBi('Dismiss tab scroll hint', '关闭标签滚动提示')}">
+            <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path fill="currentColor" d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 1 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06"/></svg>
+        </button>
+    </div>
     </div>
     <div class="tab-pane active" id="tab-monitor">
         ${monitorHtml}
     </div>
     <div class="tab-pane" id="tab-gmdata">
         ${gmDataHtml}
+    </div>
+    <div class="tab-pane" id="tab-chats">
+        ${chatsHtml}
     </div>
     <div class="tab-pane" id="tab-pricing">
         ${pricingHtml}

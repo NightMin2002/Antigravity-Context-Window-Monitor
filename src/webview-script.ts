@@ -15,6 +15,25 @@ export function getScript(): string {
             var doneText = ${JSON.stringify(`✓ ${tBi('Done', '完成')}`)};
             var savedText = ${JSON.stringify(`✓ ${tBi('Saved', '已保存')}`)};
             var resetText = ${JSON.stringify(`✓ ${tBi('Reset', '已重置')}`)};
+            var openingText = ${JSON.stringify(tBi('Opening...', '正在打开...'))};
+            var revealingText = ${JSON.stringify(tBi('Revealing...', '正在定位...'))};
+            var openedText = ${JSON.stringify(`✓ ${tBi('Opened', '已打开')}`)};
+            var revealedText = ${JSON.stringify(`✓ ${tBi('Revealed', '已定位')}`)};
+            var openFailedText = ${JSON.stringify(tBi('Open failed', '打开失败'))};
+            var revealFailedText = ${JSON.stringify(tBi('Reveal failed', '定位失败'))};
+
+            function setFeedback(id, text) {
+                var el = document.getElementById(id);
+                if (!el) { return; }
+                el.textContent = text || '';
+                el.style.opacity = text ? '1' : '0';
+            }
+
+            function flashFeedback(id, text, delay) {
+                setFeedback(id, text);
+                if (!delay || delay <= 0) { return; }
+                setTimeout(function() { setFeedback(id, ''); }, delay);
+            }
 
             // ─── Tab System ───
             var activeTab = savedState.activeTab || 'monitor';
@@ -27,19 +46,46 @@ export function getScript(): string {
                 purple: '167,139,250', cyan: '34,211,238', yellow: '250,204,21',
                 gray: '148,163,184'
             };
+            function isTabHintEnabled() {
+                return document.body.getAttribute('data-tab-hint-enabled') !== 'false';
+            }
+            function setTabHintState(enabled) {
+                document.body.setAttribute('data-tab-hint-enabled', enabled ? 'true' : 'false');
+                var badge = document.getElementById('tabHintState');
+                if (badge) {
+                    badge.textContent = enabled ? ${JSON.stringify(tBi('Auto Hint Enabled', '自动提示已开启'))} : ${JSON.stringify(tBi('Auto Hint Disabled', '自动提示已关闭'))};
+                    badge.classList.toggle('is-ready', !!enabled);
+                    badge.classList.toggle('is-missing', !enabled);
+                }
+            }
             function updateTabSlider() {
                 var bar = document.querySelector('.tab-bar');
                 var slider = document.querySelector('.tab-slider');
                 var active = document.querySelector('.tab-btn.active');
                 if (!bar || !slider || !active) return;
-                var barRect = bar.getBoundingClientRect();
-                var btnRect = active.getBoundingClientRect();
-                slider.style.left = (btnRect.left - barRect.left) + 'px';
-                slider.style.width = btnRect.width + 'px';
+                slider.style.left = active.offsetLeft + 'px';
+                slider.style.width = active.offsetWidth + 'px';
                 var c = active.dataset.color;
                 if (c && colorMap[c]) {
                     slider.style.setProperty('--slider-c', colorMap[c]);
                 }
+            }
+            function updateTabOverflowHint() {
+                var bar = document.querySelector('.tab-bar');
+                var hint = document.getElementById('tabScrollHint');
+                if (!bar || !hint) return;
+                if (!isTabHintEnabled()) {
+                    hint.hidden = true;
+                    return;
+                }
+                /* data-force-show: 用户手动"立即显示"时设置，跳过 overflow 判断 */
+                if (hint.hasAttribute('data-force-show')) {
+                    hint.hidden = false;
+                    return;
+                }
+                var overflowX = Math.ceil(bar.scrollWidth - bar.clientWidth);
+                var needsHint = overflowX > 8;
+                hint.hidden = !needsHint;
             }
             function switchTab(tabName) {
                 // Save outgoing tab scroll position
@@ -59,6 +105,7 @@ export function getScript(): string {
                 vscode.setState(s);
 
                 updateTabSlider();
+                updateTabOverflowHint();
 
                 // Restore incoming tab scroll position
                 tabScrolls = ts; // Update local ref
@@ -68,7 +115,27 @@ export function getScript(): string {
             // Restore active tab from state
             if (activeTab !== 'monitor') { switchTab(activeTab); }
             // Init slider position (must wait for layout)
-            requestAnimationFrame(function() { updateTabSlider(); });
+            requestAnimationFrame(function() { updateTabSlider(); updateTabOverflowHint(); });
+            var tabBarEl = document.querySelector('.tab-bar');
+            if (tabBarEl) {
+                tabBarEl.addEventListener('scroll', function() {
+                    updateTabOverflowHint();
+                }, { passive: true });
+            }
+            window.addEventListener('resize', function() {
+                updateTabSlider();
+                updateTabOverflowHint();
+            });
+            var dismissTabHintBtn = document.getElementById('dismissTabScrollHint');
+            if (dismissTabHintBtn) {
+                dismissTabHintBtn.addEventListener('click', function() {
+                    var dHint = document.getElementById('tabScrollHint');
+                    if (dHint) { dHint.removeAttribute('data-force-show'); }
+                    setTabHintState(false);
+                    updateTabOverflowHint();
+                    vscode.postMessage({ command: 'setPanelPref', key: 'panelShowTabScrollHint', value: false });
+                });
+            }
 
             // ─── Calendar: Restore expanded date after refresh ───
             var calSelectedDate = savedState.calendarSelectedDate || '';
@@ -121,6 +188,103 @@ export function getScript(): string {
                 }
             }
             bindChipToggles();
+
+            function restoreDetailsState(rootState) {
+                var ds = (rootState && rootState.detailsOpen) || {};
+                var dd = document.querySelectorAll('details[id]');
+                for (var di = 0; di < dd.length; di++) {
+                    var det = dd[di];
+                    if (Object.prototype.hasOwnProperty.call(ds, det.id)) {
+                        det.open = !!ds[det.id];
+                    }
+                    det.addEventListener('toggle', function() {
+                        var s = vscode.getState() || {};
+                        var dso = s.detailsOpen || {};
+                        dso[this.id] = this.open;
+                        s.detailsOpen = dso;
+                        vscode.setState(s);
+                    });
+                }
+            }
+
+            function bindHistoryCatalog() {
+                var searchInput = document.getElementById('historySearchInput');
+                var filterBtns = document.querySelectorAll('.history-filter-btn');
+                if (!searchInput && filterBtns.length === 0) { return; }
+
+                var state = vscode.getState() || {};
+                var activeFilter = state.historyFilter || 'all';
+                if (searchInput) {
+                    searchInput.value = state.historySearch || '';
+                }
+
+                function applyHistoryFilters() {
+                    var query = searchInput ? (searchInput.value || '').toLowerCase().trim() : '';
+                    var rows = document.querySelectorAll('[data-history-row="true"]');
+                    for (var ri = 0; ri < rows.length; ri++) {
+                        var row = rows[ri];
+                        var searchText = (row.getAttribute('data-search') || '').toLowerCase();
+                        var matchesSearch = !query || searchText.indexOf(query) !== -1;
+                        var matchesFilter = true;
+                        if (activeFilter === 'current') {
+                            matchesFilter = row.getAttribute('data-current-workspace') === 'true';
+                        } else if (activeFilter === 'currentrepo') {
+                            matchesFilter = row.getAttribute('data-current-repo') === 'true';
+                        } else if (activeFilter === 'running') {
+                            matchesFilter = row.getAttribute('data-running') === 'true';
+                        } else if (activeFilter === 'recordable') {
+                            matchesFilter = row.getAttribute('data-recordable') === 'true';
+                        }
+                        row.hidden = !(matchesSearch && matchesFilter);
+                    }
+
+                    var groups = document.querySelectorAll('.history-group');
+                    for (var gi = 0; gi < groups.length; gi++) {
+                        var visibleRows = groups[gi].querySelectorAll('[data-history-row="true"]:not([hidden])');
+                        groups[gi].hidden = visibleRows.length === 0;
+                    }
+                }
+
+                if (searchInput) {
+                    searchInput.addEventListener('input', function() {
+                        var s = vscode.getState() || {};
+                        s.historySearch = this.value || '';
+                        vscode.setState(s);
+                        applyHistoryFilters();
+                    });
+                }
+
+                for (var fi = 0; fi < filterBtns.length; fi++) {
+                    filterBtns[fi].addEventListener('click', function() {
+                        activeFilter = this.dataset.historyFilter || 'all';
+                        var s = vscode.getState() || {};
+                        s.historyFilter = activeFilter;
+                        vscode.setState(s);
+                        for (var bi = 0; bi < filterBtns.length; bi++) {
+                            filterBtns[bi].classList.toggle('is-active', filterBtns[bi] === this);
+                        }
+                        applyHistoryFilters();
+                    });
+                    filterBtns[fi].classList.toggle('is-active', filterBtns[fi].dataset.historyFilter === activeFilter);
+                }
+
+                var shortcutBtns = document.querySelectorAll('[data-history-shortcut]');
+                for (var si = 0; si < shortcutBtns.length; si++) {
+                    shortcutBtns[si].addEventListener('click', function() {
+                        activeFilter = this.dataset.historyShortcut || 'all';
+                        var s = vscode.getState() || {};
+                        s.historyFilter = activeFilter;
+                        vscode.setState(s);
+                        for (var bi = 0; bi < filterBtns.length; bi++) {
+                            filterBtns[bi].classList.toggle('is-active', filterBtns[bi].dataset.historyFilter === activeFilter);
+                        }
+                        applyHistoryFilters();
+                    });
+                }
+
+                applyHistoryFilters();
+            }
+            bindHistoryCatalog();
 
             // Restore chip state from saved state
             var savedChip = savedState.activeChip || '';
@@ -264,6 +428,13 @@ export function getScript(): string {
                 if (msg.command === 'setPaused' && pauseBtn) {
                     pauseBtn.classList.toggle('paused', msg.paused);
                 }
+                if (msg.command === 'panelPrefUpdated' && msg.key === 'panelShowTabScrollHint') {
+                    setTabHintState(!!msg.value);
+                    /* 启用时不调用 updateTabOverflowHint，避免覆盖 force-show 状态 */
+                    if (!msg.value) {
+                        updateTabOverflowHint();
+                    }
+                }
                 if (msg.command === 'thresholdSaved') {
                     var fb = document.getElementById('thresholdFeedback');
                     if (fb) {
@@ -277,7 +448,8 @@ export function getScript(): string {
                         'pollingInterval': 'pollingFeedback',
                         'contextLimits': 'modelLimitsFeedback',
                         'quotaNotificationThreshold': 'quotaNotifyFeedback',
-                        'statePath': 'statePathFeedback'
+                        'statePath': 'statePathFeedback',
+                        'panelShowTabScrollHint': 'panelHintFeedback'
                     };
                     var fbId = feedbackMap[msg.key];
                     if (fbId) {
@@ -288,6 +460,15 @@ export function getScript(): string {
                             setTimeout(function() { cfb.style.opacity = '0'; }, 2000);
                         }
                     }
+                }
+                if (msg.command === 'stateFileActionResult') {
+                    var text = '';
+                    if (msg.ok) {
+                        text = msg.action === 'reveal' ? revealedText : openedText;
+                    } else {
+                        text = msg.message || (msg.action === 'reveal' ? revealFailedText : openFailedText);
+                    }
+                    flashFeedback('statePathFeedback', text, 3200);
                 }
             });
 
@@ -312,19 +493,7 @@ export function getScript(): string {
             }
 
             // ─── Restore & persist ALL <details> states ───
-            var detailsOpen = savedState.detailsOpen || {};
-            var allDetails = document.querySelectorAll('details[id]');
-            for (var i = 0; i < allDetails.length; i++) {
-                var d = allDetails[i];
-                if (detailsOpen[d.id]) { d.setAttribute('open', ''); }
-                d.addEventListener('toggle', function() {
-                    var s = vscode.getState() || {};
-                    var ds = s.detailsOpen || {};
-                    ds[this.id] = this.open;
-                    s.detailsOpen = ds;
-                    vscode.setState(s);
-                });
-            }
+            restoreDetailsState(savedState);
 
             // ─── Custom number spinner buttons ───
             var spinnerBtns = document.querySelectorAll('.num-spinner-btn');
@@ -394,25 +563,8 @@ export function getScript(): string {
                 });
             }
 
-            // ─── Persistent State File Helpers ───
-            var copyStatePathBtn = document.getElementById('copyStatePath');
-            if (copyStatePathBtn) {
-                copyStatePathBtn.addEventListener('click', function() {
-                    vscode.postMessage({ command: 'copyStatePath' });
-                });
-            }
-            var openStateFileBtn = document.getElementById('openStateFile');
-            if (openStateFileBtn) {
-                openStateFileBtn.addEventListener('click', function() {
-                    vscode.postMessage({ command: 'openStateFile' });
-                });
-            }
-            var revealStateFileBtn = document.getElementById('revealStateFile');
-            if (revealStateFileBtn) {
-                revealStateFileBtn.addEventListener('click', function() {
-                    vscode.postMessage({ command: 'revealStateFile' });
-                });
-            }
+            // copyStatePath / openStateFile / revealStateFile / restoreTabScrollHint:
+            // handled by body delegation below
 
             // pricing Save/Reset: handled by body delegation below
 
@@ -457,17 +609,20 @@ export function getScript(): string {
                 }, 150);
             });
             document.body.addEventListener('click', function(e) {
-                var target = e.target;
+                var target = e.target instanceof Element
+                    ? e.target
+                    : (e.target && e.target.parentElement ? e.target.parentElement : null);
+                if (!target || !target.closest) { return; }
 
                 // ── data-switch-tab links (e.g. Monitor → Profile "Details →") ──
-                var switchLink = target.closest && target.closest('[data-switch-tab]');
+                var switchLink = target.closest('[data-switch-tab]');
                 if (switchLink) {
                     switchTab(switchLink.dataset.switchTab);
                     return;
                 }
 
                 // ── Copy Raw JSON ──
-                if (target.closest && target.closest('#copyRawJson')) {
+                if (target.closest('#copyRawJson')) {
                     var cpyBtn = target.closest('#copyRawJson');
                     var rawEl = document.getElementById('rawJsonContent');
                     if (!rawEl) return;
@@ -481,7 +636,7 @@ export function getScript(): string {
                 }
 
                 // ── Pricing Save ──
-                if (target.closest && target.closest('#pricingSaveBtn')) {
+                if (target.closest('#pricingSaveBtn')) {
                     var inputs = document.querySelectorAll('.pricing-input');
                     var data = {};
                     for (var pi = 0; pi < inputs.length; pi++) {
@@ -497,19 +652,19 @@ export function getScript(): string {
                 }
 
                 // ── Pricing Reset ──
-                if (target.closest && target.closest('#pricingResetBtn')) {
+                if (target.closest('#pricingResetBtn')) {
                     vscode.postMessage({ command: 'resetPricing' });
                     return;
                 }
 
                 // ── Clear Active Tracking ──
-                if (target.closest && target.closest('#clearActiveTracking')) {
+                if (target.closest('#clearActiveTracking')) {
                     vscode.postMessage({ command: 'clearActiveTracking' });
                     return;
                 }
 
                 // ── Privacy Mask Toggle ──
-                if (target.closest && target.closest('#privacyToggle')) {
+                if (target.closest('#privacyToggle')) {
                     var pBtn = target.closest('#privacyToggle');
                     var st = vscode.getState() || {};
                     var m = !st.privacyMasked;
@@ -523,8 +678,34 @@ export function getScript(): string {
                     return;
                 }
 
+                // ── Settings: State File Actions (delegation) ──
+                if (target.closest('#copyStatePath')) {
+                    vscode.postMessage({ command: 'copyStatePath' });
+                    return;
+                }
+                if (target.closest('#openStateFile')) {
+                    setFeedback('statePathFeedback', openingText);
+                    vscode.postMessage({ command: 'openStateFile' });
+                    return;
+                }
+                if (target.closest('#revealStateFile')) {
+                    setFeedback('statePathFeedback', revealingText);
+                    vscode.postMessage({ command: 'revealStateFile' });
+                    return;
+                }
+                if (target.closest('#restoreTabScrollHint')) {
+                    setTabHintState(true);
+                    var hint = document.getElementById('tabScrollHint');
+                    if (hint) {
+                        hint.setAttribute('data-force-show', 'true');
+                        hint.hidden = false;
+                    }
+                    vscode.postMessage({ command: 'setPanelPref', key: 'panelShowTabScrollHint', value: true });
+                    return;
+                }
+
                 // ── Timeline: expand/collapse full text ──
-                var tlItem = target.closest && target.closest('[data-expand-target]');
+                var tlItem = target.closest('[data-expand-target]');
                 if (tlItem) {
                     var expandId = tlItem.getAttribute('data-expand-target');
                     if (expandId) {
@@ -543,7 +724,7 @@ export function getScript(): string {
                 }
 
                 // ── Date Cell Click: expand/collapse detail panel ──
-                var cell = target.closest && target.closest('.cal-cell.has-data');
+                var cell = target.closest('.cal-cell.has-data');
                 if (cell) {
                     var date = cell.getAttribute('data-cal-date');
                     if (!date) return;
@@ -577,13 +758,26 @@ export function getScript(): string {
                 }
 
                 // ── Clear History Button ──
-                if (target.closest && target.closest('#clearCalendarBtn')) {
+                if (target.closest('#clearCalendarBtn')) {
                     vscode.postMessage({ command: 'clearCalendarHistory' });
                     return;
                 }
 
+                // ── Chat History actions ──
+                var historyBtn = target.closest('[data-history-action]');
+                if (historyBtn) {
+                    if (historyBtn.disabled) { return; }
+                    vscode.postMessage({
+                        command: 'historyAction',
+                        action: historyBtn.getAttribute('data-history-action'),
+                        cascadeId: historyBtn.getAttribute('data-cascade-id') || '',
+                        uri: historyBtn.getAttribute('data-history-uri') || ''
+                    });
+                    return;
+                }
+
                 // ── Month Navigation Buttons ──
-                var navBtn = target.closest && target.closest('.cal-nav-btn');
+                var navBtn = target.closest('.cal-nav-btn');
                 if (navBtn) {
                     var yr = navBtn.getAttribute('data-cal-year');
                     var mo = navBtn.getAttribute('data-cal-month');
@@ -635,19 +829,7 @@ export function getScript(): string {
                     // Otherwise: details closed → page height shrinks → scrollTop read
                     // forces layout → browser adjusts scroll position → details reopen
                     // too late → scroll stuck in wrong position ("Monitor tab jumps").
-                    var ds = (vscode.getState() || {}).detailsOpen || {};
-                    var dd = document.querySelectorAll('details[id]');
-                    for (var di = 0; di < dd.length; di++) {
-                        var det = dd[di];
-                        if (ds[det.id]) { det.setAttribute('open', ''); }
-                        det.addEventListener('toggle', function() {
-                            var s = vscode.getState() || {};
-                            var dso = s.detailsOpen || {};
-                            dso[this.id] = this.open;
-                            s.detailsOpen = dso;
-                            vscode.setState(s);
-                        });
-                    }
+                    restoreDetailsState(vscode.getState() || {});
 
                     // Restore timeline expand blocks
                     var tlExpands = (vscode.getState() || {}).tlExpands || {};
@@ -709,6 +891,8 @@ export function getScript(): string {
                     // Recalculate tab slider position after content swap
                     // (tab button widths may change due to language or data updates)
                     updateTabSlider();
+                    updateTabOverflowHint();
+                    bindHistoryCatalog();
                 }
             });
         })();
