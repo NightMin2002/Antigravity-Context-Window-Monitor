@@ -71,12 +71,16 @@
 
 ### 📊 Stats / 统计
 
-- **Files changed**: 8 (7 modified + 1 new)
+- **Files changed**: 11 (10 modified + 1 new)
 - **TypeScript compile**: Zero errors
-- **Vitest**: 14 files / 123 cases — all passing
-- **New file**: `src/webview-chat-history-tab.ts` (440 lines)
-- **Net addition**: ~900+ lines across styles, script logic, and tab content
+- **Vitest**: 12 files / 117 cases — all passing
+- **New file**: `src/webview-chat-history-tab.ts` (484 lines)
+- **Net addition**: ~1754 lines across styles, script logic, and tab content
 
+### Contributors / 贡献者
+
+- Thanks to [@NightMin2002](https://github.com/NightMin2002) for the Sessions tab, UI improvements, state file hardening, and extensive code deduplication ([PR #36](https://github.com/AGI-is-going-to-arrive/Antigravity-Context-Window-Monitor/pull/36)).
+  感谢 [@NightMin2002](https://github.com/NightMin2002) 提交会话标签页、UI 改进、状态文件打开加固及大量代码去重（[PR #36](https://github.com/AGI-is-going-to-arrive/Antigravity-Context-Window-Monitor/pull/36)）。
 
 ## [1.14.2] - 2026-03-28
 
