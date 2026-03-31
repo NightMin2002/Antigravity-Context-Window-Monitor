@@ -166,6 +166,7 @@ Maintains an extra JSON-file persistence layer outside VS Code `globalState/work
 | 外部文件 / External file | Windows 默认路径 `%APPDATA%\\Antigravity Context Monitor\\state-v1.json` |
 | 双层镜像 / Mirrored storage | 读取优先外部文件；缺失时回退到 VS Code state 并迁移回文件 |
 | `globalBucket()` / `workspaceBucket()` | 封装全局级 / 工作区级键值存储 |
+| 异步防抖写入 / Async debounced writes | 自 v1.14.5 起，`_set()` 返回 `Promise`，通过 250ms 防抖 + 版本号 + waiter 机制批量落盘，内容未变直接跳过（Since v1.14.5, writes are async-debounced at 250ms with version tracking and content-change detection, significantly reducing disk I/O） |
 | 重装恢复 / Reinstall recovery | 关键数据在卸载 / 重装后仍可恢复 |
 
 ---
@@ -178,8 +179,9 @@ Persists `ContextUsage` and `GMConversationData` per conversation for the Monito
 
 | 特性 / Feature | 说明 / Description |
 |---|---|
-| `record()` | 保存最近会话的 `ContextUsage` |
-| `recordGMConversations()` | 保存每个对话的 GM 细节快照（含 calls） |
+| `record()` | 保存最近会话的 `ContextUsage`，自 v1.14.5 起通过 `sameUsageSnapshot()` 深比较跳过未变化快照（Since v1.14.5, skips unchanged snapshots via deep comparison） |
+| `recordGMConversations()` | 保存每个对话的 GM 细节快照（含 calls），自 v1.14.5 起通过 `sameGMConversationSnapshot()` 去重（Since v1.14.5, de-duplicated via snapshot comparison） |
+| `getSnapshot(cascadeId)` | 自 v1.14.5 新增，按 cascadeId 获取单个缓存快照用于轮询复用（Since v1.14.5, retrieves single cached snapshot for poll reuse） |
 | `restore()` | 恢复当前会话、会话列表和 GM 会话快照 |
 | 独立于额度归档 / Independent from quota archives | 不因 quota reset 归档而清空 Monitor 数据 |
 | 容量控制 / Trim | 最多保留 200 个对话快照，按 `lastModifiedTime` 裁剪 |

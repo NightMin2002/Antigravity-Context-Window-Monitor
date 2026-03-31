@@ -113,8 +113,17 @@ Since v1.10.1, clicking the status bar opens a WebView side panel (replacing the
 * **可折叠区域 / Collapsible Sections**: 次要数据（Plan Limits、Feature Flags、Team Config、Google AI Credits）默认折叠在 `<details>` 标签中，展开/收起状态持久化。
   Secondary data (Plan Limits, Feature Flags, Team Config, Google AI Credits) hidden by default in `<details>` elements; open/close state persists.
 
-* **实时刷新 / Live Refresh**: 轮询循环中通过 `updateMonitorPanel()` 推送最新数据到已打开的面板，保持数据实时同步。
-  The polling loop pushes latest data to the open panel via `updateMonitorPanel()`, keeping data in real-time sync.
+* **实时刷新 / Live Refresh**: 轮询循环中通过 `updateMonitorPanel()` 推送最新数据到已打开的面板，保持数据实时同步。自 v1.14.5 起，轮询复用未变化会话的缓存 `ContextUsage`（通过 `hasSameUsageInputs()` 比较 `cascadeId`/`stepCount`/`lastModifiedTime`），减少冗余 RPC 调用。GM 持久化也仅在聚合结果变化时写入。
+  The polling loop pushes latest data to the open panel via `updateMonitorPanel()`, keeping data in real-time sync. Since v1.14.5, polling reuses cached `ContextUsage` for unchanged conversations (compared via `hasSameUsageInputs()` on `cascadeId`/`stepCount`/`lastModifiedTime`), reducing redundant RPC calls. GM persistence also only writes when aggregated results change.
+
+* **滚动条隐藏 / Scrollbar Hiding (v1.14.5)**: 三层纵深防御隐藏 VS Code WebView 滚动条：① 静态 CSS `html[data-hide-scrollbar="true"]` + `!important`；② `<html>` 和 `<body>` 双重 `data-hide-scrollbar` 属性；③ 运行时 JS 动态注入 `<style id="ag-scrollbar-override">` 到 `<head>` 末尾。默认隐藏，可在设置中恢复。
+  Three-layer defense-in-depth scrollbar hiding for VS Code WebView: ① Static CSS `html[data-hide-scrollbar="true"]` with `!important`; ② dual `data-hide-scrollbar` attribute on both `<html>` and `<body>`; ③ Runtime JS injection of `<style id="ag-scrollbar-override">` appended to `<head>` tail. Hidden by default, toggleable in Settings.
+
+* **到底提示 / End-of-Content Sentinel (v1.14.5)**: 所有标签页底部追加「— 已到底 —」指示器，`IntersectionObserver` 控制淡入动画，每次增量更新后重新绑定。`buildTabContents()` 中追加确保 `innerHTML` 替换后不丢失。可在设置中独立关闭。
+  Persistent "— End of content —" indicator at the bottom of all tab panes. `IntersectionObserver` controls fade-in animation, re-bound after each incremental update. Appended in `buildTabContents()` to survive `innerHTML` swaps. Independently toggleable in Settings.
+
+* **浅色主题适配 / Light Theme Compatibility (v1.14.5)**: GM 标签文字色默认使用深饱和色系（`#2563eb`、`#16a34a` 等），通过 `body.vscode-dark` 选择器覆盖回暗色调色板。替换 `rgba(255,255,255,0.xx)` 为 `var(--color-surface)` / `var(--color-border)`。VS Code 主题检测从 `@media (prefers-color-scheme)` 改为 `body.vscode-dark`。
+  GM tag text colors now default to dark-saturated variants, with `body.vscode-dark` overrides restoring the original pastel palette. Replaced `rgba(255,255,255,0.xx)` with `var(--color-surface)` / `var(--color-border)`. VS Code theme detection changed from `@media (prefers-color-scheme)` to `body.vscode-dark`.
 
 ## 🧠 6. Model Activity Monitor / 模型活动监控
 
@@ -130,8 +139,8 @@ Since v1.11.2, the plugin tracks real-time activity data per model (reasoning ca
 * **暖机与增量更新 / Warm-up & Incremental**: 首次启动时处理所有对话的全部步骤（warm-up）以获取完整周期统计。之后仅增量处理新步骤。当 LS API 无法返回更多步骤（~500 步窗口限制）时，通过 `stepCount` 差值归因到每个对话的主模型（`dominantModel`）。
   On first launch, processes all steps across all conversations (warm-up) for complete cycle stats. Subsequently only processes new steps incrementally. When the LS API can't return more steps (~500 step window), delta is attributed to each trajectory's dominant model (`dominantModel`).
 
-* **配额追踪与自动归档 / Quota Tracking & Auto-Archive**: `QuotaTracker` 监测配额变化，通过两种机制检测重置：① `remainingFraction` 从低值跳回 1.0；② `resetTime` 到期或发生跳变（前移 > 30min）。`processUpdate()` 循环结束后将本批次所有重置模型 ID 收集到 `resetModels[]`，一次性触发 `onQuotaReset(resetModels)` 回调。`endTime` 使用 API 返回的官方 `resetTime`（而非本地检测时间）。`ActivityTracker.archiveAndReset(modelIds)` 归档时包含 5 分钟防抖逻辑（短间隔内合并）和 `triggeredBy` 来源追踪，保留 trajectory baselines 避免重复计数。
-  `QuotaTracker` monitors quota changes via two mechanisms: ① `remainingFraction` dropping then jumping back to 1.0; ② `resetTime` expiring or jumping forward (> 30min shift). `processUpdate()` collects all reset model IDs into `resetModels[]` after the loop, firing `onQuotaReset(resetModels)` once. Session `endTime` uses the official API `resetTime`. `ActivityTracker.archiveAndReset(modelIds)` includes 5-minute debounce (merge within short intervals) and `triggeredBy` source tracking, while preserving trajectory baselines.
+* **配额追踪与自动归档 / Quota Tracking & Auto-Archive**: `QuotaTracker` 监测配额变化，通过两种机制检测重置：① `remainingFraction` 从低值跳回 1.0；② `resetTime` 到期或发生跳变（前移 > 30min）。`processUpdate()` 循环结束后将本批次所有重置模型 ID 收集到 `resetModels[]`，一次性触发 `onQuotaReset(resetModels)` 回调。`endTime` 使用 API 返回的官方 `resetTime`（而非本地检测时间）。`ActivityTracker.archiveAndReset(modelIds)` 归档时包含 5 分钟防抖逻辑（短间隔内合并）和 `triggeredBy` 来源追踪，保留 trajectory baselines 避免重复计数。自 v1.14.5 起，两个 idle→tracking 入口路径均添加**过期 resetTime 防护**：若 API 返回的 `resetTime` 已过期（`resetTime <= now`），模型保持 idle 直到 API 返回新周期的未来 `resetTime`，防止幽灵会话死循环。
+  `QuotaTracker` monitors quota changes via two mechanisms: ① `remainingFraction` dropping then jumping back to 1.0; ② `resetTime` expiring or jumping forward (> 30min shift). `processUpdate()` collects all reset model IDs into `resetModels[]` after the loop, firing `onQuotaReset(resetModels)` once. Session `endTime` uses the official API `resetTime`. `ActivityTracker.archiveAndReset(modelIds)` includes 5-minute debounce (merge within short intervals) and `triggeredBy` source tracking, while preserving trajectory baselines. Since v1.14.5, both idle→tracking entry paths include a **stale-resetTime guard**: if the API-reported `resetTime` is already in the past (`resetTime <= now`), the model stays idle until the API provides a future `resetTime` for the new cycle, preventing ghost-session infinite loops.
 
 * **三层即时使用检测（v1.11.4）/ Three-Layer Instant Usage Detection (v1.11.4)**:
 
@@ -152,8 +161,8 @@ Since v1.11.2, the plugin tracks real-time activity data per model (reasoning ca
   **验证 / Verification**: 经 5 小时完整额度周期实机验证：Claude 组（Sonnet/Opus/GPT-OSS）通过 Layer 3 检测（fraction = 80%）→ 回溯到 09:23 → 14:22 重置归档（4h59m）✅；Flash 通过 Layer 1 检测（`elapsedInCycle = 1h01m`）→ 回溯到 10:46 → 15:46 重置归档（4h59m）✅。
   Verified over a full 5-hour quota cycle: Claude group (Sonnet/Opus/GPT-OSS) detected via Layer 3 (fraction=80%) → backdated to 09:23 → archived at 14:22 (4h59m) ✅; Flash detected via Layer 1 (`elapsedInCycle=1h01m`) → backdated to 10:46 → archived at 15:46 (4h59m) ✅.
 
-* **持久化 / Persistence**: 活动数据通过 `globalState` 序列化存储，30 秒节流写入。恢复时强制 warm-up 重校准实际计数。
-  Activity data persisted via `globalState` serialization, throttled to 30s writes. On restore, forces warm-up to recalibrate actual counts.
+* **持久化 / Persistence**: 活动数据通过 `globalState` 序列化存储，30 秒节流写入（自 v1.14.5 起仅在 `activityChanged`/`gmChanged`/`timelineChanged` 时触发）。恢复时强制 warm-up 重校准实际计数。
+  Activity data persisted via `globalState` serialization, throttled to 30s writes (since v1.14.5, only triggered when `activityChanged`/`gmChanged`/`timelineChanged`). On restore, forces warm-up to recalibrate actual counts.
 
 * **GM 数据持久化缓存 / GM Data Persistence Cache**: `ActivityTracker` 内部维护 `_gmTotals`（全局聚合 inputTokens/outputTokens/cacheRead/credits/retries）和 `_gmModelBreakdown`（按模型分组的 GM 详细数据），由 `injectGMData()` 写入，`getSummary()` 始终返回。自 v1.13.6 起，Activity 处理已合并至 `pollContextUsage()` 统一循环，复用已获取的 trajectory 缓存，消除独立 RPC 调用和 GM 数据闪烁。`serialize()`/`restore()` 完整持久化这些缓存。
   `ActivityTracker` maintains internal `_gmTotals` (global aggregate inputTokens/outputTokens/cacheRead/credits/retries) and `_gmModelBreakdown` (per-model GM breakdown), written by `injectGMData()` and always returned by `getSummary()`. Since v1.13.6, activity processing is merged into the unified `pollContextUsage()` loop, reusing fetched trajectory cache and eliminating independent RPC calls and GM data flickering. Both fields are fully persisted via `serialize()`/`restore()`.
