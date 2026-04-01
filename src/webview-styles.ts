@@ -2090,11 +2090,67 @@ export function getStyles(): string {
         .tab-btn[data-color="yellow"] { --tab-c: 250, 204, 21; }
         .tab-btn[data-color="gray"]   { --tab-c: 148, 163, 184; }
 
+        .tab-bar-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-top: var(--space-2);
+            position: relative;
+        }
+
+        .tab-arrow {
+            appearance: none;
+            background: var(--color-surface);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: var(--radius-full, 9999px);
+            color: var(--color-text-dim);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            flex-shrink: 0;
+            padding: 0;
+            opacity: 1;
+            pointer-events: auto;
+            transition: color 0.2s cubic-bezier(.4,0,.2,1), background 0.2s cubic-bezier(.4,0,.2,1), border-color 0.2s cubic-bezier(.4,0,.2,1), transform 0.15s cubic-bezier(.4,0,.2,1), opacity 0.25s cubic-bezier(.4,0,.2,1);
+            z-index: 2;
+        }
+        /* Fade-out state: keep layout space, disable interaction */
+        .tab-arrow.is-faded {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .tab-arrow:focus-visible {
+            outline: none;
+            box-shadow: 0 0 0 2px var(--color-info);
+        }
+        .tab-arrow:active { transform: scale(0.93); }
+        @media (hover: hover) {
+            .tab-arrow:hover {
+                color: var(--color-text);
+                background: rgba(255,255,255,0.08);
+                border-color: rgba(255,255,255,0.15);
+            }
+        }
+        body.vscode-light .tab-arrow {
+            border-color: rgba(0,0,0,0.1);
+            background: rgba(255,255,255,0.7);
+        }
+        body.vscode-light .tab-arrow:hover {
+            background: rgba(0,0,0,0.05);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .tab-arrow { transition: none; }
+        }
+
+
         .tab-bar {
             display: flex;
             gap: 4px;
             margin-bottom: 0;
-            margin-top: var(--space-2);
             background: var(--color-surface);
             border-radius: var(--radius-full, 9999px);
             padding: 4px;
@@ -2103,7 +2159,10 @@ export function getStyles(): string {
             overflow-y: hidden;
             scrollbar-width: none;
             -ms-overflow-style: none;
+            flex: 1;
+            min-width: 0;
         }
+
 
         /* Hide scrollbar on tab-bar */
         .tab-bar::-webkit-scrollbar { display: none; }
@@ -2622,28 +2681,55 @@ export function getStyles(): string {
             display: flex;
             flex-direction: column;
             gap: var(--space-2);
-            padding: var(--space-3);
-            border: 1px solid rgba(255,255,255,0.06);
+            padding: var(--space-3) var(--space-4, 20px);
+            border: 1px solid rgba(255,255,255,0.07);
             border-radius: var(--radius-lg);
             background:
-                linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.015));
-            transition: border-color 0.2s cubic-bezier(.4,0,.2,1), box-shadow 0.2s cubic-bezier(.4,0,.2,1), transform 0.18s cubic-bezier(.4,0,.2,1);
+                linear-gradient(145deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.015) 100%);
+            transition: border-color 0.25s cubic-bezier(.4,0,.2,1), box-shadow 0.25s cubic-bezier(.4,0,.2,1), transform 0.2s cubic-bezier(.4,0,.2,1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* ── Subtle top-left glow for depth ── */
+        .history-row::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06) 30%, rgba(255,255,255,0.02) 70%, transparent);
+            border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+            pointer-events: none;
         }
 
         .history-row.is-current-session {
-            border-color: rgba(74, 222, 128, 0.22);
+            border-color: rgba(74, 222, 128, 0.25);
+            border-left: 3px solid rgba(74, 222, 128, 0.6);
             background:
-                linear-gradient(135deg, rgba(74, 222, 128, 0.06), transparent 45%),
-                linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.015));
+                linear-gradient(135deg, rgba(74, 222, 128, 0.07), transparent 40%),
+                linear-gradient(145deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.015) 100%);
+        }
+
+        .history-row.is-current-session::before {
+            background: linear-gradient(90deg, rgba(74, 222, 128, 0.35), rgba(74, 222, 128, 0.08) 50%, transparent);
         }
 
         @media (hover: hover) {
             .history-row:hover {
-                border-color: rgba(255,255,255,0.15);
-                box-shadow: 0 6px 18px rgba(0,0,0,0.12);
-                transform: translateY(-1px);
+                border-color: rgba(255,255,255,0.18);
+                box-shadow:
+                    0 4px 12px rgba(0,0,0,0.12),
+                    0 12px 28px rgba(0,0,0,0.08);
+                transform: translateY(-2px);
+            }
+            .history-row.is-current-session:hover {
+                border-color: rgba(74, 222, 128, 0.35);
             }
         }
+
+
+
 
         .history-row-main {
             min-width: 0;
@@ -2659,20 +2745,21 @@ export function getStyles(): string {
         .history-row-title-wrap {
             display: flex;
             flex-direction: column;
-            gap: 1px;
+            gap: 2px;
             min-width: 0;
         }
 
         .history-row-title {
-            font-size: 0.92em;
+            font-size: 0.94em;
             font-weight: 700;
             color: var(--color-text);
-            line-height: 1.35;
+            line-height: 1.4;
             word-break: break-word;
             display: -webkit-box;
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
             overflow: hidden;
+            letter-spacing: 0.01em;
         }
 
         .history-row-subtitle {
@@ -2681,13 +2768,14 @@ export function getStyles(): string {
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            opacity: 0.8;
         }
 
         .history-row-badges {
             display: flex;
             flex-wrap: wrap;
             justify-content: flex-end;
-            gap: 4px;
+            gap: 5px;
             flex-shrink: 0;
         }
 
@@ -2696,58 +2784,75 @@ export function getStyles(): string {
         .history-storage-row {
             display: flex;
             flex-wrap: wrap;
-            gap: 4px;
+            gap: 5px;
             margin-top: var(--space-1);
         }
 
         .history-row-foot {
             gap: var(--space-2);
+            padding-top: var(--space-1);
+            border-top: 1px solid rgba(255,255,255,0.04);
         }
 
         /* ── Inline credit/model display (compact) ── */
         .history-spotlight-grid {
             display: flex;
             gap: var(--space-2);
-            margin-top: var(--space-1);
+            margin-top: var(--space-2);
         }
 
         .history-spotlight-card {
             flex: 1 1 0;
-            border: 1px solid rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.07);
             border-radius: var(--radius-md);
-            padding: var(--space-2);
+            padding: var(--space-2) var(--space-3);
             background: rgba(255,255,255,0.025);
+            transition: border-color 0.2s cubic-bezier(.4,0,.2,1), background 0.2s cubic-bezier(.4,0,.2,1);
         }
 
         .history-spotlight-card.is-credit {
             background:
-                linear-gradient(135deg, rgba(248, 113, 113, 0.10), transparent 55%),
+                linear-gradient(135deg, rgba(248, 113, 113, 0.12), transparent 55%),
                 rgba(255,255,255,0.025);
-            border-color: rgba(248, 113, 113, 0.12);
+            border-color: rgba(248, 113, 113, 0.15);
         }
 
         .history-spotlight-card.is-model {
             background:
-                linear-gradient(135deg, rgba(96, 165, 250, 0.10), transparent 55%),
+                linear-gradient(135deg, rgba(96, 165, 250, 0.12), transparent 55%),
                 rgba(255,255,255,0.025);
-            border-color: rgba(96, 165, 250, 0.12);
+            border-color: rgba(96, 165, 250, 0.15);
         }
 
         .history-spotlight-card.is-muted {
-            opacity: 0.5;
+            opacity: 0.45;
+        }
+
+        @media (hover: hover) {
+            .history-spotlight-card:hover {
+                border-color: rgba(255,255,255,0.15);
+                background: rgba(255,255,255,0.04);
+            }
+            .history-spotlight-card.is-credit:hover {
+                border-color: rgba(248, 113, 113, 0.25);
+            }
+            .history-spotlight-card.is-model:hover {
+                border-color: rgba(96, 165, 250, 0.25);
+            }
         }
 
         .history-spotlight-label {
             color: var(--color-text-dim);
             font-size: 0.68em;
             text-transform: uppercase;
-            letter-spacing: 0.06em;
+            letter-spacing: 0.08em;
+            font-weight: 600;
         }
 
         .history-spotlight-value {
-            margin-top: 2px;
+            margin-top: 3px;
             color: var(--color-text);
-            font-size: 0.92em;
+            font-size: 0.94em;
             font-weight: 700;
             line-height: 1.3;
         }
@@ -2764,6 +2869,7 @@ export function getStyles(): string {
 
         .history-foot-item.is-gm {
             color: #fcd34d;
+            font-weight: 600;
         }
 
         .history-row-actions {
@@ -2771,26 +2877,26 @@ export function getStyles(): string {
             flex-wrap: wrap;
             gap: var(--space-1);
             margin-top: auto;
-            padding-top: var(--space-1);
-            border-top: 1px solid rgba(255,255,255,0.04);
+            padding-top: var(--space-2);
+            border-top: 1px solid rgba(255,255,255,0.05);
         }
 
         .history-action-btn {
             appearance: none;
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: var(--radius-sm);
-            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.09);
+            border-radius: var(--radius-md);
+            background: rgba(255,255,255,0.035);
             color: var(--color-text-dim);
             font: inherit;
             font-size: 0.72em;
             font-weight: 600;
-            padding: 5px 10px;
+            padding: 6px 12px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: 4px;
+            gap: 5px;
             cursor: pointer;
-            transition: border-color 0.2s cubic-bezier(.4,0,.2,1), background-color 0.2s cubic-bezier(.4,0,.2,1), color 0.2s cubic-bezier(.4,0,.2,1), transform 0.15s cubic-bezier(.4,0,.2,1);
+            transition: border-color 0.2s cubic-bezier(.4,0,.2,1), background-color 0.2s cubic-bezier(.4,0,.2,1), color 0.2s cubic-bezier(.4,0,.2,1), transform 0.15s cubic-bezier(.4,0,.2,1), box-shadow 0.2s cubic-bezier(.4,0,.2,1);
             -webkit-tap-highlight-color: transparent;
         }
 
@@ -2801,8 +2907,8 @@ export function getStyles(): string {
 
         .history-action-btn.is-accent {
             color: #67e8f9;
-            border-color: rgba(34, 211, 238, 0.18);
-            background: rgba(34, 211, 238, 0.06);
+            border-color: rgba(34, 211, 238, 0.20);
+            background: rgba(34, 211, 238, 0.08);
         }
 
         .history-action-btn:focus {
@@ -2810,7 +2916,7 @@ export function getStyles(): string {
         }
 
         .history-action-btn:focus-visible {
-            box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.18);
+            box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.22);
         }
 
         .history-action-btn:active {
@@ -2819,26 +2925,87 @@ export function getStyles(): string {
 
         .history-action-btn:disabled {
             cursor: not-allowed;
-            opacity: 0.4;
+            opacity: 0.35;
             background: transparent;
         }
 
         @media (hover: hover) {
             .history-action-btn:hover {
                 color: var(--color-text);
-                border-color: rgba(255,255,255,0.18);
-                background: rgba(255,255,255,0.06);
+                border-color: rgba(255,255,255,0.20);
+                background: rgba(255,255,255,0.07);
+                transform: translateY(-1px);
+                box-shadow: 0 2px 6px rgba(0,0,0,0.1);
             }
             .history-action-btn.is-accent:hover {
-                border-color: rgba(34, 211, 238, 0.35);
-                background: rgba(34, 211, 238, 0.12);
+                border-color: rgba(34, 211, 238, 0.38);
+                background: rgba(34, 211, 238, 0.14);
             }
             .history-action-btn:disabled:hover {
                 color: var(--color-text-dim);
                 border-color: rgba(255,255,255,0.08);
                 background: transparent;
+                transform: none;
+                box-shadow: none;
             }
         }
+
+        /* ── Light Theme Overrides ── */
+        body.vscode-light .history-row {
+            border-color: rgba(0,0,0,0.08);
+            background: linear-gradient(145deg, rgba(255,255,255,0.7), rgba(248,250,252,0.5));
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+        body.vscode-light .history-row::before {
+            background: linear-gradient(90deg, transparent, rgba(0,0,0,0.04) 30%, rgba(0,0,0,0.01) 70%, transparent);
+        }
+        body.vscode-light .history-row.is-current-session {
+            border-color: rgba(22, 163, 74, 0.2);
+            border-left-color: rgba(22, 163, 74, 0.5);
+            background: linear-gradient(135deg, rgba(22, 163, 74, 0.05), transparent 40%), linear-gradient(145deg, rgba(255,255,255,0.7), rgba(248,250,252,0.5));
+        }
+        body.vscode-light .history-row.is-current-session::before {
+            background: linear-gradient(90deg, rgba(22, 163, 74, 0.25), rgba(22, 163, 74, 0.06) 50%, transparent);
+        }
+        body.vscode-light .history-group-chip,
+        body.vscode-light .history-storage-badge,
+        body.vscode-light .history-badge,
+        body.vscode-light .history-meta-chip {
+            border-color: rgba(0,0,0,0.08);
+            background: rgba(0,0,0,0.035);
+        }
+        body.vscode-light .history-spotlight-card {
+            border-color: rgba(0,0,0,0.07);
+            background: rgba(0,0,0,0.02);
+        }
+        body.vscode-light .history-spotlight-card.is-credit {
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.06), transparent 55%), rgba(0,0,0,0.02);
+            border-color: rgba(220, 38, 38, 0.12);
+        }
+        body.vscode-light .history-spotlight-card.is-model {
+            background: linear-gradient(135deg, rgba(37, 99, 235, 0.06), transparent 55%), rgba(0,0,0,0.02);
+            border-color: rgba(37, 99, 235, 0.12);
+        }
+        body.vscode-light .history-action-btn {
+            border-color: rgba(0,0,0,0.1);
+            background: rgba(0,0,0,0.025);
+        }
+        body.vscode-light .history-action-btn.is-accent {
+            color: #0891b2;
+            border-color: rgba(8, 145, 178, 0.2);
+            background: rgba(8, 145, 178, 0.06);
+        }
+        body.vscode-light .history-row-foot {
+            border-top-color: rgba(0,0,0,0.05);
+        }
+        body.vscode-light .history-row-actions {
+            border-top-color: rgba(0,0,0,0.06);
+        }
+        body.vscode-light .history-badge.is-workspace { color: #0891b2; border-color: rgba(8,145,178,0.2); background: rgba(8,145,178,0.08); }
+        body.vscode-light .history-badge.is-repo { color: #7c3aed; border-color: rgba(124,58,237,0.2); background: rgba(124,58,237,0.08); }
+        body.vscode-light .history-badge.is-current { color: #16a34a; border-color: rgba(22,163,74,0.2); background: rgba(22,163,74,0.08); }
+        body.vscode-light .history-badge.is-running { color: #d97706; border-color: rgba(217,119,6,0.2); background: rgba(217,119,6,0.08); }
+        body.vscode-light .history-foot-item.is-gm { color: #d97706; }
 
         @media (max-width: 920px) {
             .history-shortcuts-grid,
@@ -2878,6 +3045,8 @@ export function getStyles(): string {
                 transition: none;
             }
         }
+
+
 
         /* ─── Toggle Switch ────────────── */
         .toggle-group {

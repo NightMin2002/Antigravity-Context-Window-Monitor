@@ -177,6 +177,24 @@ export function buildSettingsContent(
             </div>
         </section>
 
+        <section class="stg-card" data-accent="quota">
+            <div class="stg-header">
+                <span class="stg-header-icon">${ICON.timeline}</span>
+                <h2>${tBi('Quota Timeline Tracking', '额度时间线追踪')}</h2>
+            </div>
+            <p class="raw-desc">${tBi(
+                'Tracks quota consumption against the official resetTime. Lightweight and always-on by default. Disable only if you never use the Quota Tracking tab.',
+                '基于官方 resetTime 追踪额度消耗。默认始终开启，性能开销极小。仅在完全不使用「额度追踪」标签页时才需关闭。',
+            )}</p>
+            <div class="toggle-group">
+                <label class="toggle-row">
+                    <input type="checkbox" id="toggleQuotaTracking" class="toggle-cb" ${tracker?.isEnabled() ? 'checked' : ''} />
+                    <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                    <span>${tBi('Enable quota timeline tracking', '启用额度时间线追踪')}</span>
+                </label>
+            </div>
+        </section>
+
         <section class="stg-card" data-accent="poll">
             <div class="stg-header">
                 <span class="stg-header-icon">${ICON.clock}</span>

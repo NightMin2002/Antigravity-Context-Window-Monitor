@@ -101,7 +101,7 @@ export class QuotaTracker {
     private modelStates = new Map<string, ModelState>();
     private history: QuotaSession[] = [];
     private maxHistory: number = DEFAULT_MAX_HISTORY;
-    private enabled: boolean = false;
+    private enabled: boolean = true;
     private context: vscode.ExtensionContext;
     private state: StateBucket;
     private _onQuotaReset?: (modelIds: string[]) => void;
@@ -615,7 +615,7 @@ export class QuotaTracker {
     private restore(): void {
         this.history = this.state.get<QuotaSession[]>(STORAGE_KEY, []);
         this.maxHistory = this.state.get<number>(MAX_HISTORY_KEY, DEFAULT_MAX_HISTORY);
-        this.enabled = this.state.get<boolean>(ENABLED_KEY, false);
+        this.enabled = this.state.get<boolean>(ENABLED_KEY, true);
 
         const activeState = this.state.get<Record<string, ModelState> | undefined>(ACTIVE_KEY, undefined);
         if (activeState) {

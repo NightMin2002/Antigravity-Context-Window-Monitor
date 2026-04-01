@@ -1,6 +1,6 @@
 // ─── Quota Tracking Tab Content Builder ──────────────────────────────────────
-// Builds HTML for the "Quota Tracking" tab: quota tracking toggle, active
-// sessions with progress bars, and completed session history with summary stats.
+// Builds HTML for the "Quota Tracking" tab: active sessions with progress bars,
+// and completed session history with summary stats.
 // Archived history and usage history have been migrated to Calendar.
 
 import { tBi } from './i18n';
@@ -24,33 +24,28 @@ export function buildHistoryHtml(tracker?: QuotaTracker): string {
             </section>`;
     }
 
-    const isEnabled = tracker.isEnabled();
     const parts: string[] = [];
 
-    // ── Enable/Disable Toggle ──
-    parts.push(`
-        <section class="card">
-            <h2>${ICON.timeline} ${tBi('Quota Timeline', '额度时间线')}</h2>
-            <div class="toggle-group">
-                <label class="toggle-row" id="quotaTrackingToggle">
-                    <input type="checkbox" class="toggle-cb" ${isEnabled ? 'checked' : ''} />
-                    <span class="toggle-track"><span class="toggle-thumb"></span></span>
-                    <span>${tBi('Enable quota consumption tracking', '启用额度消耗追踪')}</span>
-                </label>
-            </div>
-            <p class="raw-desc">${tBi(
-                'Tracks quota usage against the official resetTime. No fixed 5-hour assumption. Default off.',
-                '基于官方 resetTime 追踪额度使用，不再假设固定 5 小时周期。默认关闭。',
-            )}</p>
-        </section>`);
-
-    if (!isEnabled) {
+    // ── Disabled State ──
+    if (!tracker.isEnabled()) {
+        parts.push(`
+            <section class="card empty">
+                <h2>${ICON.timeline} ${tBi('Quota Timeline', '额度时间线')}</h2>
+                <p class="empty-desc">${tBi(
+                    'Quota timeline tracking is currently disabled. Enable it in the Settings tab to start monitoring quota consumption.',
+                    '额度时间线追踪已关闭。请在「设置」标签页中启用以开始监控额度消耗。',
+                )}</p>
+                <button class="action-btn" id="goToSettingsFromQuota" style="margin-top:var(--space-2)">
+                    ${ICON.shield} ${tBi('Go to Settings', '前往设置')}
+                </button>
+            </section>`);
         return parts.join('');
     }
 
     const activeSessions = tracker.getActiveSessions();
     const history = tracker.getHistory();
     const maxHistory = tracker.getMaxHistory();
+
 
     // ── Active Tracking ──
     if (activeSessions.length > 0) {
@@ -209,7 +204,7 @@ function buildSessionCard(session: QuotaSession, isActive: boolean): string {
                 </div>
             </div>` : '';
 
-        const isFirst = shouldCollapse ? idx === 0 : idx === 0;
+        const isFirst = idx === 0;
         const isLast = (shouldCollapse ? idx === visibleSnapshots.length - 1 : idx === session.snapshots.length - 1) && session.completed;
 
         return `${hiddenMarkerHtml}

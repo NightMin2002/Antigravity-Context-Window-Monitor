@@ -1,6 +1,40 @@
 # 变更日志 / Changelog
 
+## [1.14.6] - 2026-04-01
+
+### ✨ Added / 新增
+
+- **Calendar Monthly Summary Toggle / 日历月度总计切换**: Added segmented toggle buttons (Monthly / All-Time) to the calendar summary section. Users can now instantly see current month's consumption breakdown alongside all-time stats. Default view is monthly. Empty-month states show friendly guidance. Toggle state survives poll refreshes via event delegation.
+  日历汇总区域新增分段切换按钮（月度 / 全部），用户可快速查看本月消耗明细和历史总计。默认显示月度。空月份显示友好提示。通过事件委托机制在自动刷新后保持切换状态。
+
+- **Tab Arrow Navigation / Tab 栏箭头导航**: Added left/right scroll arrow buttons flanking the tab bar. Arrows intelligently show/hide based on overflow state: no overflow = both faded, scrolled to start = left faded, scrolled to end = right faded, middle = both visible. Uses `opacity` + `pointer-events` fade transition (0.25s) instead of `display: none` to **preserve layout space and prevent accidental tab clicks** when an arrow disappears at scroll endpoints. Click scrolls 150px with smooth behavior.
+  Tab 栏两端新增左右箭头滚动按钮，根据溢出状态智能显隐。使用 `opacity` + `pointer-events` 渐隐过渡（0.25s）而非 `display: none`，**保留占位空间防止箭头消失时误触旁边的 Tab**。点击平滑滚动 150px。
+
+- **Quota Tracking Disabled State Feedback / 额度追踪关闭状态反馈**: When quota timeline tracking is disabled in Settings, the Quota Tracking tab now shows a clear "tracking is paused" message with a "Go to Settings" button that navigates directly to the Settings tab, instead of the misleading "No active quota consumption detected" empty state.
+  关闭额度时间线追踪后，额度追踪标签页现在显示明确的「追踪已关闭」提示，并提供「前往设置」按钮一键跳转至设置页，替代此前误导性的「未检测到活跃额度消耗」空状态。
+
+### ✨ Improved / 改进
+
+- **Quota Tracking Toggle Migration / 额度追踪开关迁移**: Moved the quota timeline tracking toggle from the Quota Tracking tab to the Settings tab. Root cause: the polling mechanism (`innerHTML` replacement) destroyed the toggle's event listeners on every refresh cycle. The Settings tab is not subject to incremental DOM updates, ensuring stable state persistence. Default changed to enabled (`true`) since performance overhead is negligible.
+  将额度时间线追踪开关从额度追踪标签页迁移至设置标签页。根因：轮询机制（`innerHTML` 替换）每次刷新都销毁 toggle 的事件监听。设置页不参与增量 DOM 更新，确保状态持久化稳定。默认值改为启用（`true`），性能开销极小。
+
+- **Session Card Visual Overhaul / 会话卡片视觉升级**: Enhanced session history cards with modern aesthetics: `::before` pseudo-element top glow line for depth, 3px green left accent border for current sessions, enhanced multi-layer hover shadows (`4px+12px`), `translateY(-2px)` hover lift, spotlight card hover interactions, upgraded action buttons (`radius-md` + hover float + box-shadow), and comprehensive `body.vscode-light` theme overrides for all card components.
+  会话历史卡片视觉全面升级：顶部柔光线增强层次感、当前会话左侧绿色强调边框、多层 hover 阴影、spotlight 卡片 hover 互动、操作按钮升级圆角 + 微浮效果，以及完整的浅色主题适配。
+
+### 🐛 Fixed / 修复
+
+- **Session Card Animation Re-Triggering / 会话卡片动画反复触发**: Removed the `historyRowSlideIn` staggered entry animation that re-triggered on every poll refresh. Root cause: CSS animations always fire on newly-inserted DOM elements, and the polling architecture replaces `innerHTML` entirely — creating new elements each cycle. This is architecturally incompatible with CSS `@keyframes` animations.
+  移除了每次轮询刷新时反复触发的 `historyRowSlideIn` 交错入场动画。根因：CSS 动画在新插入的 DOM 元素上必然重新触发，而轮询架构每个周期都通过 `innerHTML` 替换创建全新元素，与 CSS `@keyframes` 动画在架构上不兼容。
+
+### 📊 Stats / 统计
+
+- **Files changed**: 6 (webview-history-tab.ts, webview-settings-tab.ts, webview-script.ts, webview-styles.ts, webview-panel.ts, quota-tracker.ts)
+- **TypeScript compile**: Zero errors
+
+---
+
 ## [1.14.5] - 2026-04-01
+
 
 ### 🐛 Fixed / 修复
 

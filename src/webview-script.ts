@@ -106,6 +106,8 @@ export function getScript(): string {
 
                 updateTabSlider();
                 updateTabOverflowHint();
+                updateTabArrows();
+
 
                 // Restore incoming tab scroll position
                 tabScrolls = ts; // Update local ref
@@ -120,11 +122,13 @@ export function getScript(): string {
             if (tabBarEl) {
                 tabBarEl.addEventListener('scroll', function() {
                     updateTabOverflowHint();
+                    updateTabArrows();
                 }, { passive: true });
             }
             window.addEventListener('resize', function() {
                 updateTabSlider();
                 updateTabOverflowHint();
+                updateTabArrows();
             });
             var dismissTabHintBtn = document.getElementById('dismissTabScrollHint');
             if (dismissTabHintBtn) {
@@ -136,6 +140,42 @@ export function getScript(): string {
                     vscode.postMessage({ command: 'setPanelPref', key: 'panelShowTabScrollHint', value: false });
                 });
             }
+
+            // ─── Tab Arrow Navigation ───
+            function updateTabArrows() {
+                var bar = document.querySelector('.tab-bar');
+                var arrowL = document.getElementById('tabArrowLeft');
+                var arrowR = document.getElementById('tabArrowRight');
+                if (!bar || !arrowL || !arrowR) return;
+                var overflowX = Math.ceil(bar.scrollWidth - bar.clientWidth);
+                if (overflowX <= 4) {
+                    // No overflow — fade both arrows out (keep layout space)
+                    arrowL.classList.add('is-faded');
+                    arrowR.classList.add('is-faded');
+                    return;
+                }
+                // Fade based on scroll position
+                arrowL.classList.toggle('is-faded', bar.scrollLeft <= 4);
+                arrowR.classList.toggle('is-faded', bar.scrollLeft >= overflowX - 4);
+            }
+
+            requestAnimationFrame(function() { updateTabArrows(); });
+
+            var tabArrowL = document.getElementById('tabArrowLeft');
+            var tabArrowR = document.getElementById('tabArrowRight');
+            if (tabArrowL) {
+                tabArrowL.addEventListener('click', function() {
+                    var bar = document.querySelector('.tab-bar');
+                    if (bar) { bar.scrollBy({ left: -150, behavior: 'smooth' }); }
+                });
+            }
+            if (tabArrowR) {
+                tabArrowR.addEventListener('click', function() {
+                    var bar = document.querySelector('.tab-bar');
+                    if (bar) { bar.scrollBy({ left: 150, behavior: 'smooth' }); }
+                });
+            }
+
 
             // ─── Calendar: Restore expanded date after refresh ───
             var calSelectedDate = savedState.calendarSelectedDate || '';
@@ -561,16 +601,14 @@ export function getScript(): string {
                 });
             }
 
-            // ─── Quota Tracking Toggle ───
-            var trackingToggle = document.getElementById('quotaTrackingToggle');
-            if (trackingToggle) {
-                var cb = trackingToggle.querySelector('input[type="checkbox"]');
-                if (cb) {
-                    cb.addEventListener('change', function() {
-                        vscode.postMessage({ command: 'toggleQuotaTracking' });
-                    });
-                }
+            // ─── Quota Timeline Tracking Toggle (Settings tab) ───
+            var quotaTrackingCb = document.getElementById('toggleQuotaTracking');
+            if (quotaTrackingCb) {
+                quotaTrackingCb.addEventListener('change', function() {
+                    vscode.postMessage({ command: 'toggleQuotaTracking' });
+                });
             }
+
 
             // clearActiveTracking: handled by body delegation below
 
@@ -807,6 +845,13 @@ export function getScript(): string {
                     return;
                 }
 
+                // ── Go to Settings from Quota Tracking disabled state ──
+                if (target.closest('#goToSettingsFromQuota')) {
+                    switchTab('settings');
+                    return;
+                }
+
+
                 // ── Chat History actions ──
                 var historyBtn = target.closest('[data-history-action]');
                 if (historyBtn) {
@@ -817,6 +862,30 @@ export function getScript(): string {
                         cascadeId: historyBtn.getAttribute('data-cascade-id') || '',
                         uri: historyBtn.getAttribute('data-history-uri') || ''
                     });
+                    return;
+                }
+
+                // ── Calendar Summary Toggle (Monthly / All-Time) ──
+                var summaryBtn = target.closest('.cal-summary-btn');
+                if (summaryBtn) {
+                    var mode = summaryBtn.getAttribute('data-summary-mode');
+                    var monthlyPane = document.getElementById('calSummaryMonthly');
+                    var alltimePane = document.getElementById('calSummaryAllTime');
+                    var toggleWrap = summaryBtn.closest('.cal-summary-toggle');
+                    if (toggleWrap) {
+                        var btns = toggleWrap.querySelectorAll('.cal-summary-btn');
+                        for (var sb = 0; sb < btns.length; sb++) { btns[sb].classList.remove('active'); }
+                        summaryBtn.classList.add('active');
+                    }
+                    if (monthlyPane && alltimePane) {
+                        if (mode === 'alltime') {
+                            monthlyPane.style.display = 'none';
+                            alltimePane.style.display = 'block';
+                        } else {
+                            monthlyPane.style.display = 'block';
+                            alltimePane.style.display = 'none';
+                        }
+                    }
                     return;
                 }
 

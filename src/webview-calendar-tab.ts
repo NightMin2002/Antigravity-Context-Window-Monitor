@@ -88,7 +88,24 @@ export function buildCalendarTabContent(store?: DailyStore, year?: number, month
 
     // ── Stats Summary (top position for quick overview) ──
     if (store.totalDays > 0) {
-        parts.push(buildOverallSummary(store));
+        const allTimeSummary = buildOverallSummaryGrid(store);
+        const monthlySummary = buildMonthlySummaryGrid(store, currentYear, currentMonth);
+        parts.push(`
+            <section class="card">
+                <div class="cal-summary-header">
+                    <h2>${ICON.chart} ${tBi('Usage Summary', '用量汇总')}</h2>
+                    <div class="cal-summary-toggle" id="calSummaryToggle">
+                        <button class="cal-summary-btn active" data-summary-mode="monthly">${tBi('Monthly', '月度')}</button>
+                        <button class="cal-summary-btn" data-summary-mode="alltime">${tBi('All-Time', '全部')}</button>
+                    </div>
+                </div>
+                <div class="cal-summary-pane" id="calSummaryMonthly" style="display:block">
+                    ${monthlySummary}
+                </div>
+                <div class="cal-summary-pane" id="calSummaryAllTime" style="display:none">
+                    ${allTimeSummary}
+                </div>
+            </section>`);
     }
 
     // ── Month Navigation + Grid ──
@@ -618,6 +635,72 @@ export function getCalendarTabStyles(): string {
         body.vscode-light .cal-cell.has-data { background: rgba(0,0,0,0.03); }
         body.vscode-light .cal-cycle { background: rgba(0,0,0,0.015); }
         body.vscode-light .cal-detail { background: rgba(37,99,235,0.03); border-color: rgba(37,99,235,0.15); }
+
+        /* ─── Calendar Summary Toggle ──── */
+        .cal-summary-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: var(--space-2);
+            margin-bottom: var(--space-3);
+        }
+        .cal-summary-header h2 {
+            margin-bottom: 0;
+        }
+        .cal-summary-toggle {
+            display: flex;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+        .cal-summary-btn {
+            appearance: none;
+            background: transparent;
+            color: var(--color-text-dim);
+            border: none;
+            padding: var(--space-1) var(--space-3);
+            font: inherit;
+            font-size: 0.76em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s cubic-bezier(.4,0,.2,1), color 0.2s cubic-bezier(.4,0,.2,1);
+            border-right: 1px solid var(--color-border);
+        }
+        .cal-summary-btn:last-child { border-right: none; }
+        .cal-summary-btn.active {
+            background: var(--color-info);
+            color: #fff;
+        }
+        .cal-summary-btn:focus-visible {
+            box-shadow: 0 0 0 2px var(--color-info);
+            outline: none;
+        }
+        .cal-summary-btn:active { transform: scale(0.97); }
+        @media (hover: hover) {
+            .cal-summary-btn:not(.active):hover {
+                background: rgba(255,255,255,0.08);
+                color: var(--color-text);
+            }
+        }
+        .cal-summary-pane {
+            animation: calSummaryFadeIn 0.25s ease-out;
+        }
+        @keyframes calSummaryFadeIn {
+            from { opacity: 0; transform: translateY(-4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .cal-summary-empty {
+            color: var(--color-text-dim);
+            font-size: 0.85em;
+            text-align: center;
+            padding: var(--space-3) 0;
+            opacity: 0.7;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .cal-summary-pane { animation: none; }
+            .cal-summary-btn { transition: none; }
+        }
     `;
 }
 
@@ -996,7 +1079,7 @@ function buildGMModelRows(gmModelStats?: Record<string, GMModelCycleStats>): str
     return html;
 }
 
-function buildOverallSummary(store: DailyStore): string {
+function buildOverallSummaryGrid(store: DailyStore): string {
     const dates = store.getDatesWithData();
     let totalReasoning = 0, totalToolCalls = 0, totalCost = 0, totalCycles = 0;
     let totalErrors = 0, totalGMCalls = 0, totalGMCredits = 0, totalGMTokens = 0;
@@ -1020,51 +1103,99 @@ function buildOverallSummary(store: DailyStore): string {
         }
     }
 
+    return buildSummaryOverviewGrid(dates.length, totalCycles, totalReasoning, totalToolCalls, totalGMTokens, totalCost, totalGMCredits, totalGMCalls, totalErrors);
+}
+
+function buildMonthlySummaryGrid(store: DailyStore, year: number, month: number): string {
+    const prefix = `${year}-${String(month).padStart(2, '0')}`;
+    const dates = store.getDatesWithData().filter(d => d.startsWith(prefix));
+
+    if (dates.length === 0) {
+        const lang = getLanguage();
+        const monthLabel = lang === 'en'
+            ? `${MONTH_NAMES_EN[month - 1]} ${year}`
+            : `${year}年${MONTH_NAMES_ZH[month - 1]}`;
+        return `<p class="cal-summary-empty">${tBi(
+            `No data for ${monthLabel} yet.`,
+            `${monthLabel}暂无数据。`,
+        )}</p>`;
+    }
+
+    let totalReasoning = 0, totalToolCalls = 0, totalCost = 0, totalCycles = 0;
+    let totalErrors = 0, totalGMCalls = 0, totalGMCredits = 0, totalGMTokens = 0;
+
+    for (const date of dates) {
+        const record = store.getRecord(date);
+        if (!record) { continue; }
+        for (const c of record.cycles) {
+            totalCycles++;
+            totalReasoning += c.totalReasoning;
+            totalToolCalls += c.totalToolCalls;
+            totalCost += c.estimatedCost || 0;
+            totalErrors += c.totalErrors;
+            totalGMCalls += c.gmTotalCalls || 0;
+            totalGMCredits += c.gmTotalCredits || 0;
+            if (c.gmModelStats) {
+                for (const gm of Object.values(c.gmModelStats)) {
+                    totalGMTokens += gm.inputTokens + gm.outputTokens;
+                }
+            }
+        }
+    }
+
+    return buildSummaryOverviewGrid(dates.length, totalCycles, totalReasoning, totalToolCalls, totalGMTokens, totalCost, totalGMCredits, totalGMCalls, totalErrors);
+}
+
+/** Shared grid builder for all-time and monthly summaries */
+function buildSummaryOverviewGrid(
+    dayCount: number, cycleCount: number,
+    reasoning: number, toolCalls: number,
+    gmTokens: number, cost: number,
+    gmCredits: number, gmCalls: number,
+    errors: number,
+): string {
     return `
-        <section class="card">
-            <h2>${ICON.chart} ${tBi('All-Time Summary', '历史汇总')}</h2>
             <div class="cal-overview-grid">
                 <div class="cal-overview-item">
-                    <div class="cal-overview-val">${dates.length}</div>
+                    <div class="cal-overview-val">${dayCount}</div>
                     <div class="cal-overview-label">${tBi('Days', '天数')}</div>
                 </div>
                 <div class="cal-overview-item">
-                    <div class="cal-overview-val">${totalCycles}</div>
+                    <div class="cal-overview-val">${cycleCount}</div>
                     <div class="cal-overview-label">${tBi('Cycles', '周期')}</div>
                 </div>
                 <div class="cal-overview-item">
-                    <div class="cal-overview-val">${totalReasoning}</div>
+                    <div class="cal-overview-val">${reasoning}</div>
                     <div class="cal-overview-label">${tBi('Reasoning', '推理')}</div>
                 </div>
                 <div class="cal-overview-item">
-                    <div class="cal-overview-val">${totalToolCalls}</div>
+                    <div class="cal-overview-val">${toolCalls}</div>
                     <div class="cal-overview-label">${tBi('Tools', '工具')}</div>
                 </div>
-                ${totalGMTokens > 0 ? `
+                ${gmTokens > 0 ? `
                 <div class="cal-overview-item">
-                    <div class="cal-overview-val">${formatTokensK(totalGMTokens)}</div>
+                    <div class="cal-overview-val">${formatTokensK(gmTokens)}</div>
                     <div class="cal-overview-label">${tBi('Tokens', '令牌')}</div>
                 </div>` : ''}
-                ${totalCost > 0 ? `
+                ${cost > 0 ? `
                 <div class="cal-overview-item">
-                    <div class="cal-overview-val">${formatCost(totalCost)}</div>
-                    <div class="cal-overview-label">${tBi('Total Cost', '总费用')}</div>
+                    <div class="cal-overview-val">${formatCost(cost)}</div>
+                    <div class="cal-overview-label">${tBi('Cost', '费用')}</div>
                 </div>` : ''}
-                ${totalGMCredits > 0 ? `
+                ${gmCredits > 0 ? `
                 <div class="cal-overview-item">
-                    <div class="cal-overview-val">${totalGMCredits}</div>
+                    <div class="cal-overview-val">${gmCredits}</div>
                     <div class="cal-overview-label">${tBi('Credits', '积分')}</div>
                 </div>` : ''}
-                ${totalGMCalls > 0 ? `
+                ${gmCalls > 0 ? `
                 <div class="cal-overview-item">
-                    <div class="cal-overview-val">${totalGMCalls}</div>
+                    <div class="cal-overview-val">${gmCalls}</div>
                     <div class="cal-overview-label">${tBi('GM Calls', 'GM 调用')}</div>
                 </div>` : ''}
-                ${totalErrors > 0 ? `
+                ${errors > 0 ? `
                 <div class="cal-overview-item">
-                    <div class="cal-overview-val cal-day-total-danger">${totalErrors}</div>
+                    <div class="cal-overview-val cal-day-total-danger">${errors}</div>
                     <div class="cal-overview-label">${tBi('Errors', '错误')}</div>
                 </div>` : ''}
-            </div>
-        </section>`;
+            </div>`;
 }
