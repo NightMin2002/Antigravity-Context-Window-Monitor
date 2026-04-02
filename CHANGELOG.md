@@ -1,21 +1,56 @@
 # 变更日志 / Changelog
 
-## [1.14.6] - 2026-04-02
+## [1.14.7] - 2026-04-02
+
+### ✨ Added / 新增
+
+- **Calendar Monthly Summary Toggle / 日历月度总计切换**: Added segmented toggle buttons (Monthly / All-Time) to the calendar summary section. Users can now instantly see current month's consumption breakdown alongside all-time stats. Default view is monthly. Empty-month states show friendly guidance. Toggle state survives poll refreshes via event delegation.
+  日历汇总区域新增分段切换按钮（月度 / 全部），用户可快速查看本月消耗明细和历史总计。默认显示月度。空月份显示友好提示。通过事件委托机制在自动刷新后保持切换状态。
+
+- **Tab Arrow Navigation / Tab 栏箭头导航**: Added left/right scroll arrow buttons flanking the tab bar. Arrows intelligently show/hide based on overflow state: no overflow = both faded, scrolled to start = left faded, scrolled to end = right faded, middle = both visible. Uses `opacity` + `pointer-events` fade transition (0.25s) instead of `display: none` to **preserve layout space and prevent accidental tab clicks** when an arrow disappears at scroll endpoints. Click scrolls 150px with smooth behavior.
+  Tab 栏两端新增左右箭头滚动按钮，根据溢出状态智能显隐。使用 `opacity` + `pointer-events` 渐隐过渡（0.25s）而非 `display: none`，**保留占位空间防止箭头消失时误触旁边的 Tab**。点击平滑滚动 150px。
+
+- **Quota Tracking Disabled State Feedback / 额度追踪关闭状态反馈**: When quota timeline tracking is disabled in Settings, the Quota Tracking tab now shows a clear “tracking is paused” message with a “Go to Settings” button that navigates directly to the Settings tab, instead of the misleading “No active quota consumption detected” empty state.
+  关闭额度时间线追踪后，额度追踪标签页现在显示明确的「追踪已关闭」提示，并提供「前往设置」按钮一键跳转至设置页，替代此前误导性的「未检测到活跃额度消耗」空状态。
+
+### ✨ Improved / 改进
+
+- **Quota Tracking Toggle Migration / 额度追踪开关迁移**: Moved the quota timeline tracking toggle from the Quota Tracking tab to the Settings tab. Root cause: the polling mechanism (`innerHTML` replacement) destroyed the toggle's event listeners on every refresh cycle. The Settings tab is not subject to incremental DOM updates, ensuring stable state persistence. Default changed to enabled (`true`) since performance overhead is negligible.
+  将额度时间线追踪开关从额度追踪标签页迁移至设置标签页。根因：轮询机制（`innerHTML` 替换）每次刷新都销毁 toggle 的事件监听。设置页不参与增量 DOM 更新，确保状态持久化稳定。默认值改为启用（`true`），性能开销极小。
+
+- **Session Card Visual Overhaul / 会话卡片视觉升级**: Enhanced session history cards with modern aesthetics: `::before` pseudo-element top glow line for depth, 3px green left accent border for current sessions, enhanced multi-layer hover shadows (`4px+12px`), `translateY(-2px)` hover lift, spotlight card hover interactions, upgraded action buttons (`radius-md` + hover float + box-shadow), and comprehensive `body.vscode-light` theme overrides for all card components.
+  会话历史卡片视觉全面升级：顶部柔光线增强层次感、当前会话左侧绿色强调边框、多层 hover 阴影、spotlight 卡片 hover 互动、操作按钮升级圆角 + 微浮效果，以及完整的浅色主题适配。
 
 ### 🐛 Fixed / 修复
 
-- **Light Theme — Full Panel Visibility / 浅色主题 — 全面板可见性**: Fixed ~50 UI components that remained invisible or near-invisible when VS Code was set to a light theme. Root cause: hardcoded `rgba(255,255,255,X)` backgrounds (white overlays on dark backgrounds) became white-on-white in light mode. Fix: added comprehensive `body.vscode-light` CSS overrides across all three style sources — `webview-styles.ts` (+107 lines), `activity-panel.ts` (+29 lines), and `webview-calendar-tab.ts` (+3 lines). Covers: action buttons, stat cards, progress bar tracks, quota bars, model cards, timeline cards, pool badges, feature/MIME tags, chat history cards (including gradient replacements), monitor mini panel, activity card headers, timeline legend, GM perf items, X-ray visualization, rank bars, and calendar navigation. The v1.14.5 fix only addressed GM data tags and timeline tags; this release extends light theme support to the entire panel.
-  修复了约 50 个 UI 组件在 VS Code 浅色主题下不可见或几乎不可见的问题。根因：硬编码的 `rgba(255,255,255,X)` 背景（深色背景上的白色叠加层）在浅色模式下变成白色覆白色。修复：在三个样式源文件中添加了全面的 `body.vscode-light` CSS 覆盖——`webview-styles.ts`（+107 行）、`activity-panel.ts`（+29 行）、`webview-calendar-tab.ts`（+3 行）。覆盖范围：操作按钮、统计卡片、进度条轨道、额度条、模型卡片、时间线卡片、池标签、功能/MIME 标签、聊天历史卡片（含渐变替换）、监控迷你面板、活动面板卡头、时间线图例、GM 性能条目、X-ray 可视化、排行条、日历导航。v1.14.5 仅修复了 GM 数据标签和时间线标签；本版本将浅色主题支持扩展到整个面板。
+- **Light Theme — Full Panel Visibility / 浅色主题 — 全面板可见性**: Fixed ~50 UI components that remained invisible or near-invisible when VS Code was set to a light theme. Root cause: hardcoded `rgba(255,255,255,X)` backgrounds (white overlays on dark backgrounds) became white-on-white in light mode. Fix: added comprehensive `body.vscode-light` CSS overrides across all three style sources — `webview-styles.ts`, `activity-panel.ts`, and `webview-calendar-tab.ts`. Covers: action buttons, stat cards, progress bar tracks, quota bars, model cards, timeline cards, pool badges, feature/MIME tags, chat history cards (including gradient replacements), monitor mini panel, activity card headers, timeline legend, GM perf items, X-ray visualization, rank bars, and calendar navigation.
+  修复了约 50 个 UI 组件在 VS Code 浅色主题下不可见或几乎不可见的问题。根因：硬编码的 `rgba(255,255,255,X)` 背景在浅色模式下变成白色覆白色。修复：在三个样式源文件中添加了全面的 `body.vscode-light` CSS 覆盖。
+
+- **Session Card Animation Re-Triggering / 会话卡片动画反复触发**: Removed the `historyRowSlideIn` staggered entry animation that re-triggered on every poll refresh. Root cause: CSS animations always fire on newly-inserted DOM elements, and the polling architecture replaces `innerHTML` entirely — creating new elements each cycle.
+  移除了每次轮询刷新时反复触发的 `historyRowSlideIn` 交错入场动画。根因：CSS 动画在新插入的 DOM 元素上必然重新触发，而轮询架构每个周期都通过 `innerHTML` 替换创建全新元素。
+
+- **GM Prompt Snippet Falling Back to Internal IDs / GM 提示摘要误回退到内部 ID**: Fixed cases where GM prompt extraction preferred opaque internal identifiers such as `bot-*`, `toolu_*`, `req_vrtx_*`, or `session-*` over actual prompt text. The extractor now filters internal identifier fields and keeps structural timeline rows focused on tool and step metadata.
+  修复 GM prompt 摘要提取误把 `bot-*`、`toolu_*`、`req_vrtx_*`、`session-*` 这类内部标识当成真实提示文本的问题。现在提取器会过滤内部标识字段，让结构化时间线行只展示工具与步序元数据。
+
+- **Quota History Clear Button / 已完成会话清理按钮**: Added a dedicated Clear button next to “Completed Sessions” in the Quota Tracking tab. The action is scoped to archived history only, while the existing “Active Tracking” clear button still clears runtime tracking state.
+  在额度追踪标签页的「已完成会话」标题旁新增独立的清理按钮。该按钮只清除归档历史，不影响当前活跃追踪。
+
+- **End-of-Content Fade-In Repeating on Poll Refresh / 「已到底」提示在轮询刷新时反复淡入**: Fixed by caching per-tab HTML, skipping unchanged pane swaps, preserving visible sentinel state across refreshes, and adding idempotent listener guards for `<details>` blocks and session catalog filters.
+  通过缓存各标签页 HTML、跳过未变化 pane 的 DOM 替换、保留已可见 sentinel 状态、为 `<details>` 和会话筛选控件增加幂等监听保护来修复。
+
+### 🧪 Tests / 测试
+
+- **4 new regression tests**: GM prompt snippet filtering (prefers real text over internal IDs, drops bot-only snippets), activity tracker planner/gm_virtual structural integrity (no backfill of pseudo AI replies).
+  **新增 4 项回归测试**：GM prompt 摘要过滤（优先真实文本、丢弃纯内部 ID）、activity tracker planner/gm_virtual 结构完整性（不回填伪 AI 回复）。
 
 ### 📊 Stats / 统计
 
-- **Files changed**: 4 (3 source + 1 package.json)
-- **Lines added**: 139 (pure CSS overrides, zero logic changes)
 - **TypeScript compile**: Zero errors
 
 ---
 
 ## [1.14.5] - 2026-04-01
+
 
 ### 🐛 Fixed / 修复
 

@@ -448,7 +448,6 @@ export function showMonitorPanel(p: PanelPayload): void {
             }
         } else if (msg.command === 'clearQuotaHistory') {
             if (lastQuotaTracker) {
-                lastQuotaTracker.resetTrackingStates();
                 lastQuotaTracker.clearHistory();
                 refreshLocalStorageDiagnostics();
                 if (panel) {
@@ -724,7 +723,11 @@ ${getCalendarTabStyles()}
                 )}
             </div>
         </div>
-        <nav class="tab-bar">
+        <div class="tab-bar-wrapper">
+        <button class="tab-arrow tab-arrow-left is-faded" id="tabArrowLeft" aria-label="${tBi('Scroll tabs left', '向左滚动标签')}">
+            <svg viewBox="0 0 16 16" width="14" height="14"><path fill="currentColor" d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0"/></svg>
+        </button>
+        <nav class="tab-bar" id="tabBar">
         <div class="tab-slider"></div>
         <button class="tab-btn active" data-tab="monitor" data-color="blue">${ICON.chart} ${tBi('Monitor', '监控')}</button>
         <button class="tab-btn" data-tab="gmdata" data-color="orange">${ICON.bolt} ${tBi('GM Data', 'GM 数据')}</button>
@@ -736,6 +739,11 @@ ${getCalendarTabStyles()}
         <button class="tab-btn" data-tab="profile" data-color="gray">${ICON.user} ${tBi('Profile', '个人')}</button>
         <button class="tab-btn" data-tab="settings" data-color="gray">${ICON.shield} ${tBi('Settings', '设置')}</button>
     </nav>
+        <button class="tab-arrow tab-arrow-right is-faded" id="tabArrowRight" aria-label="${tBi('Scroll tabs right', '向右滚动标签')}">
+            <svg viewBox="0 0 16 16" width="14" height="14"><path fill="currentColor" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708"/></svg>
+        </button>
+    </div>
+
     <div class="tab-scroll-hint" id="tabScrollHint" hidden>
         <span class="tab-scroll-hint-text">${ICON.timeline} <span>${tBi('Too many tabs? Hold Shift and use the mouse wheel to scroll horizontally.', '标签过多时，可按住 Shift 再滚动鼠标滚轮进行横向滚动。')}</span></span>
         <button class="tab-scroll-hint-close" id="dismissTabScrollHint" aria-label="${tBi('Dismiss tab scroll hint', '关闭标签滚动提示')}">
