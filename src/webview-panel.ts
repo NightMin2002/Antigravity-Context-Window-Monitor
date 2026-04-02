@@ -448,7 +448,6 @@ export function showMonitorPanel(p: PanelPayload): void {
             }
         } else if (msg.command === 'clearQuotaHistory') {
             if (lastQuotaTracker) {
-                lastQuotaTracker.resetTrackingStates();
                 lastQuotaTracker.clearHistory();
                 refreshLocalStorageDiagnostics();
                 if (panel) {

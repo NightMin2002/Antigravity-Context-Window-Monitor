@@ -39,6 +39,48 @@ export function getScript(): string {
             var activeTab = savedState.activeTab || 'monitor';
             var tabBtns = document.querySelectorAll('.tab-btn');
             var tabPanes = document.querySelectorAll('.tab-pane');
+            var lastTabHtmls = {};
+            var eocVisibleTabs = {};
+
+            function getTabNameFromPaneId(paneId) {
+                return paneId && paneId.indexOf('tab-') === 0 ? paneId.substring(4) : '';
+            }
+            function getTabNameFromNode(node) {
+                var pane = node && node.closest ? node.closest('.tab-pane') : null;
+                return pane ? getTabNameFromPaneId(pane.id || '') : '';
+            }
+            function captureVisibleEocTabs() {
+                var visibleTabs = {};
+                for (var pi = 0; pi < tabPanes.length; pi++) {
+                    var paneName = getTabNameFromPaneId(tabPanes[pi].id || '');
+                    if (!paneName) { continue; }
+                    var sentinel = tabPanes[pi].querySelector('.eoc-sentinel');
+                    if (sentinel && sentinel.classList.contains('eoc-visible')) {
+                        visibleTabs[paneName] = true;
+                        eocVisibleTabs[paneName] = true;
+                    }
+                }
+                return visibleTabs;
+            }
+            function restoreVisibleEoc(tabName) {
+                var pane = document.getElementById('tab-' + tabName);
+                if (!pane) { return; }
+                var sentinel = pane.querySelector('.eoc-sentinel');
+                if (!sentinel) { return; }
+                sentinel.classList.add('eoc-no-transition');
+                sentinel.classList.add('eoc-visible');
+                requestAnimationFrame(function() {
+                    requestAnimationFrame(function() {
+                        sentinel.classList.remove('eoc-no-transition');
+                    });
+                });
+            }
+            for (var tp = 0; tp < tabPanes.length; tp++) {
+                var initialTabName = getTabNameFromPaneId(tabPanes[tp].id || '');
+                if (initialTabName) {
+                    lastTabHtmls[initialTabName] = tabPanes[tp].innerHTML;
+                }
+            }
 
             // ─── Tab Slider: position & color ───
             var colorMap = {
@@ -237,13 +279,16 @@ export function getScript(): string {
                     if (Object.prototype.hasOwnProperty.call(ds, det.id)) {
                         det.open = !!ds[det.id];
                     }
-                    det.addEventListener('toggle', function() {
-                        var s = vscode.getState() || {};
-                        var dso = s.detailsOpen || {};
-                        dso[this.id] = this.open;
-                        s.detailsOpen = dso;
-                        vscode.setState(s);
-                    });
+                    if (det.getAttribute('data-details-bound') !== 'true') {
+                        det.addEventListener('toggle', function() {
+                            var s = vscode.getState() || {};
+                            var dso = s.detailsOpen || {};
+                            dso[this.id] = this.open;
+                            s.detailsOpen = dso;
+                            vscode.setState(s);
+                        });
+                        det.setAttribute('data-details-bound', 'true');
+                    }
                 }
             }
 
@@ -285,41 +330,48 @@ export function getScript(): string {
                     }
                 }
 
-                if (searchInput) {
+                if (searchInput && searchInput.getAttribute('data-history-bound') !== 'true') {
                     searchInput.addEventListener('input', function() {
                         var s = vscode.getState() || {};
                         s.historySearch = this.value || '';
                         vscode.setState(s);
                         applyHistoryFilters();
                     });
+                    searchInput.setAttribute('data-history-bound', 'true');
                 }
 
                 for (var fi = 0; fi < filterBtns.length; fi++) {
-                    filterBtns[fi].addEventListener('click', function() {
-                        activeFilter = this.dataset.historyFilter || 'all';
-                        var s = vscode.getState() || {};
-                        s.historyFilter = activeFilter;
-                        vscode.setState(s);
-                        for (var bi = 0; bi < filterBtns.length; bi++) {
-                            filterBtns[bi].classList.toggle('is-active', filterBtns[bi] === this);
-                        }
-                        applyHistoryFilters();
-                    });
+                    if (filterBtns[fi].getAttribute('data-history-bound') !== 'true') {
+                        filterBtns[fi].addEventListener('click', function() {
+                            activeFilter = this.dataset.historyFilter || 'all';
+                            var s = vscode.getState() || {};
+                            s.historyFilter = activeFilter;
+                            vscode.setState(s);
+                            for (var bi = 0; bi < filterBtns.length; bi++) {
+                                filterBtns[bi].classList.toggle('is-active', filterBtns[bi] === this);
+                            }
+                            applyHistoryFilters();
+                        });
+                        filterBtns[fi].setAttribute('data-history-bound', 'true');
+                    }
                     filterBtns[fi].classList.toggle('is-active', filterBtns[fi].dataset.historyFilter === activeFilter);
                 }
 
                 var shortcutBtns = document.querySelectorAll('[data-history-shortcut]');
                 for (var si = 0; si < shortcutBtns.length; si++) {
-                    shortcutBtns[si].addEventListener('click', function() {
-                        activeFilter = this.dataset.historyShortcut || 'all';
-                        var s = vscode.getState() || {};
-                        s.historyFilter = activeFilter;
-                        vscode.setState(s);
-                        for (var bi = 0; bi < filterBtns.length; bi++) {
-                            filterBtns[bi].classList.toggle('is-active', filterBtns[bi].dataset.historyFilter === activeFilter);
-                        }
-                        applyHistoryFilters();
-                    });
+                    if (shortcutBtns[si].getAttribute('data-history-bound') !== 'true') {
+                        shortcutBtns[si].addEventListener('click', function() {
+                            activeFilter = this.dataset.historyShortcut || 'all';
+                            var s = vscode.getState() || {};
+                            s.historyFilter = activeFilter;
+                            vscode.setState(s);
+                            for (var bi = 0; bi < filterBtns.length; bi++) {
+                                filterBtns[bi].classList.toggle('is-active', filterBtns[bi].dataset.historyFilter === activeFilter);
+                            }
+                            applyHistoryFilters();
+                        });
+                        shortcutBtns[si].setAttribute('data-history-bound', 'true');
+                    }
                 }
 
                 applyHistoryFilters();
@@ -744,6 +796,10 @@ export function getScript(): string {
                     vscode.postMessage({ command: 'clearActiveTracking' });
                     return;
                 }
+                if (target.closest('#clearQuotaHistory')) {
+                    vscode.postMessage({ command: 'clearQuotaHistory' });
+                    return;
+                }
 
                 // ── Privacy Mask Toggle ──
                 if (target.closest('#privacyToggle')) {
@@ -916,6 +972,8 @@ export function getScript(): string {
                 } else if (msg && msg.command === 'updateTabs') {
                     // ── Incremental refresh: update tab pane innerHTML without page reload ──
                     var tabs = msg.tabs;
+                    var visibleEocTabs = captureVisibleEocTabs();
+                    var changedTabKeys = [];
 
                     // Save scrollTop of inner scrollable elements before DOM swap
                     var scrollableSelectors = ['.raw-json', '.act-timeline', '.details-body', '.xray-body'];
@@ -933,8 +991,19 @@ export function getScript(): string {
 
                     for (var key in tabs) {
                         if (!tabs.hasOwnProperty(key)) continue;
+                        if (lastTabHtmls[key] === tabs[key]) { continue; }
                         var pane = document.getElementById('tab-' + key);
-                        if (pane) { pane.innerHTML = tabs[key]; }
+                        if (pane) {
+                            pane.innerHTML = tabs[key];
+                            lastTabHtmls[key] = tabs[key];
+                            changedTabKeys.push(key);
+                        }
+                    }
+
+                    for (var cti = 0; cti < changedTabKeys.length; cti++) {
+                        if (visibleEocTabs[changedTabKeys[cti]]) {
+                            restoreVisibleEoc(changedTabKeys[cti]);
+                        }
                     }
 
                     // !! CRITICAL: restore details IMMEDIATELY after innerHTML swap,
@@ -1016,7 +1085,15 @@ export function getScript(): string {
                 if (_eocObserver) { _eocObserver.disconnect(); }
                 _eocObserver = new IntersectionObserver(function(entries) {
                     for (var ei = 0; ei < entries.length; ei++) {
-                        entries[ei].target.classList.toggle('eoc-visible', entries[ei].isIntersecting);
+                        var isVisible = entries[ei].isIntersecting;
+                        entries[ei].target.classList.toggle('eoc-visible', isVisible);
+                        if (!isVisible) {
+                            entries[ei].target.classList.remove('eoc-no-transition');
+                        }
+                        var tabName = getTabNameFromNode(entries[ei].target);
+                        if (tabName) {
+                            eocVisibleTabs[tabName] = isVisible;
+                        }
                     }
                 }, { rootMargin: '0px', threshold: 0.1 });
                 var eocEls = document.querySelectorAll('.eoc-sentinel');

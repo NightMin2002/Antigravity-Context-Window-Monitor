@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { GMSummary, GMTrackerState } from '../src/gm-tracker';
-import { filterGMSummaryByModels, GMTracker } from '../src/gm-tracker';
+import { filterGMSummaryByModels, GMTracker, pickPromptSnippet } from '../src/gm-tracker';
 import type { ModelConfig } from '../src/models';
 import type { QuotaSession } from '../src/quota-tracker';
 import { initI18nFromState } from '../src/i18n';
@@ -19,6 +19,27 @@ describe('filterGMSummaryByModels', () => {
     it('starts fresh instances in baseline mode so first install does not count historical GM calls', () => {
         const tracker = new GMTracker() as unknown as { _needsBaselineInit?: boolean };
         expect(tracker._needsBaselineInit).toBe(true);
+    });
+
+    it('prefers real prompt text over internal messageId fields when extracting prompt snippets', () => {
+        const snippet = pickPromptSnippet([
+            {
+                messageId: 'bot-fc2dab1b-0317-47cc-8b08-3384e2e70caf',
+                prompt: '现在让我查看 buildOverallSummary 和 buildCalendarTabContent 函数。',
+            },
+        ]);
+
+        expect(snippet).toBe('现在让我查看 buildOverallSummary 和 buildCalendarTabContent 函数。');
+    });
+
+    it('drops prompt snippets that are only internal bot messageIds', () => {
+        const snippet = pickPromptSnippet([
+            {
+                messageId: 'bot-fc2dab1b-0317-47cc-8b08-3384e2e70caf',
+            },
+        ]);
+
+        expect(snippet).toBe('');
     });
 
     it('keeps only the selected pool models in the archived snapshot', () => {

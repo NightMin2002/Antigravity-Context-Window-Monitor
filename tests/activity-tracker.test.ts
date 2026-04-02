@@ -39,6 +39,26 @@ function makePlannerStep(createdAt: string, response = '') {
     };
 }
 
+function makePlannerToolOnlyStep(createdAt: string, messageId: string) {
+    return {
+        type: 'CORTEX_STEP_TYPE_PLANNER_RESPONSE',
+        metadata: {
+            createdAt,
+            generatorModel: 'MODEL_PLACEHOLDER_M37',
+        },
+        plannerResponse: {
+            messageId,
+            toolCalls: [
+                {
+                    id: 'tool-1',
+                    name: 'view_file',
+                    argumentsJson: '{}',
+                },
+            ],
+        },
+    };
+}
+
 function makeReasoningSummary(cascadeId: string, stepIndex: number, createdAt: string): GMSummary {
     return {
         conversations: [
@@ -140,6 +160,19 @@ function makeReasoningSummary(cascadeId: string, stepIndex: number, createdAt: s
         latestTokenBreakdown: [],
         stopReasonCounts: {},
     };
+}
+
+function makeReasoningSummaryWithPromptSnippet(
+    cascadeId: string,
+    stepIndex: number,
+    createdAt: string,
+    promptSnippet: string,
+    promptSource: 'none' | 'messagePrompts' | 'messageMetadata' = 'messagePrompts',
+): GMSummary {
+    const summary = makeReasoningSummary(cascadeId, stepIndex, createdAt);
+    summary.conversations[0].calls[0].promptSnippet = promptSnippet;
+    summary.conversations[0].calls[0].promptSource = promptSource;
+    return summary;
 }
 
 describe('ActivityTracker planner refresh', () => {
@@ -253,6 +286,58 @@ describe('ActivityTracker planner refresh', () => {
         expect(restoredUser?.modelBasis).toBe('step');
         expect(restoredUser?.gmInputTokens).toBeUndefined();
         expect(restoredUser?.gmExecutionId).toBeUndefined();
+    });
+
+    it('does not backfill step-based planner rows with GM prompt snippets when the planner response itself is empty', () => {
+        const tracker = new ActivityTracker() as any;
+        const cascadeId = 'conv-messageid';
+        const createdAt = '2026-03-27T13:18:53.982Z';
+        const plannerEvent = tracker._buildStepTimelineEvent(
+            makePlannerToolOnlyStep(createdAt, 'bot-fc2dab1b-0317-47cc-8b08-3384e2e70caf'),
+            406,
+            cascadeId,
+        );
+
+        tracker._upsertStepTimelineEvent(plannerEvent);
+        tracker.injectGMData(makeReasoningSummaryWithPromptSnippet(
+            cascadeId,
+            406,
+            createdAt,
+            'bot-fc2dab1b-0317-47cc-8b08-3384e2e70caf',
+        ));
+
+        const repairedEvent = tracker.getSummary().recentSteps.find((event: any) =>
+            event.cascadeId === cascadeId && event.stepIndex === 406
+        );
+        expect(repairedEvent?.aiResponse).toBeUndefined();
+        expect(repairedEvent?.detail).toContain('1 tool');
+        expect(repairedEvent?.gmPromptSnippet).toBe('bot-fc2dab1b-0317-47cc-8b08-3384e2e70caf');
+    });
+
+    it('keeps gm_virtual rows structural-only even when GM carries a readable prompt snippet', () => {
+        const tracker = new ActivityTracker() as any;
+        tracker._trajectories.set('conv-virtual', {
+            stepCount: 100,
+            processedIndex: 100,
+            dominantModel: 'Gemini 3.1 Pro (High)',
+            lastStatus: 'CASCADE_RUN_STATUS_IDLE',
+            requestedModel: '',
+            generatorModel: '',
+        });
+
+        tracker.injectGMData(makeReasoningSummaryWithPromptSnippet(
+            'conv-virtual',
+            120,
+            '2026-03-27T13:28:53.982Z',
+            '现在让我查看 buildOverallSummary 和 buildCalendarTabContent 函数。',
+        ));
+
+        const virtualEvent = tracker.getSummary().recentSteps.find((event: any) =>
+            event.cascadeId === 'conv-virtual' && event.source === 'gm_virtual'
+        );
+        expect(virtualEvent?.aiResponse).toBeUndefined();
+        expect(virtualEvent?.detail).toContain('stable#120');
+        expect(virtualEvent?.gmPromptSnippet).toBe('现在让我查看 buildOverallSummary 和 buildCalendarTabContent 函数。');
     });
 
     it('compacts duplicated persisted recent steps during restore so stale state self-heals on reload', () => {

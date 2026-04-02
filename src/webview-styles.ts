@@ -95,6 +95,9 @@ export function getStyles(): string {
         .eoc-sentinel.eoc-visible {
             opacity: 1;
         }
+        .eoc-sentinel.eoc-no-transition {
+            transition: none;
+        }
         .eoc-sentinel::before,
         .eoc-sentinel::after {
             content: '';
@@ -3391,10 +3394,13 @@ export function getStyles(): string {
             display: flex;
             align-items: center;
             justify-content: space-between;
+            flex-wrap: wrap;
             gap: var(--space-3);
+            margin-bottom: var(--space-3);
         }
         .card-header-row h2 { margin: 0; }
-        .card-header-row .qt-clear-active {
+        .card-header-row .qt-clear-active,
+        .card-header-row .qt-clear-history {
             flex-shrink: 0;
             font-size: 0.75em;
             padding: var(--space-1) var(--space-3);

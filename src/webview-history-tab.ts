@@ -81,7 +81,12 @@ export function buildHistoryHtml(tracker?: QuotaTracker): string {
         const historyCards = history.map(s => buildSessionCard(s, false)).join('');
         parts.push(`
             <section class="card">
-                <h2>${ICON.clock} ${tBi('Completed Sessions', '已完成会话')} (${history.length}/${maxHistory})</h2>
+                <div class="card-header-row">
+                    <h2>${ICON.clock} ${tBi('Completed Sessions', '已完成会话')} (${history.length}/${maxHistory})</h2>
+                    <button class="action-btn danger-action qt-clear-history" id="clearQuotaHistory">
+                        ${ICON.trash} ${tBi('Clear', '清理')}
+                    </button>
+                </div>
                 ${summaryBar}
                 ${historyCards}
             </section>`);

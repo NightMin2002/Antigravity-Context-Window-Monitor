@@ -691,7 +691,23 @@ function collectStringLeaves(
     }
 }
 
-function pickPromptSnippet(value: unknown): string {
+function tokenizePromptPath(path: string): string[] {
+    return path
+        .toLowerCase()
+        .replace(/\[\d+\]/g, '.')
+        .split('.')
+        .filter(Boolean);
+}
+
+function isInternalPromptValue(value: string): boolean {
+    const clean = value.trim();
+    return /^bot-[0-9a-f-]{8,}$/i.test(clean)
+        || /^toolu_[a-z0-9_-]{8,}$/i.test(clean)
+        || /^req_vrtx_[a-z0-9_-]{8,}$/i.test(clean)
+        || /^session-[0-9a-f-]{8,}$/i.test(clean);
+}
+
+export function pickPromptSnippet(value: unknown): string {
     const strings: Array<{ path: string; value: string }> = [];
     collectStringLeaves(value, '', strings);
     if (strings.length === 0) { return ''; }
@@ -699,24 +715,30 @@ function pickPromptSnippet(value: unknown): string {
     const preferred = [
         'text',
         'content',
-        'message',
         'prompt',
         'summary',
         'query',
         'command',
         'task',
         'title',
-        'name',
-        'path',
+        'message',
+        'description',
     ];
 
     const filtered = strings
         .filter(entry => {
             const lowerPath = entry.path.toLowerCase();
             const lowerValue = entry.value.toLowerCase();
+            const pathTokens = tokenizePromptPath(lowerPath);
+            const hasPreferredPath = preferred.some(token => pathTokens.some(part => part.includes(token)));
             if (lowerPath.includes('systemprompt')) { return false; }
             if (lowerPath.includes('checksum')) { return false; }
+            if (pathTokens.some(part => part === 'messageid' || part === 'responseid' || part === 'sessionid' || part === 'executionid')) {
+                return false;
+            }
             if (lowerValue.startsWith('http://') || lowerValue.startsWith('https://')) { return false; }
+            if (isInternalPromptValue(entry.value)) { return false; }
+            if (!hasPreferredPath) { return false; }
             return entry.value.length >= 8;
         })
         .sort((a, b) => {

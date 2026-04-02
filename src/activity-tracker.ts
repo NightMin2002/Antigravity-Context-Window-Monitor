@@ -353,6 +353,9 @@ function isLowSignalPromptSnippet(snippet: string): boolean {
     const clean = snippet.replace(/\s+/g, ' ').trim();
     if (!clean) { return true; }
     if (clean.length < 12) { return true; }
+    if (/^bot-[0-9a-f-]{8,}$/i.test(clean)) { return true; }
+    if (/^toolu_[a-z0-9_-]{8,}$/i.test(clean)) { return true; }
+    if (/^req_vrtx_[a-z0-9_-]{8,}$/i.test(clean)) { return true; }
     if (/^Step Id:\s*\d+\s+\{\{\s*CHECKPOINT/i.test(clean)) { return true; }
     if (/earlier parts of this conversation/i.test(clean)) { return true; }
     if (/conversation have been compressed/i.test(clean)) { return true; }
@@ -380,28 +383,19 @@ function extractNotifyMessage(toolCalls: unknown[] | undefined): string {
 }
 
 function buildGMVirtualPreview(call: GMCallEntry): { detail: string; aiResponse?: string; fullAiResponse?: string } {
-    const firstIdx = call.stepIndices.length > 0 ? Math.min(...call.stepIndices) : -1;
-    const stepSpan = call.stepIndices.length > 1
-        ? ` +${call.stepIndices.length - 1}`
-        : '';
-
-    if (call.promptSnippet && !isLowSignalPromptSnippet(call.promptSnippet)) {
-        return {
-            detail: call.promptSource === 'messageMetadata' ? 'GM meta' : 'GM prompt',
-            aiResponse: truncate(call.promptSnippet, 96),
-            fullAiResponse: call.promptSnippet.length > 96 ? truncate(call.promptSnippet, 2000) : undefined,
-        };
-    }
-
+    const structuredBits: string[] = [];
     if (call.toolNames.length > 0) {
-        return {
-            detail: `tools: ${call.toolNames.slice(0, 3).join(', ')}`,
-        };
+        structuredBits.push(`${tBi('tools', '工具')}: ${call.toolNames.slice(0, 3).join(', ')}`);
+    }
+    if (call.latestStableMessageIndex > 0) {
+        structuredBits.push(`stable#${call.latestStableMessageIndex}`);
+    } else if (call.startStepIndex > 0) {
+        structuredBits.push(`start#${call.startStepIndex}`);
+    } else if (call.executionId) {
+        structuredBits.push(`exec ${call.executionId.substring(0, 8)}`);
     }
 
-    // Fallback: no useful detail to show (stepIndex is already displayed via #xxx,
-    // and GM token data is shown via right-side tags)
-    return { detail: '' };
+    return { detail: structuredBits.join(' · ') || tBi('GM call', 'GM 调用') };
 }
 
 function sameStepDistribution(a: Record<string, number>, b: Record<string, number>): boolean {
@@ -1766,10 +1760,6 @@ export class ActivityTracker {
                 ev.modelBasis = 'gm_exact';
             } else if (ev.source !== 'estimated') {
                 ev.modelBasis = 'gm_placeholder';
-            }
-            if (!ev.aiResponse && gm.promptSnippet && !isLowSignalPromptSnippet(gm.promptSnippet)) {
-                ev.aiResponse = truncate(gm.promptSnippet, 96);
-                if (gm.promptSnippet.length > 96) { ev.fullAiResponse = truncate(gm.promptSnippet, 2000); }
             }
             if (ev.source === 'estimated' && gm.modelDisplay) {
                 ev.model = normalizeModelDisplayName(gm.modelDisplay || gm.model) || gm.modelDisplay || gm.model;

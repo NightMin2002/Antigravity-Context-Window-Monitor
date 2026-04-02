@@ -26,6 +26,15 @@
 - **Session Card Animation Re-Triggering / 会话卡片动画反复触发**: Removed the `historyRowSlideIn` staggered entry animation that re-triggered on every poll refresh. Root cause: CSS animations always fire on newly-inserted DOM elements, and the polling architecture replaces `innerHTML` entirely — creating new elements each cycle. This is architecturally incompatible with CSS `@keyframes` animations.
   移除了每次轮询刷新时反复触发的 `historyRowSlideIn` 交错入场动画。根因：CSS 动画在新插入的 DOM 元素上必然重新触发，而轮询架构每个周期都通过 `innerHTML` 替换创建全新元素，与 CSS `@keyframes` 动画在架构上不兼容。
 
+- **GM Prompt Snippet Falling Back to Internal IDs / GM 提示摘要误回退到内部 ID**: Fixed cases where GM prompt extraction preferred opaque internal identifiers such as `bot-*`, `toolu_*`, `req_vrtx_*`, or `session-*` over actual prompt text, which could make Activity rows display unreadable IDs or backfill planner / GM virtual rows with misleading pseudo-responses. The extractor now filters internal identifier fields, requires prompt-like paths, and keeps structural timeline rows focused on tool and step metadata instead of synthetic AI text.
+  修复 GM prompt 摘要提取误把 `bot-*`、`toolu_*`、`req_vrtx_*`、`session-*` 这类内部标识当成真实提示文本的问题，避免 Activity 时间线出现不可读的内部 ID，或把 planner / GM virtual 结构化行错误回填成伪造的 AI 回复。现在提取器会过滤内部标识字段、要求更像 prompt 的路径命名，并让结构化时间线行继续只展示工具与步序元数据。
+
+- **Quota History Clear Button / 已完成会话清理按钮**: Added a dedicated Clear button next to “Completed Sessions” in the Quota Tracking tab. The action is intentionally scoped to archived history only, while the existing “Active Tracking” clear button still clears runtime tracking state. This keeps the two buttons visually consistent without mixing their responsibilities. Also tuned the header row spacing so the new action button keeps comfortable breathing room from the summary content below.
+  在额度追踪标签页的「已完成会话」标题旁新增独立的清理按钮。该按钮只清除归档历史，不影响当前活跃追踪；原有「活跃追踪」清理按钮仍只负责清空运行中的 tracking state。这样既保持交互外观一致，也避免两种清理语义互相误伤。同时补了标题行与下方汇总区域之间的留白，让新增按钮不会和下方内容贴得过紧。
+
+- **End-of-Content Fade-In Repeating on Poll Refresh / 「已到底」提示在轮询刷新时反复淡入**: Fixed the repeated fade-in of the end-of-content sentinel across Monitor, GM Data, Sessions, Cost, Models, and Quota Tracking during incremental panel updates. Root cause: unchanged tabs were still having their `innerHTML` replaced, causing the sentinel to be recreated and re-observed as a brand-new node on every poll. Fix: cache per-tab HTML, skip unchanged pane swaps, preserve visible sentinel state across refreshes, and restore it with a no-transition path when needed. Also added idempotent listener guards for refreshed `<details>` blocks and session catalog filters to prevent duplicate bindings.
+  修复监控、GM 数据、会话、成本、模型、额度追踪等标签页中「已到底」提示在增量轮询刷新时反复触发淡入的问题。根因：即使内容未变化，标签页仍会执行 `innerHTML` 替换，导致 sentinel 节点每次都被重建并重新交给观察器，浏览器把它当成全新元素再次播放淡入。修复方式：缓存各标签页 HTML、跳过未变化 pane 的 DOM 替换、在刷新后保留已可见 sentinel 的状态，并在需要时用无过渡方式恢复。同时为刷新后重新出现的 `<details>` 和会话目录筛选控件增加幂等监听保护，避免重复绑定事件。
+
 ### 📊 Stats / 统计
 
 - **Files changed**: 6 (webview-history-tab.ts, webview-settings-tab.ts, webview-script.ts, webview-styles.ts, webview-panel.ts, quota-tracker.ts)
