@@ -323,9 +323,9 @@ Builds the full Cost tab HTML and also exports `buildModelDNACards()` for the Mo
 
 ### 🖥️ webview-panel.ts — WebView 面板框架
 
-面板总框架：9 标签切换（Monitor / GM Data / Sessions / Cost / Models / Quota Tracking / Calendar / Profile / Settings）、消息通信。各标签内容由独立模块生成。
+面板总框架：标题「Antigravity Monitor / Antigravity 监控面板」，9 标签切换（Monitor / GM Data / Sessions / Cost / Models / Quota Tracking / Calendar / Profile / Settings）、消息通信。各标签内容由独立模块生成。新增 `onDidChangeViewState` 监听，面板从隐藏恢复可见时立即用缓存数据执行增量刷新，避免用户看到旧数据闪烁。
 
-Panel framework: 9-tab navigation (Monitor / GM Data / Sessions / Cost / Models / Quota Tracking / Calendar / Profile / Settings) and message communication. Tab content rendered by independent modules.
+Panel framework titled \"Antigravity Monitor\": 9-tab navigation and message communication. Tab content rendered by independent modules. Adds `onDidChangeViewState` listener to immediately refresh tabs with cached data when the panel becomes visible again, eliminating stale-data flash.
 
 | 模块 / Module | 职责 / Responsibility |
 |---|---|

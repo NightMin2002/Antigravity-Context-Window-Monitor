@@ -322,7 +322,7 @@ export function showMonitorPanel(p: PanelPayload): void {
 
     panel = vscode.window.createWebviewPanel(
         'antigravityMonitor',
-        `${tBi('Context Monitor', '上下文监控')}`,
+        `${tBi('Antigravity Monitor', 'Antigravity 监控面板')}`,
         { viewColumn: vscode.ViewColumn.Two, preserveFocus: true },
         { enableScripts: true },
     );
@@ -547,6 +547,23 @@ export function showMonitorPanel(p: PanelPayload): void {
         }
     });
 
+    // Refresh content immediately when panel becomes visible again after being hidden.
+    // Without retainContextWhenHidden, VS Code destroys the webview DOM when hidden
+    // and restores from the stale webview.html when re-shown. This listener ensures
+    // the panel is updated with the latest cached data as soon as it reappears,
+    // instead of waiting for the next polling cycle.
+    panel.onDidChangeViewState((e) => {
+        if (e.webviewPanel.visible) {
+            safePostMessage({
+                command: 'updateTabs',
+                tabs: buildTabContents(
+                    lastUsage, lastAllUsages, lastConfigs, lastUserInfo, lastQuotaTracker,
+                ),
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+            });
+        }
+    });
+
     panel.onDidDispose(() => {
         clearDisposedPanel();
     });
@@ -654,7 +671,7 @@ ${getCalendarTabStyles()}
         <header class="topbar-title">
             <h1>
                 ${ICON.chart}
-                ${tBi('Context Monitor', '上下文监控')}
+                ${tBi('Antigravity Monitor', 'Antigravity 监控面板')}
             </h1>
             <div class="header-actions">
                 <div class="lang-switcher">

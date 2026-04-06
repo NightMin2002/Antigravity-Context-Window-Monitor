@@ -55,7 +55,7 @@ const translations: Record<string, TranslationEntry> = {
     'tooltip.precise': { en: 'GM data (from checkpoint)', zh: 'GM 数据 (来自 checkpoint)' },
 
     // ─ QuickPick Panel
-    'panel.title': { en: 'Antigravity Context Window Monitor', zh: '上下文窗口使用情况' },
+    'panel.title': { en: 'Antigravity Monitor', zh: 'Antigravity 监控面板' },
     'panel.placeholder': { en: 'View context details for all sessions', zh: '查看各会话的上下文使用详情' },
     'panel.currentSession': { en: 'Current Active Session', zh: '当前活跃会话' },
     'panel.otherSessions': { en: 'Other Sessions', zh: '其他会话' },
