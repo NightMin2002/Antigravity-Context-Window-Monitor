@@ -652,7 +652,13 @@ async function pollContextUsage() {
         // ─── Staleness Heuristic ───────────────────────────────────────────
         // BUG FIX: If we're tracking a RUNNING cascade but LS reports it as IDLE
         // for too many consecutive polls, the LS is probably stale. Force re-discovery.
-        if (qualifiedRunning.length === 0 && trackedCascadeId) {
+        // Also check if the tracked cascade is still RUNNING globally — when Priority 1c
+        // selects a cross-workspace cascade, it won't be in qualifiedRunning but is
+        // genuinely active, so we must not treat it as stale.
+        const trackedStillRunningGlobally = trackedCascadeId
+            ? trajectories.some(t => t.cascadeId === trackedCascadeId && t.status === constants_1.CascadeStatus.RUNNING)
+            : false;
+        if (qualifiedRunning.length === 0 && trackedCascadeId && !trackedStillRunningGlobally) {
             consecutiveIdlePolls++;
             if (consecutiveIdlePolls >= STALE_LS_IDLE_THRESHOLD && !stalenessConfirmedIdle) {
                 log(`⚠ Staleness detected: tracked cascade ${trackedCascadeId.substring(0, 8)} has been IDLE for ${consecutiveIdlePolls} consecutive polls. Forcing LS re-discovery.`);
@@ -703,6 +709,23 @@ async function pollContextUsage() {
                 newCandidateId = allRunning[0].cascadeId;
                 selectionReason = 'RUNNING cascade without workspace (new conversation)';
                 log(`Priority 1b: found RUNNING trajectory ${newCandidateId.substring(0, 8)} without workspace URI`);
+            }
+        }
+        // --- Priority 1c: Cross-workspace RUNNING fallback ---
+        // When a user switches from workspace A to B mid-conversation, the RUNNING
+        // conversation's workspaceUris still points to A. Neither Priority 1 nor 1b
+        // will find it. As a last-resort before falling back to stepCount detection,
+        // check for any RUNNING conversation across all workspaces.
+        // Staleness detection uses trackedStillRunningGlobally to avoid false
+        // stale-LS triggers when the tracked cascade is a cross-workspace RUNNING.
+        if (!newCandidateId && workspaceUri) {
+            const crossWsRunning = trajectories.filter(t => t.status === constants_1.CascadeStatus.RUNNING &&
+                t.workspaceUris.length > 0 &&
+                !t.workspaceUris.some(u => (0, tracker_1.normalizeUri)(u) === normalizedWs));
+            if (crossWsRunning.length > 0) {
+                newCandidateId = crossWsRunning[0].cascadeId;
+                selectionReason = 'RUNNING cascade from another workspace (cross-workspace fallback)';
+                log(`Priority 1c: found cross-workspace RUNNING trajectory ${newCandidateId.substring(0, 8)}`);
             }
         }
         // --- Priority 2: stepCount CHANGE detection ---
