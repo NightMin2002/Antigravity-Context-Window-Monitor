@@ -1,42 +1,5 @@
 # 变更日志 / Changelog
 
-## [1.15.2] - 2026-04-15
-
-### 🐛 Fixed / 修复
-
-- **CHECKPOINT Ghost Model Leaking into UI / CHECKPOINT 幽灵模型泄漏到 UI**: Fixed a bug where `MODEL_PLACEHOLDER_M50` (Flash Lite — an internal CHECKPOINT summarization model) could override the real user-facing model in the status bar tooltip and monitor panel. Root cause: `processSteps()` in `tracker.ts` unconditionally promoted `checkpoint.modelUsage.model` over `generatorModel`, but M50 is a ghost model that only appears in checkpoint metadata. Fix: introduced `GHOST_CHECKPOINT_MODELS` set in `models.ts`; `processSteps()` now skips model override when the checkpoint's model is in this set.
-  修复 `MODEL_PLACEHOLDER_M50`（Flash Lite — 内部 CHECKPOINT 摘要模型）覆盖状态栏和监控面板中真实用户模型的问题。在 `models.ts` 中引入 `GHOST_CHECKPOINT_MODELS` 集合，`processSteps()` 跳过该集合中的模型。
-
-- **M50 Display Name Mapping / M50 显示名映射**: Added `MODEL_PLACEHOLDER_M50` to the `modelDisplayNames` map with display name `Flash Lite (Internal)` / `Flash Lite (内部)`. Previously, if M50 appeared in any UI surface, it would show the raw placeholder string.
-  将 `MODEL_PLACEHOLDER_M50` 加入显示名映射表，避免 UI 显示原始占位符字符串。
-
-- **Gemini 3.1 Pro Chinese Translation / Gemini 3.1 Pro 中文翻译修正**: Fixed incorrect Chinese translations for Gemini 3.1 Pro quality variants: `强` → `高` (High), `弱` → `低` (Low). Added `LEGACY_DISPLAY_ALIASES` to ensure backward compatibility with persisted workspaceState data that used the old translations (including bilingual `tBi()` format).
-  修正 Gemini 3.1 Pro 质量变体的中文翻译：`强` → `高`，`弱` → `低`。新增 `LEGACY_DISPLAY_ALIASES` 确保使用旧翻译的持久化数据仍能正确解析。
-
-### ✨ Improved / 改进
-
-- **Cross-Workspace Conversation Tracking / 跨工作区对话追踪**: Added Priority 1c fallback for cross-workspace RUNNING conversations. When a user switches from workspace A to B mid-conversation, the active conversation remains trackable via a last-resort fallback that checks globally RUNNING conversations. Workspace isolation for IDLE conversations is fully preserved. Staleness detection uses `trackedStillRunningGlobally` to avoid false stale-LS triggers.
-  新增 Priority 1c 跨工作区 RUNNING 对话 fallback。用户在对话进行中切换工作区时，活跃对话仍可被追踪。IDLE 对话的工作区隔离完全保留。Staleness 检测使用全局 RUNNING 状态避免误触。
-
-### 🧪 Tests / 测试
-
-- Added 13 regression tests: M50 ghost model guard (`tracker.test.ts`), legacy alias resolution including bilingual format (`models.test.ts`), updated translations in 4 existing test files.
-  新增 13 个回归测试：M50 幽灵模型守卫、旧版翻译别名解析（含双语格式），更新 4 个测试文件中的翻译。
-
-### 📝 Docs / 文档
-
-- Updated CHANGELOG, README, README_CN, and technical docs for v1.15.2 release. Thanks to contributor @NightMin2002 for identifying the M50 ghost model issue and the cross-workspace tracking gap.
-  更新 CHANGELOG、README、README_CN 和技术文档。感谢 @NightMin2002 发现 M50 幽灵模型问题和跨工作区追踪缺陷。
-
-### 📊 Stats / 统计
-
-- **Files changed**: 7 (`models.ts`, `tracker.ts`, `extension.ts`, + 4 test files)
-- **New test file**: `tests/models.test.ts` (13 tests)
-- **TypeScript compile**: Zero errors
-- **Test suite**: 14 files, 192/192 passed
-
----
-
 ## [1.15.1] - 2026-04-14
 
 ### 🐛 Fixed / 修复

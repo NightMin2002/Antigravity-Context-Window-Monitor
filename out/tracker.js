@@ -288,9 +288,8 @@ function processSteps(steps) {
         if (stepModel) {
             model = stepModel;
         }
-        // Checkpoint modelUsage.model has higher priority than generatorModel,
-        // BUT skip ghost/internal models (e.g. M50 = Flash Lite used for checkpoint summarization)
-        if (lastModelUsage && lastModelUsage.model && !models_1.GHOST_CHECKPOINT_MODELS.has(lastModelUsage.model)) {
+        // Checkpoint modelUsage.model has higher priority than generatorModel
+        if (lastModelUsage && lastModelUsage.model) {
             model = lastModelUsage.model;
         }
         // requestedModel is highest priority (user's explicit selection)

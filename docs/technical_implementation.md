@@ -42,9 +42,7 @@ Once connected, the plugin periodically fetches conversation data and tracks cha
 
 * **Active Session Selection / 活跃会话选择**: Selects which session to display, by priority:
   按优先级选择要显示的会话：
-  1. Trajectory with RUNNING status in current workspace / 当前工作区中状态为 RUNNING 的对话
-  1b. RUNNING trajectory without workspace URI (new conversation) / 无工作区 URI 的 RUNNING 对话（新对话）
-  1c. (v1.15.2) Cross-workspace RUNNING fallback — when a user switches workspace mid-conversation, the active conversation's workspaceUris still points to the old workspace; this fallback finds it globally. Staleness detection uses `trackedStillRunningGlobally` to avoid false stale-LS triggers for cross-workspace tracked cascades. / 跨工作区 RUNNING fallback — 用户在对话中切换工作区时，活跃对话的 workspaceUris 仍指向旧工作区；此 fallback 在全局查找。Staleness 检测使用 `trackedStillRunningGlobally` 避免对跨工作区追踪的 cascade 误触 stale-LS。
+  1. Trajectory with RUNNING status / 状态为 RUNNING 的对话
   2. Trajectory with stepCount change (increase = new message, decrease = undo) / `stepCount` 发生变化的对话
   3. Newly appeared trajectory / 新出现的对话
 
@@ -55,8 +53,8 @@ Once connected, the plugin periodically fetches conversation data and tracks cha
 
 > Source: [`tracker.ts`](../src/tracker.ts) — `processSteps()` (pure computation), `getTrajectoryTokenUsage()` (RPC fetch + calls processSteps)
 
-* **精确值（Checkpoint）/ Precise Values**: 语言服务器会在 `CORTEX_STEP_TYPE_CHECKPOINT` 类型的步骤中提供 `modelUsage` 数据，包含模型实际计算的 `inputTokens` 和 `outputTokens`。插件始终使用最后一个 checkpoint 的值作为基准。自 v1.15.2 起，`processSteps()` 使用 `GHOST_CHECKPOINT_MODELS`（定义在 `models.ts`）过滤内部幽灵模型（如 `MODEL_PLACEHOLDER_M50` = Flash Lite），防止 checkpoint 的 `modelUsage.model` 覆盖真实用户模型。
-  The language server provides `modelUsage` data in `CORTEX_STEP_TYPE_CHECKPOINT` steps, containing the model's actual `inputTokens` and `outputTokens`. The plugin always uses the last checkpoint as the baseline. Since v1.15.2, `processSteps()` uses `GHOST_CHECKPOINT_MODELS` (defined in `models.ts`) to filter internal ghost models (e.g., `MODEL_PLACEHOLDER_M50` = Flash Lite), preventing the checkpoint's `modelUsage.model` from overriding the real user-facing model.
+* **精确值（Checkpoint）/ Precise Values**: 语言服务器会在 `CORTEX_STEP_TYPE_CHECKPOINT` 类型的步骤中提供 `modelUsage` 数据，包含模型实际计算的 `inputTokens` 和 `outputTokens`。插件始终使用最后一个 checkpoint 的值作为基准。
+  The language server provides `modelUsage` data in `CORTEX_STEP_TYPE_CHECKPOINT` steps, containing the model's actual `inputTokens` and `outputTokens`. The plugin always uses the last checkpoint as the baseline.
 
 * **实时估算（v1.4.0 内容估算）/ Real-Time Estimation (v1.4.0 Content-Based)**: 在两个 checkpoint 之间，插件从步骤的实际文本内容估算 Token 增量：用户输入取自 `userInput.userResponse`，模型回复取自 `plannerResponse.response` + `plannerResponse.thinking` + `plannerResponse.toolCalls[].argumentsJson`。估算规则为 ASCII 字符 ÷ 4、非 ASCII 字符 ÷ 1.5。只有当步骤的父对象完全不存在（数据结构缺失）时，才 fallback 到固定常量（用户输入 500、模型回复 800），文本为空则正确估算为 ≈0 tokens。系统提示词开销约 10000 tokens（`SYSTEM_PROMPT_OVERHEAD`，基于实测），始终计入一次。
    Between checkpoints, the plugin estimates token delta from actual step text content: user input from `userInput.userResponse`, model response from `plannerResponse.response` + `plannerResponse.thinking` + `plannerResponse.toolCalls[].argumentsJson`. Estimation: ASCII chars ÷ 4, non-ASCII ÷ 1.5. Fixed constants (500 per user input, 800 per response) are only used as fallback when the parent object is entirely missing (structural data absence); empty text correctly estimates to ≈0 tokens. System prompt overhead ~10,000 tokens (`SYSTEM_PROMPT_OVERHEAD`, measured from real sessions) is always counted once.
