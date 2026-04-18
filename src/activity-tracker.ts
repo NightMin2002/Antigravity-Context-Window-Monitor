@@ -19,28 +19,28 @@ interface StepClassification {
 }
 
 const STEP_CATEGORIES: Record<string, StepClassification> = {
-    'CORTEX_STEP_TYPE_PLANNER_RESPONSE':     { icon: '🧠', label: 'reasoning',    category: 'reasoning' },
-    'CORTEX_STEP_TYPE_VIEW_FILE':            { icon: '📄', label: 'view_file',    category: 'tool' },
-    'CORTEX_STEP_TYPE_CODE_ACTION':          { icon: '✏️', label: 'code_action',  category: 'tool' },
-    'CORTEX_STEP_TYPE_RUN_COMMAND':          { icon: '⚡', label: 'run_command',  category: 'tool' },
-    'CORTEX_STEP_TYPE_COMMAND_STATUS':       { icon: '📟', label: 'cmd_status',   category: 'tool' },
-    'CORTEX_STEP_TYPE_SEND_COMMAND_INPUT':   { icon: '⌨️', label: 'send_input',   category: 'tool' },
-    'CORTEX_STEP_TYPE_LIST_DIRECTORY':       { icon: '📂', label: 'list_dir',     category: 'tool' },
-    'CORTEX_STEP_TYPE_FIND':                 { icon: '🔍', label: 'find',         category: 'tool' },
-    'CORTEX_STEP_TYPE_GREP_SEARCH':          { icon: '🔎', label: 'grep_search',  category: 'tool' },
-    'CORTEX_STEP_TYPE_CODEBASE_SEARCH':      { icon: '🗂️', label: 'code_search',  category: 'tool' },
-    'CORTEX_STEP_TYPE_MCP_TOOL':             { icon: '🔌', label: 'mcp_tool',     category: 'tool' },
-    'CORTEX_STEP_TYPE_SEARCH_WEB':           { icon: '🌐', label: 'search_web',   category: 'tool' },
-    'CORTEX_STEP_TYPE_READ_URL_CONTENT':     { icon: '🌐', label: 'read_url',     category: 'tool' },
-    'CORTEX_STEP_TYPE_BROWSER_SUBAGENT':     { icon: '🤖', label: 'browser',      category: 'tool' },
-    'CORTEX_STEP_TYPE_ERROR_MESSAGE':        { icon: '❌', label: 'error',         category: 'system' },
-    'CORTEX_STEP_TYPE_USER_INPUT':           { icon: '💬', label: 'user_input',    category: 'user' },
-    'CORTEX_STEP_TYPE_CHECKPOINT':           { icon: '💾', label: 'checkpoint',    category: 'system' },
-    'CORTEX_STEP_TYPE_CONVERSATION_HISTORY': { icon: '📜', label: 'history',       category: 'system' },
-    'CORTEX_STEP_TYPE_KNOWLEDGE_ARTIFACTS':  { icon: '📚', label: 'knowledge',     category: 'system' },
-    'CORTEX_STEP_TYPE_EPHEMERAL_MESSAGE':    { icon: '💨', label: 'ephemeral',     category: 'system' },
-    'CORTEX_STEP_TYPE_TASK_BOUNDARY':        { icon: '📌', label: 'task_boundary', category: 'system' },
-    'CORTEX_STEP_TYPE_NOTIFY_USER':          { icon: '📢', label: 'notify_user',  category: 'system' },
+    'CORTEX_STEP_TYPE_PLANNER_RESPONSE': { icon: '🧠', label: 'reasoning', category: 'reasoning' },
+    'CORTEX_STEP_TYPE_VIEW_FILE': { icon: '📄', label: 'view_file', category: 'tool' },
+    'CORTEX_STEP_TYPE_CODE_ACTION': { icon: '✏️', label: 'code_action', category: 'tool' },
+    'CORTEX_STEP_TYPE_RUN_COMMAND': { icon: '⚡', label: 'run_command', category: 'tool' },
+    'CORTEX_STEP_TYPE_COMMAND_STATUS': { icon: '📟', label: 'cmd_status', category: 'tool' },
+    'CORTEX_STEP_TYPE_SEND_COMMAND_INPUT': { icon: '⌨️', label: 'send_input', category: 'tool' },
+    'CORTEX_STEP_TYPE_LIST_DIRECTORY': { icon: '📂', label: 'list_dir', category: 'tool' },
+    'CORTEX_STEP_TYPE_FIND': { icon: '🔍', label: 'find', category: 'tool' },
+    'CORTEX_STEP_TYPE_GREP_SEARCH': { icon: '🔎', label: 'grep_search', category: 'tool' },
+    'CORTEX_STEP_TYPE_CODEBASE_SEARCH': { icon: '🗂️', label: 'code_search', category: 'tool' },
+    'CORTEX_STEP_TYPE_MCP_TOOL': { icon: '🔌', label: 'mcp_tool', category: 'tool' },
+    'CORTEX_STEP_TYPE_SEARCH_WEB': { icon: '🌐', label: 'search_web', category: 'tool' },
+    'CORTEX_STEP_TYPE_READ_URL_CONTENT': { icon: '🌐', label: 'read_url', category: 'tool' },
+    'CORTEX_STEP_TYPE_BROWSER_SUBAGENT': { icon: '🤖', label: 'browser', category: 'tool' },
+    'CORTEX_STEP_TYPE_ERROR_MESSAGE': { icon: '❌', label: 'error', category: 'system' },
+    'CORTEX_STEP_TYPE_USER_INPUT': { icon: '💬', label: 'user_input', category: 'user' },
+    'CORTEX_STEP_TYPE_CHECKPOINT': { icon: '💾', label: 'checkpoint', category: 'system' },
+    'CORTEX_STEP_TYPE_CONVERSATION_HISTORY': { icon: '📜', label: 'history', category: 'system' },
+    'CORTEX_STEP_TYPE_KNOWLEDGE_ARTIFACTS': { icon: '📚', label: 'knowledge', category: 'system' },
+    'CORTEX_STEP_TYPE_EPHEMERAL_MESSAGE': { icon: '💨', label: 'ephemeral', category: 'system' },
+    'CORTEX_STEP_TYPE_TASK_BOUNDARY': { icon: '📌', label: 'task_boundary', category: 'system' },
+    'CORTEX_STEP_TYPE_NOTIFY_USER': { icon: '📢', label: 'notify_user', category: 'system' },
 };
 
 function classifyStep(type: string): StepClassification {
@@ -383,19 +383,36 @@ function extractNotifyMessage(toolCalls: unknown[] | undefined): string {
 }
 
 function buildGMVirtualPreview(call: GMCallEntry): { detail: string; aiResponse?: string; fullAiResponse?: string } {
-    const structuredBits: string[] = [];
-    if (call.toolNames.length > 0) {
-        structuredBits.push(`${tBi('tools', '工具')}: ${call.toolNames.slice(0, 3).join(', ')}`);
-    }
-    if (call.latestStableMessageIndex > 0) {
-        structuredBits.push(`stable#${call.latestStableMessageIndex}`);
-    } else if (call.startStepIndex > 0) {
-        structuredBits.push(`start#${call.startStepIndex}`);
-    } else if (call.executionId) {
-        structuredBits.push(`exec ${call.executionId.substring(0, 8)}`);
+    // Priority 0: Interrupted/cancelled call (0 tokens)
+    if (call.inputTokens === 0 && call.outputTokens === 0) {
+        return { detail: tBi('⚡ interrupted', '⚡ 已中断') };
     }
 
-    return { detail: structuredBits.join(' · ') || tBi('GM call', 'GM 调用') };
+    // Priority 1: AI response snippet matched by stepIndex
+    // aiSnippetsByStep is built from embedded GM's messagePrompts (GetCascadeTrajectory)
+    // and broadcast to ALL calls via maybeEnrichCallsFromTrajectory.
+    if (Object.keys(call.aiSnippetsByStep).length > 0) {
+        for (const idx of call.stepIndices) {
+            if (call.aiSnippetsByStep[idx]) {
+                return { detail: call.aiSnippetsByStep[idx] };
+            }
+        }
+    }
+
+    // Priority 2: promptSnippet from GM payload (non-low-signal)
+    if (call.promptSnippet && !isLowSignalPromptSnippet(call.promptSnippet)) {
+        const preview = call.promptSnippet.length > 80
+            ? call.promptSnippet.substring(0, 77) + '...'
+            : call.promptSnippet;
+        return { detail: preview };
+    }
+
+    // Priority 3: step count hint (how many steps this call covers)
+    if (call.stepIndices.length > 1) {
+        return { detail: `+${call.stepIndices.length} steps (estimated)` };
+    }
+
+    return { detail: tBi('GM call', 'GM 调用') };
 }
 
 function sameStepDistribution(a: Record<string, number>, b: Record<string, number>): boolean {
@@ -1726,7 +1743,7 @@ export class ActivityTracker {
             if (!gm && ev.category === 'reasoning') {
                 for (let d = 1; d <= 3 && !gm; d++) {
                     gm = gmByStep.get(buildGMEventKey(ev.cascadeId, ev.stepIndex + d))
-                      || gmByStep.get(buildGMEventKey(ev.cascadeId, ev.stepIndex - d));
+                        || gmByStep.get(buildGMEventKey(ev.cascadeId, ev.stepIndex - d));
                 }
             }
             if (!gm) { continue; }

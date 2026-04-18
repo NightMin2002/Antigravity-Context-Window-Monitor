@@ -84,6 +84,9 @@ export interface GMCallEntry {
     responseHeaderKeys: string[];
     /** Explicit user messages recovered from messagePrompts */
     userMessageAnchors: GMUserMessageAnchor[];
+    /** Per-step AI response snippets extracted from messagePrompts SYSTEM messages.
+     *  Key = stepIdx from messageMetadata, Value = cleaned prompt text. */
+    aiSnippetsByStep: Record<number, string>;
     /** Number of retries for this call */
     retries: number;
     /** Stop reason from plannerResponse (e.g. STOP_REASON_STOP_PATTERN) */
@@ -804,6 +807,55 @@ function extractUserMessageAnchors(messagePrompts: unknown): GMUserMessageAnchor
     return anchors;
 }
 
+/**
+ * Extract AI response snippets from SYSTEM messages in messagePrompts,
+ * keyed by their stepIdx (a direct field on each message entry).
+ * This allows each GM call to look up its OWN specific AI response text.
+ *
+ * For tool-call-only steps (no prompt text), stores tool names as the snippet.
+ * Confirmed via live-watcher: each entry has { source, prompt, stepIdx, toolCalls, ... }
+ */
+function extractAISnippetsByStep(messagePrompts: unknown): Record<number, string> {
+    const snippets: Record<number, string> = {};
+    if (!Array.isArray(messagePrompts)) { return snippets; }
+
+    for (const item of messagePrompts) {
+        if (!item || typeof item !== 'object') { continue; }
+        const rec = item as Record<string, unknown>;
+        const source = String(rec.source || '');
+        if (source !== 'CHAT_MESSAGE_SOURCE_SYSTEM') { continue; }
+
+        const stepIdx = typeof rec.stepIdx === 'number' ? rec.stepIdx : -1;
+        if (stepIdx < 0) { continue; }
+
+        const prompt = String(rec.prompt || '');
+
+        // Extract tool call names from SYSTEM message
+        const toolCalls = rec.toolCalls as Array<Record<string, unknown>> | undefined;
+        const toolNames = Array.isArray(toolCalls)
+            ? toolCalls.map(tc => String(tc.name || '')).filter(n => n.length > 0)
+            : [];
+
+        // Clean prompt text
+        const cleaned = prompt.replace(/[\r\n\t]+/g, ' ').replace(/\s+/g, ' ').trim();
+        const isToolResult = /^(File Path:|No results found|The command completed|Created file|The following changes)/i.test(cleaned);
+
+        if (cleaned.length >= 1 && !isToolResult) {
+            // Has meaningful text
+            if (toolNames.length > 0) {
+                const textPart = cleaned.length > 80 ? cleaned.substring(0, 77) + '...' : cleaned;
+                snippets[stepIdx] = `${textPart}  🔧${toolNames.slice(0, 3).join(', ')}`;
+            } else {
+                snippets[stepIdx] = cleaned.length > 120 ? cleaned.substring(0, 117) + '...' : cleaned;
+            }
+        } else if (toolNames.length > 0) {
+            // No text but has tool calls
+            snippets[stepIdx] = `🔧 ${toolNames.join(', ')}`;
+        }
+    }
+    return snippets;
+}
+
 function extractPromptData(cm: Record<string, unknown>): {
     promptSnippet: string;
     promptSource: GMPromptSource;
@@ -811,11 +863,13 @@ function extractPromptData(cm: Record<string, unknown>): {
     messageMetadataKeys: string[];
     responseHeaderKeys: string[];
     userMessageAnchors: GMUserMessageAnchor[];
+    aiSnippetsByStep: Record<number, string>;
 } {
     const messagePrompts = cm.messagePrompts;
     const messageMetadata = cm.messageMetadata;
     const responseHeader = cm.responseHeader;
     const userMessageAnchors = extractUserMessageAnchors(messagePrompts);
+    const aiSnippetsByStep = extractAISnippetsByStep(messagePrompts);
 
     const fromPrompts = pickPromptSnippet(messagePrompts);
     if (fromPrompts) {
@@ -830,6 +884,7 @@ function extractPromptData(cm: Record<string, unknown>): {
                 ? Object.keys(responseHeader as Record<string, unknown>)
                 : [],
             userMessageAnchors,
+            aiSnippetsByStep,
         };
     }
 
@@ -845,6 +900,7 @@ function extractPromptData(cm: Record<string, unknown>): {
             ? Object.keys(responseHeader as Record<string, unknown>)
             : [],
         userMessageAnchors,
+        aiSnippetsByStep,
     };
 }
 
@@ -883,6 +939,9 @@ function mergeGMCallEntries(primary: GMCallEntry, fallback: GMCallEntry): GMCall
         userMessageAnchors: primary.userMessageAnchors.length > 0
             ? primary.userMessageAnchors
             : fallback.userMessageAnchors,
+        aiSnippetsByStep: Object.keys(primary.aiSnippetsByStep).length > 0
+            ? primary.aiSnippetsByStep
+            : fallback.aiSnippetsByStep,
         stopReason: primary.stopReason || fallback.stopReason,
         createdAt: primary.createdAt || fallback.createdAt,
         latestStableMessageIndex: primary.latestStableMessageIndex || fallback.latestStableMessageIndex,
@@ -897,10 +956,28 @@ function maybeEnrichCallsFromTrajectory(calls: GMCallEntry[], embeddedCalls: GMC
     for (const call of embeddedCalls) {
         embeddedByKey.set(buildGMMatchKey(call), call);
     }
-    return calls.map(call => {
+    const merged = calls.map(call => {
         const embedded = embeddedByKey.get(buildGMMatchKey(call));
         return embedded ? mergeGMCallEntries(call, embedded) : call;
     });
+
+    // Broadcast: only ONE embedded call typically has messagePrompts (→ aiSnippetsByStep).
+    // Share the richest map across ALL calls so each can look up its own AI snippet.
+    let richestSnippets: Record<number, string> = {};
+    for (const call of [...merged, ...embeddedCalls]) {
+        if (Object.keys(call.aiSnippetsByStep).length > Object.keys(richestSnippets).length) {
+            richestSnippets = call.aiSnippetsByStep;
+        }
+    }
+    if (Object.keys(richestSnippets).length > 0) {
+        for (const call of merged) {
+            if (Object.keys(call.aiSnippetsByStep).length < Object.keys(richestSnippets).length) {
+                call.aiSnippetsByStep = richestSnippets;
+            }
+        }
+    }
+
+    return merged;
 }
 
 function shouldEnrichConversation(stepCount: number, calls: GMCallEntry[]): boolean {
@@ -1034,6 +1111,7 @@ function parseGMEntry(gm: Record<string, unknown>): GMCallEntry {
         messageMetadataKeys: promptData.messageMetadataKeys,
         responseHeaderKeys: promptData.responseHeaderKeys,
         userMessageAnchors: promptData.userMessageAnchors,
+        aiSnippetsByStep: promptData.aiSnippetsByStep,
         retries,
         stopReason,
         retryTokensIn,
@@ -1092,7 +1170,7 @@ export class GMTracker {
             try {
                 const resp = await rpcCall(ls, 'GetCascadeTrajectoryGeneratorMetadata',
                     { cascadeId: t.cascadeId, ...meta }, 30000, signal) as Record<string, unknown>;
-        const rawGM = (resp.generatorMetadata || []) as Record<string, unknown>[];
+                const rawGM = (resp.generatorMetadata || []) as Record<string, unknown>[];
 
                 let calls = rawGM.map(parseGMEntry);
                 if (shouldEnrichConversation(t.stepCount, calls)) {
@@ -1244,13 +1322,13 @@ export class GMTracker {
                     contextGrowth.push({
                         step: c.stepIndices[0],
                         tokens: c.contextTokensUsed,
-                    model: normalizeModelDisplayName(c.modelDisplay || c.model) || c.modelDisplay || c.model,
-                });
-            }
+                        model: normalizeModelDisplayName(c.modelDisplay || c.model) || c.modelDisplay || c.model,
+                    });
+                }
 
-            // Per-model aggregation
-            const key = normalizeModelDisplayName(c.modelDisplay || c.model) || c.modelDisplay || c.model;
-            if (!key) { continue; }
+                // Per-model aggregation
+                const key = normalizeModelDisplayName(c.modelDisplay || c.model) || c.modelDisplay || c.model;
+                if (!key) { continue; }
 
                 let agg = modelAgg.get(key);
                 if (!agg) {

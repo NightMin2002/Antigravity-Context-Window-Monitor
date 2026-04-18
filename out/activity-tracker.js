@@ -256,20 +256,32 @@ function extractNotifyMessage(toolCalls) {
     return '';
 }
 function buildGMVirtualPreview(call) {
-    const structuredBits = [];
-    if (call.toolNames.length > 0) {
-        structuredBits.push(`${(0, i18n_1.tBi)('tools', '工具')}: ${call.toolNames.slice(0, 3).join(', ')}`);
+    // Priority 1: AI response snippet matched by stepIndex
+    // aiSnippetsByStep is built from embedded GM's messagePrompts (GetCascadeTrajectory)
+    // and broadcast to ALL calls via maybeEnrichCallsFromTrajectory.
+    if (Object.keys(call.aiSnippetsByStep).length > 0) {
+        for (const idx of call.stepIndices) {
+            if (call.aiSnippetsByStep[idx]) {
+                return { detail: call.aiSnippetsByStep[idx] };
+            }
+        }
     }
-    if (call.latestStableMessageIndex > 0) {
-        structuredBits.push(`stable#${call.latestStableMessageIndex}`);
+    // Priority 2: promptSnippet from GM payload (non-low-signal)
+    if (call.promptSnippet && !isLowSignalPromptSnippet(call.promptSnippet)) {
+        const preview = call.promptSnippet.length > 80
+            ? call.promptSnippet.substring(0, 77) + '...'
+            : call.promptSnippet;
+        return { detail: preview };
     }
-    else if (call.startStepIndex > 0) {
-        structuredBits.push(`start#${call.startStepIndex}`);
+    // Priority 3: User message
+    if (call.userMessageAnchors.length > 0) {
+        const lastAnchor = call.userMessageAnchors[call.userMessageAnchors.length - 1];
+        const preview = lastAnchor.text.length > 60
+            ? lastAnchor.text.substring(0, 57) + '...'
+            : lastAnchor.text;
+        return { detail: `💬 ${preview}` };
     }
-    else if (call.executionId) {
-        structuredBits.push(`exec ${call.executionId.substring(0, 8)}`);
-    }
-    return { detail: structuredBits.join(' · ') || (0, i18n_1.tBi)('GM call', 'GM 调用') };
+    return { detail: (0, i18n_1.tBi)('GM call', 'GM 调用') };
 }
 function sameStepDistribution(a, b) {
     const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
