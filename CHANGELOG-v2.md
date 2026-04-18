@@ -196,3 +196,78 @@
 - **Files changed**: 3 (`src/gm/parser.ts`, `src/activity/tracker.ts`, `src/extension.ts`)
 - **TypeScript compile**: Zero errors
 - **Key insight**: `retryInfos` always contains N+1 entries (N failures + 1 success)
+
+---
+
+## [1.15.6] - 2026-04-18
+
+### 🏗 Refactored / 重构
+
+- **Timeline Unification — GM-Only Truth / 时间线统一化 — GM 唯一事实源**:
+  Replaced the dual Steps+GM event system with a single GM-driven timeline. All GM calls now generate virtual events covering the full conversation, not just the window-outside range. Steps API events with `stepIndex ≤ maxGMStep` are range-suppressed, eliminating all duplicates.
+  用纯 GM 驱动的时间线替代了 Steps+GM 双事件系统。所有 GM 调用生成虚拟事件覆盖全量对话，范围抑制自动过滤 `stepIndex ≤ maxGMStep` 的 step-source 事件。
+
+- **Right-Aligned Chip System — Two-Group Layout / 右对齐标签系统 — 双组布局**:
+  Split right-side metadata into two independent flex containers:
+  将右侧元数据拆为两个独立 flex 容器：
+
+  | Group | CSS Class | Content | Alignment |
+  |-------|-----------|---------|-----------|
+  | **statusParts** | `.act-tl-gm-status` | retry, tools, TTFT, duration | 可选，左浮动 |
+  | **tokenParts** | `.act-tl-gm` | 上下文, 输入, 输出, 缓存, 积分 | 固定，始终右对齐 |
+
+  **statusParts order** (right→left): `duration → TTFT → 🔧tools → retry`
+  **tokenParts order** (fixed): `Ctx → input → output → cache → credits`
+
+  This ensures token columns stay vertically aligned across all rows, regardless of whether retry/tools/TTFT are present.
+  确保 token 列在所有行间垂直对齐，不受 retry/工具/TTFT 有无影响。
+
+### ✨ Improved / 改进
+
+- **Context Chip Regrouped / 上下文标签归位**:
+  Moved `上下文 138k` from `buildMetaTags` (separated, misaligned) into `tokenParts` as the first element (purple `.act-tl-gm-ctx` chip). Now vertically aligned with other token data.
+  将上下文 chip 从 `buildMetaTags`（分离导致错位）移入 `tokenParts` 首位。
+
+- **TTFT Labeled / TTFT 加标签**:
+  Changed ambiguous `2.5s` to `TTFT 2.5s` to distinguish from step duration.
+  从模糊的 `2.5s` 改为 `TTFT 2.5s`，与总耗时区分。
+
+- **Retry Format / 重试格式**:
+  Changed cryptic `r1` to human-readable `retry(1)` / `retry(1)⚠429`. Orange color for 429, red for other errors.
+  从抽象的 `r1` 改为可读的 `retry(1)` / `retry(1)⚠429`，429 用橙色，其他用红色。
+
+- **Turn Header Enhanced / 轮次标题增强**:
+  - Tools: `🔧N` count → `🔧16 工具` (accumulated from all calls)
+  - Added summary retry chip: `retry(5)⚠429`
+  - Tokens split: `15.2k tok` → `8.5k 输入 / 2.0k 输出`
+
+- **GM-STRUCT/GM-TEXT Tags Removed / 移除 GM 标签**:
+  Stripped redundant source tags from timeline rows — GM is now the only source.
+
+### 🐛 Fixed / 修复
+
+- **Tool Name Extraction Bug / 工具名提取错误**:
+  `buildGMVirtualPreview` was extracting tool names from `aiSnippetsByStep` `🔧` markers, which are **historical tool results in context** (dozens of tool definitions), not the **current call's tool invocations**. Fixed by computing tool count from `stepIndices.length - 1` (non-reasoning steps).
+  `buildGMVirtualPreview` 从 snippet 的 🔧 标记提取工具名——这些是上下文中的**历史工具结果**（几十个），不是**当前调用的工具**。改为从 `stepIndices.length - 1` 计算工具数量。
+
+- **Left-Side Tool Name Duplication / 左侧工具名重复**:
+  When detail contained only tool names without `→` prefix, the left-side strip regex failed, showing raw tool names on both left and right. Fixed by always preserving the `→` prefix in `toolSuffix`.
+  detail 只含工具名且无 `→` 前缀时，左侧 strip 失效导致工具名左右重复。修复：始终保留 `→` 前缀。
+
+- **`gmRetryHas429` Structural Detection / 结构化 429 检测**:
+  Added `gmRetryHas429: boolean` to `StepEvent`, populated from `retryErrors` array. Retry badge color now determined by structure, not by scanning detail text.
+  新增 `gmRetryHas429` 字段，从 `retryErrors` 直接判断 429，不再依赖文本扫描。
+
+### 🎨 Styles / 样式
+
+- **New CSS classes / 新 CSS 类**:
+  - `.act-tl-gm-status` — status chips container (flex, min-width 7em, right-justified)
+  - `.act-tl-gm-ctx` — context window chip (purple: `#8b5cf6` light / `#a78bfa` dark)
+  - `.act-tl-gm-retry429` — 429 rate-limit retry chip (orange)
+  - `.seg-chip-retry` / `.seg-chip-retry429` — turn header retry chips
+
+### 📊 Stats / 统计
+
+- **Files changed**: 5 (`src/activity-panel.ts`, `src/activity/tracker.ts`, `src/activity/helpers.ts`, `src/activity/types.ts`, `src/webview-styles.ts`)
+- **TypeScript compile**: Zero errors
+- **Key architectural decision**: GM data as single source of truth; Steps API events serve only as fallback for the latest uncovered steps

@@ -62,6 +62,7 @@ export interface StepEvent {
     gmTTFT?: number;              // seconds
     gmStreamingDuration?: number; // seconds
     gmRetries?: number;
+    gmRetryHas429?: boolean;      // true if any retry was rate-limited (429)
     gmModel?: string;             // responseModel or placeholder model ID
     gmModelAccuracy?: 'exact' | 'placeholder';
     gmPromptSnippet?: string;

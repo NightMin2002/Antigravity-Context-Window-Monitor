@@ -318,6 +318,14 @@ function getGMDataTabStyles() {
         font-size: 0.78em;
         font-variant-numeric: tabular-nums;
     }
+    .act-tl-gm-status {
+        display: inline-flex;
+        gap: 2px;
+        flex-shrink: 0;
+        font-size: 0.78em;
+        min-width: 7em;
+        justify-content: flex-end;
+    }
     .act-tl-gm-tag {
         padding: 0 3px;
         border-radius: var(--radius-sm);
@@ -329,12 +337,18 @@ function getGMDataTabStyles() {
     .act-tl-gm-cache { background: rgba(13,148,136,0.12); color: #0d9488; }
     .act-tl-gm-credit { background: rgba(220,38,38,0.14); color: #dc2626; }
     .act-tl-gm-retry { background: rgba(220,38,38,0.12);  color: #dc2626; }
+    .act-tl-gm-retry429 { background: rgba(234,88,12,0.14); color: #ea580c; }
+    .act-tl-gm-tool { background: rgba(100,116,139,0.12); color: #64748b; font-size: 0.88em; }
+    .act-tl-gm-ctx { background: rgba(139,92,246,0.10); color: #8b5cf6; }
     body.vscode-dark .act-tl-gm-in  { background: rgba(96,165,250,0.12);  color: #93c5fd; }
     body.vscode-dark .act-tl-gm-out { background: rgba(74,222,128,0.12);  color: #86efac; }
     body.vscode-dark .act-tl-gm-ttft { background: rgba(251,191,36,0.12); color: #fcd34d; }
     body.vscode-dark .act-tl-gm-cache { background: rgba(45,212,191,0.12); color: #5eead4; }
     body.vscode-dark .act-tl-gm-credit { background: rgba(248,113,113,0.16); color: #fca5a5; }
     body.vscode-dark .act-tl-gm-retry { background: rgba(248,113,113,0.15); color: #fca5a5; }
+    body.vscode-dark .act-tl-gm-retry429 { background: rgba(251,146,60,0.15); color: #fdba74; }
+    body.vscode-dark .act-tl-gm-tool { background: rgba(148,163,184,0.12); color: #94a3b8; }
+    body.vscode-dark .act-tl-gm-ctx { background: rgba(167,139,250,0.12); color: #a78bfa; }
     /* ─── Turn Groups (collapsible segments) ─── */
     .act-tl-turn {
         border: 1px solid var(--color-border, rgba(128,128,128,0.12));
@@ -448,6 +462,16 @@ function getGMDataTabStyles() {
         border-color: rgba(148,163,184,0.2);
         background: rgba(148,163,184,0.08);
         color: #cbd5e1;
+    }
+    .seg-chip-retry {
+        border-color: rgba(248,113,113,0.2);
+        background: rgba(248,113,113,0.08);
+        color: #fca5a5;
+    }
+    .seg-chip-retry429 {
+        border-color: rgba(251,146,60,0.2);
+        background: rgba(251,146,60,0.08);
+        color: #fdba74;
     }
     .act-tl-segment-user {
         background: rgba(74, 222, 128, 0.04);
@@ -1284,22 +1308,14 @@ function buildTimeline(s, currentUsage) {
     };
     const buildMetaTags = (e) => {
         const tags = [];
-        if (e.source === 'gm_virtual') {
-            tags.push(`<span class="act-tl-tag act-tl-tag-struct">${e.gmPromptSnippet && !/checkpoint/i.test(String(e.gmPromptSnippet)) ? 'GM-TEXT' : 'GM-STRUCT'}</span>`);
-        }
-        else if (e.source === 'gm_user') {
-            tags.push(`<span class="act-tl-tag act-tl-tag-struct">GM-USER</span>`);
-        }
-        else if (e.source === 'estimated') {
+        if (e.source === 'estimated') {
             tags.push(`<span class="act-tl-tag act-tl-tag-est">${e.estimatedResolved ? (0, i18n_1.tBi)('Recovered', '已补回') : (0, i18n_1.tBi)('Est.', '推算')}</span>`);
         }
         // Removed alias/placeholder tags — GM provides exact model via responseModel
         if (e.gmModel && e.gmModelAccuracy === 'exact') {
             tags.push(`<span class="act-tl-tag act-tl-tag-model">${(0, webview_helpers_1.esc)(e.gmModel)}</span>`);
         }
-        if (e.gmContextTokensUsed) {
-            tags.push(`<span class="act-tl-tag act-tl-tag-marker">${(0, i18n_1.tBi)(`Ctx ${fmtTok(e.gmContextTokensUsed)}`, `上下文 ${fmtTok(e.gmContextTokensUsed)}`)}</span>`);
-        }
+        // Context tokens moved to gmTags for alignment
         return tags.length > 0 ? `<span class="act-tl-tags">${tags.join('')}</span>` : '';
     };
     // GM coverage badge
@@ -1350,11 +1366,13 @@ function buildTimeline(s, currentUsage) {
         const hasExpand = fullText && fullText.length > previewText.length;
         const expandableClass = hasExpand ? ' act-tl-expandable' : '';
         let detail = '';
+        // For detail text, strip "→ tool_names" suffix — tools are shown as right-aligned chips
+        const detailText = e.detail ? e.detail.replace(/\s*→\s*.+$/, '').trim() : '';
         if (e.userInput) {
             detail = `<span class="act-tl-user${expandableClass}">"${(0, webview_helpers_1.esc)(e.userInput.replace(/\s*\n\s*/g, ' '))}"</span>`;
         }
-        else if (e.toolName && e.detail) {
-            detail = `<span class="act-tl-tool-name">${(0, webview_helpers_1.esc)(e.toolName)}</span><span class="act-tl-detail">${(0, webview_helpers_1.esc)(e.detail)}</span>`;
+        else if (e.toolName && detailText) {
+            detail = `<span class="act-tl-tool-name">${(0, webview_helpers_1.esc)(e.toolName)}</span><span class="act-tl-detail">${(0, webview_helpers_1.esc)(detailText)}</span>`;
         }
         else if (e.toolName) {
             detail = `<span class="act-tl-tool-name">${(0, webview_helpers_1.esc)(e.toolName)}</span>`;
@@ -1362,8 +1380,8 @@ function buildTimeline(s, currentUsage) {
         else if (e.aiResponse) {
             detail = `<span class="act-tl-ai-preview${expandableClass}">${(0, webview_helpers_1.esc)(e.aiResponse)}</span>`;
         }
-        else if (e.detail) {
-            detail = `<span class="act-tl-detail">${(0, webview_helpers_1.esc)(e.detail)}</span>`;
+        else if (detailText) {
+            detail = `<span class="act-tl-detail">${(0, webview_helpers_1.esc)(detailText)}</span>`;
         }
         const stepIdx = e.stepIndex !== undefined ? `<span class="act-tl-step-idx">#${e.stepIndex}</span>` : '';
         const svgIcon = getTimelineIcon(e);
@@ -1371,24 +1389,51 @@ function buildTimeline(s, currentUsage) {
         // GM precision data tags — only show on reasoning steps (tools share the same GM call)
         let gmTags = '';
         if (e.category === 'reasoning' && e.gmInputTokens !== undefined) {
-            const parts = [];
-            parts.push(`<span class="act-tl-gm-tag act-tl-gm-in">${fmtTok(e.gmInputTokens)} ${(0, i18n_1.tBi)('in', '输入')}</span>`);
-            if (e.gmOutputTokens) {
-                parts.push(`<span class="act-tl-gm-tag act-tl-gm-out">${fmtTok(e.gmOutputTokens)} ${(0, i18n_1.tBi)('out', '输出')}</span>`);
+            // Fixed token metrics (always present when GM data exists)
+            const tokenParts = [];
+            if (e.gmContextTokensUsed) {
+                tokenParts.push(`<span class="act-tl-gm-tag act-tl-gm-ctx">${(0, i18n_1.tBi)('Ctx', '上下文')} ${fmtTok(e.gmContextTokensUsed)}</span>`);
             }
-            if (e.gmTTFT && e.gmTTFT > 0) {
-                parts.push(`<span class="act-tl-gm-tag act-tl-gm-ttft">${e.gmTTFT.toFixed(1)}s</span>`);
+            tokenParts.push(`<span class="act-tl-gm-tag act-tl-gm-in">${fmtTok(e.gmInputTokens)} ${(0, i18n_1.tBi)('in', '输入')}</span>`);
+            if (e.gmOutputTokens) {
+                tokenParts.push(`<span class="act-tl-gm-tag act-tl-gm-out">${fmtTok(e.gmOutputTokens)} ${(0, i18n_1.tBi)('out', '输出')}</span>`);
             }
             if (e.gmCacheReadTokens && e.gmCacheReadTokens > 0) {
-                parts.push(`<span class="act-tl-gm-tag act-tl-gm-cache">${fmtTok(e.gmCacheReadTokens)} ${(0, i18n_1.tBi)('cache', '缓存')}</span>`);
+                tokenParts.push(`<span class="act-tl-gm-tag act-tl-gm-cache">${fmtTok(e.gmCacheReadTokens)} ${(0, i18n_1.tBi)('cache', '缓存')}</span>`);
             }
             if (e.gmCredits && e.gmCredits > 0) {
-                parts.push(`<span class="act-tl-gm-tag act-tl-gm-credit">${e.gmCredits} ${(0, i18n_1.tBi)('cr', '积分')}</span>`);
+                tokenParts.push(`<span class="act-tl-gm-tag act-tl-gm-credit">${e.gmCredits} ${(0, i18n_1.tBi)('cr', '积分')}</span>`);
             }
-            if (e.gmRetries && e.gmRetries > 1) {
-                parts.push(`<span class="act-tl-gm-tag act-tl-gm-retry">r${e.gmRetries}</span>`);
+            const statusParts = [];
+            // Order from right→left: duration, TTFT, tools, retry
+            // 1. Retry (leftmost)
+            if (e.gmRetries && e.gmRetries > 0) {
+                const retryClass = e.gmRetryHas429 ? 'act-tl-gm-retry429' : 'act-tl-gm-retry';
+                const retryLabel = e.gmRetryHas429 ? `retry(${e.gmRetries})\u26a0429` : `retry(${e.gmRetries})`;
+                statusParts.push(`<span class="act-tl-gm-tag ${retryClass}">${retryLabel}</span>`);
             }
-            gmTags = `<span class="act-tl-gm">${parts.join('')}</span>`;
+            // 2. Tools
+            if (e.detail) {
+                const toolMatch = e.detail.match(/\u2192\s*(\d+)\s*/);
+                if (toolMatch) {
+                    const count = parseInt(toolMatch[1], 10);
+                    if (count > 0) {
+                        statusParts.push(`<span class="act-tl-gm-tag act-tl-gm-tool">\ud83d\udd27${count} ${(0, i18n_1.tBi)(count === 1 ? 'tool' : 'tools', '\u5de5\u5177')}</span>`);
+                    }
+                }
+            }
+            // 3. TTFT
+            if (e.gmTTFT && e.gmTTFT > 0) {
+                statusParts.push(`<span class="act-tl-gm-tag act-tl-gm-ttft">TTFT ${e.gmTTFT.toFixed(1)}s</span>`);
+            }
+            // 4. Duration (rightmost, closest to tokenParts)
+            if (e.durationMs > 0) {
+                statusParts.push(`<span class="act-tl-dur">${e.durationMs < 1000 ? e.durationMs + 'ms' : (e.durationMs / 1000).toFixed(1) + 's'}</span>`);
+            }
+            const statusHtml = statusParts.length > 0
+                ? `<span class="act-tl-gm-status">${statusParts.join('')}</span>`
+                : '';
+            gmTags = `${statusHtml}<span class="act-tl-gm">${tokenParts.join('')}</span>`;
         }
         // Expandable full text block
         const expandId = hasExpand ? `tl-exp-${e.stepIndex ?? Math.random().toString(36).slice(2, 8)}` : '';
@@ -1408,7 +1453,7 @@ function buildTimeline(s, currentUsage) {
             <span class="act-tl-meta">
                 ${metaTags}
                 ${gmTags}
-                ${dur}
+                ${!gmTags ? dur : ''}
             </span>
         </div>${expandBlock}`;
     };
@@ -1433,6 +1478,8 @@ function buildTimeline(s, currentUsage) {
         let model = '';
         let minTime = '', maxTime = '';
         const models = new Set();
+        let gmToolTotal = 0;
+        let retryTotal = 0, has429 = false;
         for (const a of actions) {
             if (a.category === 'tool') {
                 toolCount++;
@@ -1453,6 +1500,18 @@ function buildTimeline(s, currentUsage) {
                 }
                 if (a.gmCredits) {
                     totalCredits += a.gmCredits;
+                }
+                if (a.gmRetries && a.gmRetries > 0) {
+                    retryTotal += a.gmRetries;
+                    if (a.gmRetryHas429)
+                        has429 = true;
+                }
+            }
+            // Collect tool counts from detail's → suffix (e.g. "→ 1 tool")
+            if (a.detail) {
+                const m = a.detail.match(/\u2192\s*(\d+)\s*/);
+                if (m) {
+                    gmToolTotal += parseInt(m[1], 10);
                 }
             }
             if (a.model) {
@@ -1482,7 +1541,8 @@ function buildTimeline(s, currentUsage) {
             }
         }
         catch { /* ignore */ }
-        return { totalIn, totalOut, totalThinking, totalCache, totalCredits, toolCount, reasoningCount, model, durationSec };
+        const toolNames = gmToolTotal;
+        return { totalIn, totalOut, totalThinking, totalCache, totalCredits, toolCount, reasoningCount, model, durationSec, toolNames, retryTotal, has429 };
     };
     const reversedSegments = [...segments].reverse();
     for (let si = 0; si < reversedSegments.length; si++) {
@@ -1497,17 +1557,25 @@ function buildTimeline(s, currentUsage) {
         if (stats.reasoningCount > 0) {
             chips.push(`<span class="seg-chip seg-chip-calls">${stats.reasoningCount} ${(0, i18n_1.tBi)('calls', '调用')}</span>`);
         }
-        if (stats.toolCount > 0) {
-            chips.push(`<span class="seg-chip seg-chip-tools">🔧${stats.toolCount}</span>`);
+        if (stats.toolNames > 0) {
+            chips.push(`<span class="seg-chip seg-chip-tools">\ud83d\udd27${stats.toolNames} ${(0, i18n_1.tBi)('tools', '\u5de5\u5177')}</span>`);
+        }
+        else if (stats.toolCount > 0) {
+            chips.push(`<span class="seg-chip seg-chip-tools">\ud83d\udd27${stats.toolCount}</span>`);
         }
         if (stats.totalIn > 0 || stats.totalOut > 0) {
-            chips.push(`<span class="seg-chip seg-chip-tok">${fmtTok(stats.totalIn + stats.totalOut)} tok</span>`);
+            chips.push(`<span class="seg-chip seg-chip-tok">${fmtTok(stats.totalIn)} ${(0, i18n_1.tBi)('in', '输入')} / ${fmtTok(stats.totalOut)} ${(0, i18n_1.tBi)('out', '输出')}</span>`);
         }
         if (stats.totalCache > 0) {
             chips.push(`<span class="seg-chip seg-chip-cache">${fmtTok(stats.totalCache)} ${(0, i18n_1.tBi)('cache', '缓存')}</span>`);
         }
         if (stats.totalCredits > 0) {
             chips.push(`<span class="seg-chip seg-chip-credits">${stats.totalCredits.toFixed(1)} cr</span>`);
+        }
+        if (stats.retryTotal > 0) {
+            const retryChipClass = stats.has429 ? 'seg-chip-retry429' : 'seg-chip-retry';
+            const retryLabel = stats.has429 ? `retry(${stats.retryTotal})⚠429` : `retry(${stats.retryTotal})`;
+            chips.push(`<span class="seg-chip ${retryChipClass}">${retryLabel}</span>`);
         }
         if (stats.durationSec > 0) {
             const durLabel = stats.durationSec >= 60 ? `${Math.floor(stats.durationSec / 60)}m${stats.durationSec % 60}s` : `${stats.durationSec}s`;

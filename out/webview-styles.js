@@ -3963,6 +3963,8 @@ function getStyles() {
         body.vscode-light .act-tl-gm-ttft { background: rgba(var(--lt-amber),0.1); color: var(--lt-amber-text); }
         body.vscode-light .act-tl-gm-cache { background: rgba(var(--lt-teal),0.1); color: var(--lt-teal-text); }
         body.vscode-light .act-tl-gm-retry { background: rgba(var(--lt-red),0.1); color: var(--lt-red-deep); }
+        body.vscode-light .act-tl-gm-retry429 { background: rgba(var(--lt-amber),0.1); color: var(--lt-amber-text); }
+        body.vscode-light .act-tl-gm-tool { background: rgba(0,0,0,0.06); color: rgba(0,0,0,0.5); font-size: 0.88em; }
 
         /* ─── Light Theme: Activity Timeline Tags ──── */
         body.vscode-light .act-tl-tag-struct { background: rgba(var(--lt-blue),0.1); color: var(--lt-blue-deep); border-color: rgba(var(--lt-blue),0.2); }

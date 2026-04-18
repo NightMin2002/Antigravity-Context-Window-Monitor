@@ -204,13 +204,26 @@ export function buildGMVirtualPreview(call: GMCallEntry): { detail: string; aiRe
         return { detail: tBi('⚡ interrupted', '⚡ 已中断') };
     }
 
+    // Tool count = non-reasoning steps in this call (stepIndices minus the PLANNER_RESPONSE)
+    const toolUsed = Math.max(0, call.stepIndices.length - 1);
+    const toolSuffix = toolUsed > 0
+        ? ` → ${toolUsed} ${tBi(toolUsed === 1 ? 'tool' : 'tools', '工具')}`
+        : '';
+
     // Priority 1: AI response snippet matched by stepIndex
-    // aiSnippetsByStep is built from embedded GM's messagePrompts (GetCascadeTrajectory)
-    // and broadcast to ALL calls via maybeEnrichCallsFromTrajectory.
     if (Object.keys(call.aiSnippetsByStep).length > 0) {
         for (const idx of call.stepIndices) {
             if (call.aiSnippetsByStep[idx]) {
-                return { detail: call.aiSnippetsByStep[idx] };
+                // Strip 🔧 markers from snippet (those are context tool results, not current call's)
+                const cleanSnippet = call.aiSnippetsByStep[idx]
+                    .replace(/\s*🔧\s*[^\s,]+(?:\s*,\s*[^\s,]+)*/g, '')
+                    .trim();
+                if (cleanSnippet) {
+                    return { detail: cleanSnippet + toolSuffix };
+                }
+                if (toolSuffix) {
+                    return { detail: toolSuffix };
+                }
             }
         }
     }
@@ -220,10 +233,15 @@ export function buildGMVirtualPreview(call: GMCallEntry): { detail: string; aiRe
         const preview = call.promptSnippet.length > 80
             ? call.promptSnippet.substring(0, 77) + '...'
             : call.promptSnippet;
-        return { detail: preview };
+        return { detail: preview + toolSuffix };
     }
 
-    // Priority 3: step count hint (how many steps this call covers)
+    // Priority 3: tool count only
+    if (toolSuffix) {
+        return { detail: toolSuffix };
+    }
+
+    // Priority 4: step count hint
     if (call.stepIndices.length > 1) {
         return { detail: `+${call.stepIndices.length} steps (estimated)` };
     }

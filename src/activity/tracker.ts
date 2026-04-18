@@ -878,6 +878,7 @@ export class ActivityTracker {
             'gmTTFT',
             'gmStreamingDuration',
             'gmRetries',
+            'gmRetryHas429',
             'gmModel',
             'gmModelAccuracy',
             'gmPromptSnippet',
@@ -1166,9 +1167,13 @@ export class ActivityTracker {
             }
             const trajEntry = this._trajectories.get(conv.cascadeId);
             const visibleStepCount = trajEntry?.processedIndex || 0;
-            const outsideCalls = conv.calls.filter(call =>
+            // All GM calls (for unified virtual events)
+            const allCallsForVirtual = conv.calls.filter(call =>
                 call.stepIndices.length > 0
-                && call.stepIndices.every(idx => idx >= visibleStepCount)
+            );
+            // Outside-window calls only (for category counting & attribution)
+            const outsideCalls = allCallsForVirtual.filter(call =>
+                call.stepIndices.every(idx => idx >= visibleStepCount)
             );
 
             const sortedOutsideCalls = [...outsideCalls].sort((a, b) => {
@@ -1244,7 +1249,7 @@ export class ActivityTracker {
                 }
             }
 
-            for (const call of outsideCalls) {
+            for (const call of allCallsForVirtual) {
                 const firstIdx = Math.min(...call.stepIndices);
                 // IMPORTANT: one execution round may contain multiple distinct LLM calls.
                 // Deduplicating by executionId collapses real recent activity into a single row.
@@ -1254,12 +1259,7 @@ export class ActivityTracker {
                 seenVirtualKeys.add(virtualKey);
 
                 const preview = buildGMVirtualPreview(call);
-                // Enhance detail with retry/429 info
-                let virtualDetail = preview.detail;
-                if (call.retries > 0) {
-                    const has429 = call.retryErrors.some(e => e.includes('429') || e.includes('RESOURCE_EXHAUSTED'));
-                    virtualDetail += has429 ? ` ⚠️${call.retries}×retry(429)` : ` 🔄${call.retries}×retry`;
-                }
+                const virtualDetail = preview.detail;
                 virtualEvents.push({
                     timestamp: call.createdAt || '',
                     icon: '🧠',
@@ -1280,6 +1280,7 @@ export class ActivityTracker {
                     gmTTFT: call.ttftSeconds,
                     gmStreamingDuration: call.streamingSeconds,
                     gmRetries: call.retries,
+                    gmRetryHas429: call.retryErrors.some(e => e.includes('429') || e.includes('RESOURCE_EXHAUSTED')),
                     gmModel: call.responseModel || call.model,
                     gmModelAccuracy: call.modelAccuracy,
                     gmPromptSnippet: call.promptSnippet || undefined,
@@ -1328,6 +1329,7 @@ export class ActivityTracker {
             ev.gmTTFT = gm.ttftSeconds;
             ev.gmStreamingDuration = gm.streamingSeconds;
             ev.gmRetries = gm.retries;
+            ev.gmRetryHas429 = gm.retryErrors.some(e => e.includes('429') || e.includes('RESOURCE_EXHAUSTED'));
             ev.gmModel = gm.responseModel || gm.model;
             ev.gmModelAccuracy = gm.modelAccuracy;
             ev.gmPromptSnippet = gm.promptSnippet || undefined;
@@ -1405,6 +1407,34 @@ export class ActivityTracker {
 
         if (dedupedUserAnchors.length > 0 || virtualEvents.length > 0) {
             timelineChanged = true;
+
+            // Suppress step-source reasoning/tool events that are now covered by
+            // richer GM virtual events. Use RANGE-based suppression: for each
+            // conversation, find the max stepIndex covered by GM, then suppress
+            // all step-source events with stepIndex <= maxGMStep. This catches
+            // gap steps (CHECKPOINT, ERROR, system) that fall between GM calls.
+            const maxGMStepByConv = new Map<string, number>();
+            for (const conv of gmSummary.conversations) {
+                let maxStep = -1;
+                for (const call of conv.calls) {
+                    for (const idx of call.stepIndices) {
+                        if (idx > maxStep) maxStep = idx;
+                    }
+                }
+                if (maxStep >= 0) {
+                    maxGMStepByConv.set(conv.cascadeId, maxStep);
+                }
+            }
+            // Remove step-source events whose stepIndex falls within GM coverage range
+            this._recentSteps = this._recentSteps.filter(ev => {
+                if (ev.source !== 'step') return true;
+                if (ev.category === 'user') return true; // keep user events
+                if (ev.stepIndex === undefined || !ev.cascadeId) return true;
+                const maxStep = maxGMStepByConv.get(ev.cascadeId);
+                if (maxStep === undefined) return true; // no GM data for this conv
+                return ev.stepIndex > maxStep; // keep only steps beyond GM coverage
+            });
+
             this._recentSteps = [...this._recentSteps, ...dedupedUserAnchors, ...virtualEvents];
             this._compactRecentSteps();
         }
