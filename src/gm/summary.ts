@@ -56,6 +56,7 @@ export function filterGMSummaryByModels(
             lifetimeCalls: calls.length,
             coveredSteps,
             coverageRate: conversation.totalSteps > 0 ? coveredSteps / conversation.totalSteps : 0,
+            checkpointSummaries: conversation.checkpointSummaries || [],
         });
 
         for (const call of calls) {
@@ -305,6 +306,7 @@ export function buildSummaryFromConversations(
             calls,
             coveredSteps,
             coverageRate: conversation.totalSteps > 0 ? coveredSteps / conversation.totalSteps : 0,
+            checkpointSummaries: conversation.checkpointSummaries || [],
         });
 
         for (const call of calls) {

@@ -56,6 +56,11 @@ export function buildGMDataTabContent(
     // ── Model Cards (merged activity counts + GM precision)
     parts.push(buildModelCards(summary, gmSummary));
 
+    // ── Checkpoint Viewer (context compressions from GM)
+    if (gmSummary && gmSummary.totalCalls > 0) {
+        parts.push(buildCheckpointViewer(gmSummary));
+    }
+
     // ── Tool Ranking + Model Distribution (activity)
     if (summary) {
         const distHtml = buildDistribution(summary);
@@ -1049,6 +1054,120 @@ export function getGMDataTabStyles(): string {
     }
     body.vscode-light .xray-total { border-top-color: rgba(0,0,0,0.06); }
 
+    /* ─── Checkpoint Viewer ─── */
+    .cp-viewer {
+        margin-bottom: var(--space-4);
+        max-height: 400px;
+        overflow-y: auto;
+        border: 1px solid rgba(251,191,36,0.12);
+        border-radius: var(--radius-lg);
+        background: rgba(251,191,36,0.015);
+        padding: var(--space-3);
+    }
+    .cp-viewer::-webkit-scrollbar { width: 4px; }
+    .cp-viewer::-webkit-scrollbar-track { background: transparent; }
+    .cp-viewer::-webkit-scrollbar-thumb { background: rgba(251,191,36,0.25); border-radius: var(--radius-full); }
+    .cp-card {
+        border: 1px solid rgba(251,191,36,0.15);
+        border-radius: var(--radius-md);
+        background: rgba(251,191,36,0.03);
+        margin-bottom: var(--space-2);
+        overflow: hidden;
+        transition: border-color 0.2s cubic-bezier(.4,0,.2,1);
+    }
+    .cp-card:last-child { margin-bottom: 0; }
+    .cp-card[open] {
+        border-color: rgba(251,191,36,0.35);
+    }
+    .cp-card-header {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        padding: var(--space-2) var(--space-3);
+        cursor: pointer;
+        user-select: none;
+        list-style: none;
+        font-size: 0.85em;
+        color: var(--color-text);
+        transition: background 0.15s cubic-bezier(.4,0,.2,1);
+    }
+    .cp-card-header::-webkit-details-marker { display: none; }
+    .cp-card-header::before {
+        content: '';
+        width: 0; height: 0;
+        border-left: 5px solid currentColor;
+        border-top: 4px solid transparent;
+        border-bottom: 4px solid transparent;
+        transition: transform 0.2s cubic-bezier(.4,0,.2,1);
+        flex-shrink: 0;
+        opacity: 0.5;
+    }
+    .cp-card[open] > .cp-card-header::before {
+        transform: rotate(90deg);
+    }
+    @media (hover: hover) {
+        .cp-card-header:hover { background: rgba(251,191,36,0.06); }
+    }
+    .cp-card-num {
+        font-weight: 700;
+        color: #fbbf24;
+        flex-shrink: 0;
+    }
+    .cp-card-chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 1px 6px;
+        border-radius: var(--radius-sm);
+        font-size: 0.78em;
+        white-space: nowrap;
+    }
+    .cp-card-chip-step {
+        background: rgba(148,163,184,0.1);
+        color: var(--color-text-dim);
+        border: 1px solid rgba(148,163,184,0.15);
+    }
+    .cp-card-chip-tok {
+        background: rgba(251,191,36,0.1);
+        color: #fcd34d;
+        border: 1px solid rgba(251,191,36,0.15);
+    }
+    .cp-card-body {
+        border-top: 1px solid rgba(251,191,36,0.1);
+        padding: var(--space-3);
+        font-size: 0.82em;
+        line-height: 1.7;
+        color: var(--color-text);
+        max-height: 280px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+    .cp-card-body::-webkit-scrollbar { width: 4px; }
+    .cp-card-body::-webkit-scrollbar-track { background: transparent; }
+    .cp-card-body::-webkit-scrollbar-thumb { background: rgba(251,191,36,0.3); border-radius: var(--radius-full); }
+    .cp-card-body h1, .cp-card-body h2, .cp-card-body h3 {
+        font-size: 1em;
+        font-weight: 700;
+        margin: var(--space-2) 0 var(--space-1) 0;
+        color: #fbbf24;
+    }
+    .cp-card-body h1:first-child, .cp-card-body h2:first-child { margin-top: 0; }
+    .cp-card-body strong { color: var(--color-text); }
+    .cp-card-body code {
+        background: rgba(255,255,255,0.06);
+        padding: 1px 4px;
+        border-radius: 3px;
+        font-size: 0.9em;
+    }
+    body.vscode-light .cp-card {
+        border-color: rgba(202,138,4,0.2);
+        background: rgba(202,138,4,0.03);
+    }
+    body.vscode-light .cp-card[open] { border-color: rgba(202,138,4,0.4); }
+    body.vscode-light .cp-card-num { color: #b45309; }
+    body.vscode-light .cp-card-chip-tok { background: rgba(202,138,4,0.1); color: #92400e; border-color: rgba(202,138,4,0.2); }
+    body.vscode-light .cp-card-body h1, body.vscode-light .cp-card-body h2, body.vscode-light .cp-card-body h3 { color: #b45309; }
+
     `;
 }
 
@@ -1857,3 +1976,63 @@ function buildTokenBreakdownChart(s: GMSummary): string {
     </div>
     ${xrayHtml}`;
 }
+
+// ─── Checkpoint Viewer Section ──────────────────────────────────────────────
+
+function buildCheckpointViewer(s: GMSummary): string {
+    // Find the most recently active conversation with checkpoints
+    // (latest createdAt on calls = currently running conversation)
+    let primary = null as typeof s.conversations[0] | null;
+    let latestTime = '';
+    for (const conv of s.conversations) {
+        if ((conv.checkpointSummaries || []).length === 0) { continue; }
+        for (const call of conv.calls) {
+            if (call.createdAt && call.createdAt > latestTime) {
+                latestTime = call.createdAt;
+                primary = conv;
+            }
+        }
+        // Fallback: if no calls have timestamps, take first with checkpoints
+        if (!primary) { primary = conv; }
+    }
+    if (!primary) { return ''; }
+    const cps = primary.checkpointSummaries || [];
+    if (cps.length === 0) { return ''; }
+
+    // Deduplicate by checkpointNumber
+    const byNum = new Map<number, typeof cps[0]>();
+    for (const cp of cps) {
+        if (!byNum.has(cp.checkpointNumber)) {
+            byNum.set(cp.checkpointNumber, cp);
+        }
+    }
+    const sorted = [...byNum.values()].sort((a, b) => a.checkpointNumber - b.checkpointNumber);
+
+    const fmt = (n: number) => n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n);
+
+    const cards = sorted.map(cp => {
+        const bodyHtml = esc(cp.fullText)
+            .replace(/\{\{\s*CHECKPOINT\s+(\d+)\s*\}\}/gi, '<h2>📋 CHECKPOINT $1</h2>')
+            .replace(/^#\s+(.+)$/gm, '<h2>$1</h2>')
+            .replace(/^##\s+(.+)$/gm, '<h3>$1</h3>')
+            .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+            .replace(/`([^`]+)`/g, '<code>$1</code>');
+
+        return `<details class="cp-card" id="cpCard${cp.checkpointNumber}">
+            <summary class="cp-card-header">
+                <span class="cp-card-num">📋 #${cp.checkpointNumber}</span>
+                <span class="cp-card-chip cp-card-chip-step">step ${cp.stepIndex >= 0 ? cp.stepIndex.toLocaleString() : '?'}</span>
+                <span class="cp-card-chip cp-card-chip-tok">${fmt(cp.tokens)} tok</span>
+            </summary>
+            <div class="cp-card-body">${bodyHtml}</div>
+        </details>`;
+    }).join('');
+
+    const title = primary.title ? esc(primary.title) : '';
+    const titleChip = title ? ` <span style="font-size:0.75em;opacity:0.5;font-weight:400;">${title}</span>` : '';
+    const maxCPNum = sorted[sorted.length - 1].checkpointNumber;
+
+    return `<h2 class="act-section-title"><svg class="act-icon" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2z"/><path d="M9 21V9h6v12"/></svg>${tBi('Context Checkpoints', '上下文检查点')} <span class="gm-badge-real">#${maxCPNum}</span>${titleChip}</h2>
+    <div class="cp-viewer">${cards}</div>`;
+}
+

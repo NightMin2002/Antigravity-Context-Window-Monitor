@@ -28,6 +28,18 @@ export interface GMUserMessageAnchor {
     text: string;
 }
 
+/** Checkpoint summary extracted from {{ CHECKPOINT N }} messages in messagePrompts */
+export interface GMCheckpointSummary {
+    /** Checkpoint number (e.g. 21 from {{ CHECKPOINT 21 }}) */
+    checkpointNumber: number;
+    /** Step index where this checkpoint was injected */
+    stepIndex: number;
+    /** Token count consumed by this checkpoint message */
+    tokens: number;
+    /** Full checkpoint text (USER Objective + Session Summary + Code Summary) */
+    fullText: string;
+}
+
 /** A single LLM invocation entry from generatorMetadata */
 export interface GMCallEntry {
     stepIndices: number[];
@@ -100,6 +112,8 @@ export interface GMCallEntry {
     startStepIndex: number;
     /** chatStartMetadata.checkpointIndex */
     checkpointIndex: number;
+    /** Checkpoint summaries extracted from messagePrompts */
+    checkpointSummaries: GMCheckpointSummary[];
 }
 
 /** Aggregated per-model statistics */
@@ -147,6 +161,8 @@ export interface GMConversationData {
     lifetimeCalls?: number;
     coveredSteps: number;
     coverageRate: number;   // coveredSteps / totalSteps
+    /** Deduplicated checkpoint summaries across all calls in this conversation */
+    checkpointSummaries: GMCheckpointSummary[];
 }
 
 /** Full GM summary for UI rendering */
@@ -211,6 +227,7 @@ export function cloneGMCallEntry(call: GMCallEntry): GMCallEntry {
         retryErrors: [...call.retryErrors],
         tokenBreakdownGroups: cloneTokenBreakdownGroups(call.tokenBreakdownGroups),
         completionConfig: call.completionConfig ? { ...call.completionConfig } : null,
+        checkpointSummaries: call.checkpointSummaries.map(cs => ({ ...cs })),
     };
 }
 
@@ -218,5 +235,6 @@ export function cloneConversationData(conversation: GMConversationData): GMConve
     return {
         ...conversation,
         calls: conversation.calls.map(cloneGMCallEntry),
+        checkpointSummaries: conversation.checkpointSummaries.map(cs => ({ ...cs })),
     };
 }

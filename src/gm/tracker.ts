@@ -7,6 +7,7 @@ import { normalizeModelDisplayName, getQuotaPoolKey, type ModelConfig } from '..
 import type { QuotaSession } from '../quota-tracker';
 import type {
     GMCallEntry,
+    GMCheckpointSummary,
     GMCompletionConfig,
     GMConversationData,
     GMModelStats,
@@ -22,6 +23,20 @@ import {
     buildGMArchiveKey,
 } from './parser';
 import { buildSummaryFromConversations, normalizeGMSummary } from './summary';
+
+/** Deduplicate checkpoint summaries from multiple GM calls, keyed by stepIndex */
+function deduplicateCheckpoints(calls: GMCallEntry[]): GMCheckpointSummary[] {
+    const byStep = new Map<number, GMCheckpointSummary>();
+    for (const call of calls) {
+        for (const cp of call.checkpointSummaries) {
+            const existing = byStep.get(cp.stepIndex);
+            if (!existing || cp.fullText.length > existing.fullText.length) {
+                byStep.set(cp.stepIndex, cp);
+            }
+        }
+    }
+    return [...byStep.values()].sort((a, b) => a.stepIndex - b.stepIndex);
+}
 
 export class GMTracker {
     private _cache = new Map<string, GMConversationData>();
@@ -94,6 +109,7 @@ export class GMTracker {
                     lifetimeCalls: Math.max(cached?.lifetimeCalls ?? cached?.calls.length ?? 0, calls.length),
                     coveredSteps,
                     coverageRate: t.stepCount > 0 ? coveredSteps / t.stepCount : 0,
+                    checkpointSummaries: deduplicateCheckpoints(calls),
                 });
             } catch {
                 // Keep stale cache on error
@@ -106,6 +122,7 @@ export class GMTracker {
                         lifetimeCalls: 0,
                         coveredSteps: 0,
                         coverageRate: 0,
+                        checkpointSummaries: [],
                     });
                 }
             }
@@ -199,6 +216,7 @@ export class GMTracker {
                 lifetimeCalls: conv.lifetimeCalls ?? conv.calls.length,
                 coveredSteps: activeStepsCovered,
                 coverageRate: conv.totalSteps > 0 ? activeStepsCovered / conv.totalSteps : 0,
+                checkpointSummaries: conv.checkpointSummaries || deduplicateCheckpoints(activeCalls),
             });
 
             for (const c of activeCalls) {
@@ -396,6 +414,7 @@ export class GMTracker {
                 lifetimeCalls: conv.lifetimeCalls ?? conv.calls.length,
                 coveredSteps: 0,
                 coverageRate: 0,
+                checkpointSummaries: conv.checkpointSummaries || [],
             });
         }
         this._archivedCallIds.clear();
@@ -588,6 +607,7 @@ export class GMTracker {
                 lifetimeCalls: tracker._lastSummary.conversations.find(c => c.cascadeId === id)?.lifetimeCalls ?? 0,
                 coveredSteps: 0,
                 coverageRate: 0,
+                checkpointSummaries: [],
             });
         }
 

@@ -4,6 +4,7 @@
 import { normalizeModelDisplayName } from '../models';
 import type {
     GMCallEntry,
+    GMCheckpointSummary,
     GMCompletionConfig,
     GMModelAccuracy,
     GMPromptSource,
@@ -165,6 +166,41 @@ export function extractUserMessageAnchors(messagePrompts: unknown): GMUserMessag
     return anchors;
 }
 
+/** Extract checkpoint summaries from {{ CHECKPOINT N }} messages in messagePrompts */
+export function extractCheckpointSummaries(messagePrompts: unknown): GMCheckpointSummary[] {
+    const summaries: GMCheckpointSummary[] = [];
+    if (!Array.isArray(messagePrompts)) { return summaries; }
+
+    for (const item of messagePrompts) {
+        if (!item || typeof item !== 'object') { continue; }
+        const rec = item as Record<string, unknown>;
+        const source = String(rec.source || '');
+        if (source !== 'CHAT_MESSAGE_SOURCE_USER') { continue; }
+
+        const prompt = String(rec.prompt || '');
+        const match = prompt.match(/\{\{\s*CHECKPOINT\s+(\d+)\s*\}\}/i);
+        if (!match) { continue; }
+
+        const checkpointNumber = parseInt(match[1], 10);
+        const stepIndex = typeof rec.stepIdx === 'number' ? rec.stepIdx : -1;
+        const tokens = typeof rec.numTokens === 'number' ? rec.numTokens : 0;
+
+        // Extract ONLY from {{ CHECKPOINT N }} onwards — skip system preamble
+        // (user_information, MCP servers, user_rules, workflows etc.)
+        const cpStart = prompt.indexOf(match[0]);
+        let summaryText = prompt.substring(cpStart).trim();
+
+        // Cap length to avoid bloating UI with huge context dumps
+        const MAX_CP_TEXT = 8000;
+        if (summaryText.length > MAX_CP_TEXT) {
+            summaryText = summaryText.substring(0, MAX_CP_TEXT) + '\n\n... (truncated)';
+        }
+
+        summaries.push({ checkpointNumber, stepIndex, tokens, fullText: summaryText });
+    }
+    return summaries;
+}
+
 /**
  * Extract AI response snippets from SYSTEM messages in messagePrompts,
  * keyed by their stepIdx (a direct field on each message entry).
@@ -222,12 +258,14 @@ export function extractPromptData(cm: Record<string, unknown>): {
     responseHeaderKeys: string[];
     userMessageAnchors: GMUserMessageAnchor[];
     aiSnippetsByStep: Record<number, string>;
+    checkpointSummaries: GMCheckpointSummary[];
 } {
     const messagePrompts = cm.messagePrompts;
     const messageMetadata = cm.messageMetadata;
     const responseHeader = cm.responseHeader;
     const userMessageAnchors = extractUserMessageAnchors(messagePrompts);
     const aiSnippetsByStep = extractAISnippetsByStep(messagePrompts);
+    const checkpointSummaries = extractCheckpointSummaries(messagePrompts);
 
     const fromPrompts = pickPromptSnippet(messagePrompts);
     if (fromPrompts) {
@@ -243,6 +281,7 @@ export function extractPromptData(cm: Record<string, unknown>): {
                 : [],
             userMessageAnchors,
             aiSnippetsByStep,
+            checkpointSummaries,
         };
     }
 
@@ -259,6 +298,7 @@ export function extractPromptData(cm: Record<string, unknown>): {
             : [],
         userMessageAnchors,
         aiSnippetsByStep,
+        checkpointSummaries,
     };
 }
 
@@ -302,6 +342,9 @@ export function mergeGMCallEntries(primary: GMCallEntry, fallback: GMCallEntry):
         aiSnippetsByStep: Object.keys(primary.aiSnippetsByStep).length > 0
             ? primary.aiSnippetsByStep
             : fallback.aiSnippetsByStep,
+        checkpointSummaries: primary.checkpointSummaries.length > 0
+            ? primary.checkpointSummaries
+            : fallback.checkpointSummaries,
         stopReason: primary.stopReason || fallback.stopReason,
         createdAt: primary.createdAt || fallback.createdAt,
         latestStableMessageIndex: primary.latestStableMessageIndex || fallback.latestStableMessageIndex,
@@ -337,11 +380,34 @@ export function maybeEnrichCallsFromTrajectory(calls: GMCallEntry[], embeddedCal
         }
     }
 
+    // Broadcast: checkpoint summaries are conversation-level data.
+    // Only ONE embedded call has messagePrompts → only that call has checkpointSummaries.
+    // Share the richest set across ALL calls so deduplication at conversation level works.
+    let richestCheckpoints: GMCheckpointSummary[] = [];
+    for (const call of [...merged, ...embeddedCalls]) {
+        if (call.checkpointSummaries.length > richestCheckpoints.length) {
+            richestCheckpoints = call.checkpointSummaries;
+        }
+    }
+    if (richestCheckpoints.length > 0) {
+        for (const call of merged) {
+            if (call.checkpointSummaries.length < richestCheckpoints.length) {
+                call.checkpointSummaries = richestCheckpoints;
+            }
+        }
+    }
+
     return merged;
 }
 
 export function shouldEnrichConversation(stepCount: number, calls: GMCallEntry[]): boolean {
     if (calls.some(call => call.modelAccuracy === 'placeholder')) {
+        return true;
+    }
+    // Conversations with checkpoints have been context-compressed;
+    // enrichment is needed to extract checkpoint summaries from messagePrompts
+    // (only available in GetCascadeTrajectory, not the lightweight GM metadata API).
+    if (calls.some(call => call.checkpointIndex > 0)) {
         return true;
     }
     return stepCount >= 350;
@@ -490,5 +556,6 @@ export function parseGMEntry(gm: Record<string, unknown>): GMCallEntry {
         latestStableMessageIndex: parseInt0(csm.latestStableMessageIndex),
         startStepIndex: parseInt0(csm.startStepIndex),
         checkpointIndex: parseInt0(csm.checkpointIndex),
+        checkpointSummaries: promptData.checkpointSummaries,
     };
 }

@@ -271,3 +271,66 @@
 - **Files changed**: 5 (`src/activity-panel.ts`, `src/activity/tracker.ts`, `src/activity/helpers.ts`, `src/activity/types.ts`, `src/webview-styles.ts`)
 - **TypeScript compile**: Zero errors
 - **Key architectural decision**: GM data as single source of truth; Steps API events serve only as fallback for the latest uncovered steps
+
+---
+
+## [1.15.7] - 2026-04-18
+
+### ✨ Added / 新增
+
+- **Context Checkpoint Viewer / 上下文检查点查看器**:
+  New collapsible card section in the GM Data tab that renders the full content of system-injected `{{ CHECKPOINT N }}` compression summaries. Users can now read exactly what the AI "remembers" after context compression — making the previously opaque truncation process fully transparent.
+  在 GM 数据标签页新增可折叠卡片区域，渲染系统注入的 `{{ CHECKPOINT N }}` 压缩摘要全文。用户现在可以直接阅读 AI 在上下文压缩后"记住"的内容，将原本不透明的截断过程完全透明化。
+
+  **Data Pipeline / 数据管线**:
+  ```
+  GetCascadeTrajectory → embedded GM → messagePrompts
+    → extractCheckpointSummaries() → GMCheckpointSummary[]
+    → maybeEnrichCallsFromTrajectory() broadcasts to all calls
+    → deduplicateCheckpoints() per conversation
+    → buildCheckpointViewer() renders active conversation only
+  ```
+
+- **`GMCheckpointSummary` Type / 检查点类型**:
+  New interface with `checkpointNumber`, `stepIndex`, `tokens`, and `fullText` fields, integrated into `GMCallEntry` and `GMConversationData`.
+  新增接口，包含编号、步骤索引、token 数和全文字段，集成至 GM 调用和会话数据结构。
+
+### ✨ Improved / 改进
+
+- **Active Conversation Detection / 活跃对话检测**:
+  Checkpoint viewer identifies the currently active conversation by finding the one with the most recent `createdAt` timestamp on its calls, rather than the highest step count. This ensures the viewer always displays checkpoints for the *running* conversation, not a historical one.
+  检查点查看器通过最新 `createdAt` 时间戳定位当前活跃对话，而非最高步数，确保始终显示*正在运行的*对话的检查点。
+
+- **Enrichment Trigger on Checkpoint / 检查点触发增强**:
+  `shouldEnrichConversation()` now triggers full trajectory fetch when `checkpointIndex > 0` is detected, ensuring compressed conversations automatically receive their checkpoint summaries.
+  检测到 `checkpointIndex > 0` 时自动触发完整轨迹拉取，确保压缩对话能获取到摘要数据。
+
+- **Scroll State Preservation / 滚动状态保留**:
+  Added `.cp-viewer` and `.cp-card-body` to the incremental refresh scroll-preservation system, preventing loss of reading position when the panel auto-refreshes.
+  将检查点容器加入增量刷新的滚动保护机制，防止自动刷新时丢失阅读位置。
+
+- **Badge Shows Compression Count / 徽章显示压缩次数**:
+  Section badge displays `#N` (the checkpoint number) instead of card count, so users can see total compression count at a glance.
+  区域徽章显示 `#N`（检查点编号）而非卡片数量，一眼可见总压缩次数。
+
+### 🎨 Styles / 样式
+
+- **Checkpoint Viewer CSS / 检查点查看器样式**:
+  - `.cp-viewer` — amber-bordered scrollable container (max-height 400px) with thin custom scrollbar
+  - `.cp-card` — collapsible `<details>` card with amber border, hover highlight
+  - `.cp-card-header` — flex row with `📋 #N`, step/token chips
+  - `.cp-card-body` — scrollable body (max-height 280px) with Markdown-like rendering (headings, bold, code)
+  - `.cp-card-chip-step`, `.cp-card-chip-tok` — metadata chips (gray/amber)
+
+### 🔬 Verified / 验证
+
+- **Checkpoint Persistence Behavior**: Deep diagnostic script confirmed that the API (`GetCascadeTrajectory`) only retains `messagePrompts` on the **latest** GM entry. Older CHECKPOINT texts (1,2,3...) are absorbed into each subsequent compression — only the newest survives. This is by design, not a data loss bug.
+  深度诊断脚本确认 API 仅为最后一个 GM 条目保留 `messagePrompts`。旧 CHECKPOINT 文本被后续压缩吸收，仅最新一条存活——这是设计行为，非数据丢失。
+
+### 📊 Stats / 统计
+
+- **Files changed**: 8 (`src/gm/types.ts`, `src/gm/parser.ts`, `src/gm/tracker.ts`, `src/gm/summary.ts`, `src/gm/index.ts`, `src/gm-tracker.ts`, `src/activity-panel.ts`, `src/webview-script.ts`)
+- **TypeScript compile**: Zero errors
+- **Net change**: +291 lines (data pipeline + UI + CSS)
+- **Key discovery**: `messagePrompts` exists only on the last GM entry; `checkpointIndex` distribution records compression history
+

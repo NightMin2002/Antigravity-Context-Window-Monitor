@@ -4,7 +4,7 @@
 // All logic has been modularized into src/gm/.
 // External consumers can continue to:  import { ... } from './gm-tracker';
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.GMTracker = exports.buildSummaryFromConversations = exports.normalizeGMSummary = exports.mergeGMModelStats = exports.filterGMSummaryByModels = exports.parseGMEntry = exports.shouldEnrichConversation = exports.maybeEnrichCallsFromTrajectory = exports.mergeGMCallEntries = exports.buildGMArchiveKey = exports.buildGMMatchKey = exports.extractPromptData = exports.extractAISnippetsByStep = exports.extractUserMessageAnchors = exports.pickPromptSnippet = exports.uniqueStrings = exports.parseInt0 = exports.parseDuration = exports.cloneConversationData = exports.cloneGMCallEntry = exports.cloneTokenBreakdownGroups = void 0;
+exports.GMTracker = exports.buildSummaryFromConversations = exports.normalizeGMSummary = exports.mergeGMModelStats = exports.filterGMSummaryByModels = exports.parseGMEntry = exports.shouldEnrichConversation = exports.maybeEnrichCallsFromTrajectory = exports.mergeGMCallEntries = exports.buildGMArchiveKey = exports.buildGMMatchKey = exports.extractPromptData = exports.extractAISnippetsByStep = exports.extractCheckpointSummaries = exports.extractUserMessageAnchors = exports.pickPromptSnippet = exports.uniqueStrings = exports.parseInt0 = exports.parseDuration = exports.cloneConversationData = exports.cloneGMCallEntry = exports.cloneTokenBreakdownGroups = void 0;
 var gm_1 = require("./gm");
 Object.defineProperty(exports, "cloneTokenBreakdownGroups", { enumerable: true, get: function () { return gm_1.cloneTokenBreakdownGroups; } });
 Object.defineProperty(exports, "cloneGMCallEntry", { enumerable: true, get: function () { return gm_1.cloneGMCallEntry; } });
@@ -14,6 +14,7 @@ Object.defineProperty(exports, "parseInt0", { enumerable: true, get: function ()
 Object.defineProperty(exports, "uniqueStrings", { enumerable: true, get: function () { return gm_1.uniqueStrings; } });
 Object.defineProperty(exports, "pickPromptSnippet", { enumerable: true, get: function () { return gm_1.pickPromptSnippet; } });
 Object.defineProperty(exports, "extractUserMessageAnchors", { enumerable: true, get: function () { return gm_1.extractUserMessageAnchors; } });
+Object.defineProperty(exports, "extractCheckpointSummaries", { enumerable: true, get: function () { return gm_1.extractCheckpointSummaries; } });
 Object.defineProperty(exports, "extractAISnippetsByStep", { enumerable: true, get: function () { return gm_1.extractAISnippetsByStep; } });
 Object.defineProperty(exports, "extractPromptData", { enumerable: true, get: function () { return gm_1.extractPromptData; } });
 Object.defineProperty(exports, "buildGMMatchKey", { enumerable: true, get: function () { return gm_1.buildGMMatchKey; } });
