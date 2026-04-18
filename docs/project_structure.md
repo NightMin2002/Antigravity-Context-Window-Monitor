@@ -32,8 +32,8 @@ antigravity-context-monitor/
 │   ├── gm-tracker.ts             # GM 数据层 re-export shim（向后兼容，实际代码在 gm/）
 │   ├── gm/                       # GM 模块（从 gm-tracker.ts 拆分）
 │   │   ├── index.ts              #   barrel re-export
-│   │   ├── types.ts              #   所有 GM 类型定义 + clone 工具
-│   │   ├── parser.ts             #   解析器 + 提取器 + 匹配/合并/增强
+│   │   ├── types.ts              #   所有 GM 类型定义 + clone 工具（含 GMCheckpointSummary）
+│   │   ├── parser.ts             #   解析器 + 提取器 + 匹配/合并/增强 + 检查点摘要提取
 │   │   ├── summary.ts            #   汇总构建 + 过滤 + 标准化
 │   │   └── tracker.ts            #   GMTracker 类核心（fetch/reset/serialize）
 │   ├── pricing-store.ts          # 定价数据层：默认价格表 + 用户自定义持久化 + 费用计算
@@ -50,7 +50,7 @@ antigravity-context-monitor/
 │   ├── webview-profile-tab.ts    # Profile 标签页 HTML（账户 / 计划限制 / 功能与团队）
 │   ├── webview-history-tab.ts    # Quota Tracking 标签页 HTML
 │   ├── webview-chat-history-tab.ts # Sessions 标签页 HTML（会话目录 — 全量对话列表 + 筛选）
-│   ├── activity-panel.ts         # GM Data 统一标签页 HTML（Activity + GM 数据）
+│   ├── activity-panel.ts         # GM Data 统一标签页 HTML（Activity + GM 数据 + 检查点查看器）
 │   ├── pricing-panel.ts          # Cost 标签页 HTML（费用分析 + 模型信息卡片构建器）
 │   ├── webview-calendar-tab.ts   # Calendar 标签页 HTML
 │   ├── i18n.ts                   # 国际化：语言模式、翻译表、偏好持久化
@@ -73,7 +73,7 @@ antigravity-context-monitor/
 ├── docs/
 │   ├── technical_implementation.md   # 技术实现指南
 │   └── project_structure.md          # 本文件
-├── out/                          # tsc 编译输出（插件运行时代码）
+├── out/                          # tsc 编译输出（已从 git 索引移除，.gitignore 忽略）
 ├── package.json                  # 扩展清单、命令、配置项
 ├── package-lock.json             # 依赖锁定文件
 ├── tsconfig.json                 # TypeScript 编译配置
@@ -259,6 +259,7 @@ Fetches per-LLM-call data via `GetCascadeTrajectoryGeneratorMetadata`.
 | 智能缓存 / Smart cache | `_cache` Map 按 cascadeId 缓存 IDLE 对话的 GM 数据 |
 | 模型精度 / Model accuracy | 每次调用区分 `exact`（有 `responseModel`）与 `placeholder`（仅 alias / placeholder），供 UI 透明显示 |
 | 富化 / Enrichment | 对大对话或精确模型缺失的调用，按需用 `GetCascadeTrajectory` 中的内嵌 `generatorMetadata` 补充 prompt / tools / systemPrompt / user anchors |
+| 检查点提取 / Checkpoint extraction | `extractCheckpointSummaries()` 从 `messagePrompts` 中提取 `{{ CHECKPOINT N }}` 标记后的压缩摘要（跳过系统前导，限 8000 字符），`shouldEnrichConversation()` 在 `checkpointIndex > 0` 时自动触发完整轨迹拉取 |
 | Call baselines | `_callBaselines` 隔离新旧 quota cycle 的调用 |
 | Slim persistence | `serialize()` 去掉 `calls[]`，用于快速恢复基线 |
 | Detailed summary | `getDetailedSummary()` 返回完整 `GMSummary`（含 calls），用于外部文件持久化 |
@@ -272,6 +273,11 @@ Fetches per-LLM-call data via `GetCascadeTrajectoryGeneratorMetadata`.
 合并原 Activity 面板和 GM Data 面板为统一的「GM 数据」标签页。
 
 Unified "GM Data" tab merging Activity and GM precise data.
+
+| 特性 / Feature | 说明 / Description |
+|---|---|
+| 检查点查看器 / Checkpoint Viewer | `buildCheckpointViewer()` 渲染当前活跃对话（通过最新 `createdAt` 定位）的 `{{ CHECKPOINT N }}` 压缩摘要全文，琥珀色可折叠卡片 + 限高滚动容器 |
+| 增量刷新保护 / Refresh preservation | `<details>` 展开状态通过 `restoreDetailsState()` 自动保护；`.cp-viewer` / `.cp-card-body` 滚动位置通过 `scrollableSelectors` 保留 |
 
 ---
 
@@ -344,7 +350,7 @@ Panel framework titled \"Antigravity Monitor\": 9-tab navigation and message com
 | `webview-monitor-tab.ts` | Monitor 标签页 HTML；支持实时 `gmSummary` 与 `monitor-store` GM 快照双数据源 |
 | `webview-models-tab.ts` | Models 标签页 HTML；聚合默认模型、模型配额、模型信息 |
 | `webview-settings-tab.ts` | Settings 标签页 HTML；含持久化状态诊断卡片、界面提示偏好（Tab Scroll Hint） |
-| `webview-script.ts` | 客户端 JS；事件委托、标签切换、设置交互、增量刷新、`<details>` 状态恢复 |
+| `webview-script.ts` | 客户端 JS；事件委托、标签切换、设置交互、增量刷新、`<details>` 状态恢复、内部滚动位置保留（含 `.cp-viewer` / `.cp-card-body`） |
 | `webview-styles.ts` | CSS 样式（Design Token 体系） |
 | `webview-icons.ts` | 内联 SVG 图标 |
 | `webview-chat-history-tab.ts` | Sessions / 会话标签页 HTML；全量对话列表、快捷卡片、筛选/搜索、逐会话操作按钮 |
