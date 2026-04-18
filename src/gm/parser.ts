@@ -395,7 +395,7 @@ export function parseGMEntry(gm: Record<string, unknown>): GMCallEntry {
     const promptSectionTitles = promptSections.map(p => (p.title as string) || '?');
     const promptData = extractPromptData(cm);
 
-    const retries = parseInt0(cm.retries as string);
+    let retries = parseInt0(cm.retries as string);
     const errorMessage = (gm.error as string) || '';
 
     // ── retryInfos aggregation ─────────────────────────────────────────────
@@ -413,6 +413,12 @@ export function parseGMEntry(gm: Record<string, unknown>): GMCallEntry {
             }
             const errMsg = ri.error as string;
             if (errMsg) { retryErrors.push(errMsg.substring(0, 120)); }
+        }
+        // Derive retries from retryInfos when cm.retries is missing/zero.
+        // retryInfos always includes the successful attempt (no error) as an entry,
+        // so only count entries WITH errors as actual retries.
+        if (retries === 0 && retryErrors.length > 0) {
+            retries = retryErrors.length;
         }
     }
 

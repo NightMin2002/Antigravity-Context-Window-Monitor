@@ -408,7 +408,7 @@ export function activate(context: vscode.ExtensionContext): void {
                 if (isMonitorPanelVisible()) {
                     updateMonitorPanel(makePanelPayload());
                 }
-                });
+            });
         }),
         vscode.commands.registerCommand('antigravity-context-monitor.showActivityPanel', () => {
             showMonitorPanel(makePanelPayload({ context, initialTab: 'gmdata' }));

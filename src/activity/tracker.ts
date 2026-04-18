@@ -119,6 +119,7 @@ export class ActivityTracker {
     private _windowOutsideAttribution = new Map<string, {
         basis: 'estimated' | 'gm_recovered';
         stepsByModel: Record<string, number>;
+        categoriesByModel?: Record<string, { reasoning: number; toolCalls: number; errors: number; userInputs: number }>;
     }>();
 
     constructor() {
@@ -1176,13 +1177,34 @@ export class ActivityTracker {
                 return aIdx - bIdx;
             });
             const recoveredStepsByModel: Record<string, number> = {};
+            const categoriesByModel: Record<string, { reasoning: number; toolCalls: number; errors: number; userInputs: number }> = {};
+            const seenOutsideUsers = new Set<string>();
             for (const call of sortedOutsideCalls) {
-                const modelName = normalizeModelDisplayName(call.modelDisplay || call.model) || call.responseModel || call.modelDisplay || call.model;
-                if (!modelName) { continue; }
-                recoveredStepsByModel[modelName] = (recoveredStepsByModel[modelName] || 0) + call.stepIndices.length;
+                const mn = normalizeModelDisplayName(call.modelDisplay || call.model) || call.responseModel || call.modelDisplay || call.model;
+                if (!mn) { continue; }
+                recoveredStepsByModel[mn] = (recoveredStepsByModel[mn] || 0) + call.stepIndices.length;
+                if (!categoriesByModel[mn]) {
+                    categoriesByModel[mn] = { reasoning: 0, toolCalls: 0, errors: 0, userInputs: 0 };
+                }
+                // Skip interrupted calls for category counting
+                if (call.inputTokens === 0 && call.outputTokens === 0) { continue; }
+                // Each non-interrupted GM call = 1 reasoning step (1 LLM invocation)
+                categoriesByModel[mn].reasoning++;
+                // Tool calls = remaining steps in this call (stepIndices minus the PLANNER_RESPONSE itself)
+                categoriesByModel[mn].toolCalls += Math.max(0, call.stepIndices.length - 1);
+                // Errors
+                if (call.hasError) { categoriesByModel[mn].errors++; }
+                // User inputs from anchors
+                for (const anchor of call.userMessageAnchors) {
+                    if (anchor.stepIndex < visibleStepCount) { continue; }
+                    const uKey = `${conv.cascadeId}:${anchor.stepIndex}`;
+                    if (seenOutsideUsers.has(uKey)) { continue; }
+                    seenOutsideUsers.add(uKey);
+                    categoriesByModel[mn].userInputs++;
+                }
             }
             if (Object.keys(recoveredStepsByModel).length > 0) {
-                this._reconcileWindowOutsideAttribution(conv.cascadeId, 'gm_recovered', recoveredStepsByModel);
+                this._reconcileWindowOutsideAttribution(conv.cascadeId, 'gm_recovered', recoveredStepsByModel, categoriesByModel);
             }
 
             for (const call of sortedOutsideCalls) {
@@ -1232,12 +1254,18 @@ export class ActivityTracker {
                 seenVirtualKeys.add(virtualKey);
 
                 const preview = buildGMVirtualPreview(call);
+                // Enhance detail with retry/429 info
+                let virtualDetail = preview.detail;
+                if (call.retries > 0) {
+                    const has429 = call.retryErrors.some(e => e.includes('429') || e.includes('RESOURCE_EXHAUSTED'));
+                    virtualDetail += has429 ? ` ⚠️${call.retries}×retry(429)` : ` 🔄${call.retries}×retry`;
+                }
                 virtualEvents.push({
                     timestamp: call.createdAt || '',
                     icon: '🧠',
                     category: 'reasoning',
                     model: normalizeModelDisplayName(call.modelDisplay || call.model) || call.modelDisplay || call.model || '',
-                    detail: preview.detail,
+                    detail: virtualDetail,
                     durationMs: Math.round((call.ttftSeconds + call.streamingSeconds) * 1000),
                     cascadeId: conv.cascadeId,
                     source: 'gm_virtual',
@@ -1885,11 +1913,15 @@ export class ActivityTracker {
         const windowOutsideAttribution: Record<string, {
             basis: 'estimated' | 'gm_recovered';
             stepsByModel: Record<string, number>;
+            categoriesByModel?: Record<string, { reasoning: number; toolCalls: number; errors: number; userInputs: number }>;
         }> = {};
         for (const [cascadeId, attribution] of this._windowOutsideAttribution) {
             windowOutsideAttribution[cascadeId] = {
                 basis: attribution.basis,
                 stepsByModel: { ...attribution.stepsByModel },
+                categoriesByModel: attribution.categoriesByModel
+                    ? Object.fromEntries(Object.entries(attribution.categoriesByModel).map(([k, v]) => [k, { ...v }]))
+                    : undefined,
             };
         }
         return {
@@ -1982,9 +2014,13 @@ export class ActivityTracker {
         }
         if (data.windowOutsideAttribution) {
             for (const [cascadeId, attribution] of Object.entries(data.windowOutsideAttribution)) {
+                const cats = (attribution as any).categoriesByModel as Record<string, { reasoning: number; toolCalls: number; errors: number; userInputs: number }> | undefined;
                 tracker._windowOutsideAttribution.set(cascadeId, {
                     basis: attribution.basis,
                     stepsByModel: { ...attribution.stepsByModel },
+                    categoriesByModel: cats
+                        ? Object.fromEntries(Object.entries(cats).map(([k, v]) => [k, { ...v }]))
+                        : undefined,
                 });
             }
         }
@@ -2164,6 +2200,7 @@ export class ActivityTracker {
                 this._windowOutsideAttribution.set(cascadeId, {
                     basis: attribution.basis,
                     stepsByModel: normalizeStepsByModelRecord(attribution.stepsByModel),
+                    categoriesByModel: attribution.categoriesByModel,
                 });
             }
         }
@@ -2193,12 +2230,29 @@ export class ActivityTracker {
         return this._modelStats.get(normalizedModel)!;
     }
 
-    private _applyWindowOutsideDelta(stepsByModel: Record<string, number>, direction: 1 | -1): void {
+    private _applyWindowOutsideDelta(
+        stepsByModel: Record<string, number>,
+        categoriesByModel: Record<string, { reasoning: number; toolCalls: number; errors: number; userInputs: number }> | undefined,
+        direction: 1 | -1,
+    ): void {
         for (const [model, steps] of Object.entries(normalizeStepsByModelRecord(stepsByModel))) {
             if (!model || !steps) { continue; }
             const stats = this._getOrCreateStats(model);
             stats.totalSteps = Math.max(0, stats.totalSteps + (steps * direction));
-            stats.estSteps = Math.max(0, stats.estSteps + (steps * direction));
+            // GM-driven categories: use precise data when available, else fallback to estSteps
+            const cats = categoriesByModel?.[model];
+            if (cats) {
+                stats.reasoning = Math.max(0, stats.reasoning + (cats.reasoning * direction));
+                stats.toolCalls = Math.max(0, stats.toolCalls + (cats.toolCalls * direction));
+                stats.errors = Math.max(0, stats.errors + (cats.errors * direction));
+                stats.userInputs = Math.max(0, stats.userInputs + (cats.userInputs * direction));
+                // estSteps = only truly uncategorized remainder
+                const categorized = cats.reasoning + cats.toolCalls + cats.errors + cats.userInputs;
+                const uncategorized = Math.max(0, steps - categorized);
+                stats.estSteps = Math.max(0, stats.estSteps + (uncategorized * direction));
+            } else {
+                stats.estSteps = Math.max(0, stats.estSteps + (steps * direction));
+            }
         }
     }
 
@@ -2206,6 +2260,7 @@ export class ActivityTracker {
         cascadeId: string,
         basis: 'estimated' | 'gm_recovered',
         stepsByModel: Record<string, number>,
+        categoriesByModel?: Record<string, { reasoning: number; toolCalls: number; errors: number; userInputs: number }>,
     ): void {
         const normalizedStepsByModel = normalizeStepsByModelRecord(stepsByModel);
         const existing = this._windowOutsideAttribution.get(cascadeId);
@@ -2213,19 +2268,22 @@ export class ActivityTracker {
             return;
         }
         if (existing) {
-            this._applyWindowOutsideDelta(existing.stepsByModel, -1);
+            this._applyWindowOutsideDelta(existing.stepsByModel, existing.categoriesByModel, -1);
         }
-        this._applyWindowOutsideDelta(normalizedStepsByModel, 1);
+        this._applyWindowOutsideDelta(normalizedStepsByModel, categoriesByModel, 1);
         this._windowOutsideAttribution.set(cascadeId, {
             basis,
             stepsByModel: { ...normalizedStepsByModel },
+            categoriesByModel: categoriesByModel
+                ? Object.fromEntries(Object.entries(categoriesByModel).map(([k, v]) => [k, { ...v }]))
+                : undefined,
         });
     }
 
     private _clearWindowOutsideAttribution(cascadeId: string): void {
         const existing = this._windowOutsideAttribution.get(cascadeId);
         if (!existing) { return; }
-        this._applyWindowOutsideDelta(existing.stepsByModel, -1);
+        this._applyWindowOutsideDelta(existing.stepsByModel, existing.categoriesByModel, -1);
         this._windowOutsideAttribution.delete(cascadeId);
     }
 

@@ -157,3 +157,42 @@
 - **Net LOC**: ~80 (2 re-export shims) replaces ~4446 (2 monoliths) — zero logic change
 
 ---
+
+## [1.15.5] - 2026-04-18
+
+### 🚀 Enhanced / 增强
+
+- **GM-Driven Activity Classification / GM 驱动活动分类**:
+  Replaced the blind `+N steps (estimated)` counters with precise GM-derived category counts.
+  Each window-outside GM call is now classified into reasoning / toolCalls / errors / userInputs,
+  feeding directly into `ModelActivityStats`. The status bar and activity panel now show real
+  numbers instead of zeros for long conversations that exceed the ~500 Steps API window.
+  用 GM 精确数据替代了空洞的"推算 +N 步"计数器。每个窗口外 GM 调用现在精确分类为
+  推理/工具调用/错误/用户消息，直接写入 `ModelActivityStats`，状态栏和活动面板不再显示全零。
+
+- **Timeline Retry / 429 Display / 时间线重试/429 显示**:
+  Virtual GM timeline events now show retry and rate-limit information inline:
+  `⚠️2×retry(429)` for rate-limited calls, `🔄1×retry` for other retries.
+  GM 虚拟时间线事件现在内联显示重试和限流信息。
+
+### 🐛 Fixed / 修复
+
+- **Retry Count Inflation / 重试计数虚高**:
+  `retryInfos` array always includes the successful attempt as its last entry (no error).
+  The parser now only counts entries with actual error messages as retries, fixing the bug
+  where every GM call showed `retries=1` even without any failures.
+  `retryInfos` 数组始终将成功调用作为末尾 entry，解析器现在只计算有错误消息的 entry 为 retry。
+
+- **Category Counter Inflation / 分类计数无限膨胀**:
+  `_normalizeModelState()` was stripping `categoriesByModel` from `_windowOutsideAttribution`
+  on every poll, causing the reconciliation to skip reversal of old categories and add full
+  new categories each cycle — inflating reasoning/toolCalls/userInputs indefinitely.
+  Fixed by preserving `categoriesByModel` during normalization.
+  `_normalizeModelState()` 每次 poll 丢弃 `categoriesByModel`，导致分类计数无限叠加。
+  修复：规范化时保留 `categoriesByModel`。
+
+### 📊 Stats / 统计
+
+- **Files changed**: 3 (`src/gm/parser.ts`, `src/activity/tracker.ts`, `src/extension.ts`)
+- **TypeScript compile**: Zero errors
+- **Key insight**: `retryInfos` always contains N+1 entries (N failures + 1 success)
