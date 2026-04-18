@@ -256,6 +256,10 @@ function extractNotifyMessage(toolCalls) {
     return '';
 }
 function buildGMVirtualPreview(call) {
+    // Priority 0: Interrupted/cancelled call (0 tokens)
+    if (call.inputTokens === 0 && call.outputTokens === 0) {
+        return { detail: (0, i18n_1.tBi)('⚡ interrupted', '⚡ 已中断') };
+    }
     // Priority 1: AI response snippet matched by stepIndex
     // aiSnippetsByStep is built from embedded GM's messagePrompts (GetCascadeTrajectory)
     // and broadcast to ALL calls via maybeEnrichCallsFromTrajectory.
@@ -273,13 +277,9 @@ function buildGMVirtualPreview(call) {
             : call.promptSnippet;
         return { detail: preview };
     }
-    // Priority 3: User message
-    if (call.userMessageAnchors.length > 0) {
-        const lastAnchor = call.userMessageAnchors[call.userMessageAnchors.length - 1];
-        const preview = lastAnchor.text.length > 60
-            ? lastAnchor.text.substring(0, 57) + '...'
-            : lastAnchor.text;
-        return { detail: `💬 ${preview}` };
+    // Priority 3: step count hint (how many steps this call covers)
+    if (call.stepIndices.length > 1) {
+        return { detail: `+${call.stepIndices.length} steps (estimated)` };
     }
     return { detail: (0, i18n_1.tBi)('GM call', 'GM 调用') };
 }

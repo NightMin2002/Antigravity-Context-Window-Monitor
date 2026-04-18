@@ -105,3 +105,40 @@
 - **Key discovery**: `GetCascadeTrajectoryGeneratorMetadata` has NO messagePrompts; only `GetCascadeTrajectory` embedded GM has them
 
 ---
+
+## [1.15.4] - 2026-04-18
+
+### 🏗 Refactored / 重构
+
+- **GM Module Modularization / GM 模块化拆分**:
+  Split `gm-tracker.ts` (1728 lines) into 5 focused sub-modules under `src/gm/`:
+  将 `gm-tracker.ts`（1728 行）拆分为 `src/gm/` 下的 5 个专注子模块：
+
+  | Module | Lines | Responsibility |
+  |--------|:-----:|----------------|
+  | `types.ts` | ~210 | 所有 GM 类型定义 + clone 工具 |
+  | `parser.ts` | ~390 | 解析器 + 提取器 + 匹配/合并/增强 |
+  | `summary.ts` | ~360 | 汇总构建 + 过滤 + 标准化 |
+  | `tracker.ts` | ~500 | GMTracker 类核心 |
+  | `index.ts` | ~50 | barrel re-export |
+
+  Original `gm-tracker.ts` reduced to a ~40-line backward-compatible re-export shim.
+  All 12 external import sites (`import { ... } from './gm-tracker'`) work unchanged.
+  原 `gm-tracker.ts` 缩减为约 40 行的向后兼容 re-export，12 个外部 import 全部无需修改。
+
+- **Interrupted Call Detection / 中断调用检测**:
+  GM timeline rows for interrupted/cancelled calls (0 tokens in + 0 tokens out) now show `⚡ 已中断` instead of falling back to user message bubble or generic "GM 调用".
+  中断/取消的 GM 调用现在显示 `⚡ 已中断`，而非回退到用户气泡或 "GM 调用"。
+
+- **User Message Fallback Removed / 移除用户消息兜底**:
+  GM rows no longer echo the user's input text as a fallback preview. GM rows should only display AI behavior (responses, tool calls, or status).
+  GM 行不再将用户输入作为兜底预览，只显示 AI 行为。
+
+### 📊 Stats / 统计
+
+- **Files changed**: 4 (`gm-tracker.ts`, `activity-tracker.ts`, `docs/project_structure.md`, `CHANGELOG-v2.md`)
+- **Files created**: 5 (`src/gm/types.ts`, `parser.ts`, `summary.ts`, `tracker.ts`, `index.ts`)
+- **TypeScript compile**: Zero errors
+- **Net LOC**: ~40 (re-export shim) replaces ~1728 (monolith) — zero logic change
+
+---

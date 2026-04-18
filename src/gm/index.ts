@@ -1,8 +1,8 @@
-// ─── GM Tracker (Barrel Re-export) ───────────────────────────────────────────
-// This file exists for backward compatibility.
-// All logic has been modularized into src/gm/.
-// External consumers can continue to:  import { ... } from './gm-tracker';
+// ─── GM Module Barrel ────────────────────────────────────────────────────────
+// Re-exports everything so external consumers can still use:
+//   import { GMTracker, GMSummary, ... } from './gm';
 
+// Types
 export type {
     GMCompletionConfig,
     TokenBreakdownGroup,
@@ -14,12 +14,11 @@ export type {
     GMConversationData,
     GMSummary,
     GMTrackerState,
-} from './gm';
+} from './types';
+export { cloneTokenBreakdownGroups, cloneGMCallEntry, cloneConversationData } from './types';
 
+// Parser & Enrichment
 export {
-    cloneTokenBreakdownGroups,
-    cloneGMCallEntry,
-    cloneConversationData,
     parseDuration,
     parseInt0,
     uniqueStrings,
@@ -33,9 +32,15 @@ export {
     maybeEnrichCallsFromTrajectory,
     shouldEnrichConversation,
     parseGMEntry,
+} from './parser';
+
+// Summary
+export {
     filterGMSummaryByModels,
     mergeGMModelStats,
     normalizeGMSummary,
     buildSummaryFromConversations,
-    GMTracker,
-} from './gm';
+} from './summary';
+
+// Tracker Class
+export { GMTracker } from './tracker';

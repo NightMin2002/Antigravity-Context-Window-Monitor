@@ -24,7 +24,13 @@ antigravity-context-monitor/
 │   ├── quota-tracker.ts          # 模型额度消费时间线追踪（per-model knownWindowMs + 稳定池代表）
 │   ├── reset-time.ts             # 重置时间格式化工具（倒计时 + 绝对日期时间）
 │   ├── activity-tracker.ts       # 模型活动追踪（推理、工具、Token、池级归档）
-│   ├── gm-tracker.ts             # GM 数据层：RPC + 解析 + 聚合 + 缓存 + 基线
+│   ├── gm-tracker.ts             # GM 数据层 re-export shim（向后兼容，实际代码在 gm/）
+│   ├── gm/                       # GM 模块（从 gm-tracker.ts 拆分）
+│   │   ├── index.ts              #   barrel re-export
+│   │   ├── types.ts              #   所有 GM 类型定义 + clone 工具
+│   │   ├── parser.ts             #   解析器 + 提取器 + 匹配/合并/增强
+│   │   ├── summary.ts            #   汇总构建 + 过滤 + 标准化
+│   │   └── tracker.ts            #   GMTracker 类核心（fetch/reset/serialize）
 │   ├── pricing-store.ts          # 定价数据层：默认价格表 + 用户自定义持久化 + 费用计算
 │   ├── model-dna-store.ts        # 模型信息持久化：跨周期保留静态模型 DNA
 │   ├── daily-store.ts            # 日历数据层：按日聚合 Activity / GM / Cost
