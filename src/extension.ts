@@ -19,7 +19,7 @@ import { showMonitorPanel, updateMonitorPanel, isMonitorPanelVisible, setPanelDu
 import { ActivityTracker, ActivityTrackerState } from './activity-tracker';
 import { CascadeStatus, MAX_BACKOFF_INTERVAL_MS, MAX_DISCOVERY_BACKOFF_MS, COMPRESSION_PERSIST_POLLS } from './constants';
 import { QuotaTracker } from './quota-tracker';
-import { GMTracker, GMSummary, GMTrackerState, filterGMSummaryByModels } from './gm-tracker';
+import { GMTracker, GMSummary, GMTrackerState, filterGMSummaryByModels, slimSummaryForPersistence } from './gm-tracker';
 import { PricingStore } from './pricing-store';
 import { DailyStore, type DailyStoreState } from './daily-store';
 import { MonitorStore } from './monitor-store';
@@ -195,7 +195,12 @@ function hasGMSummaryChanged(prev: GMSummary | null | undefined, next: GMSummary
 function persistResetSensitiveState(): void {
     durableGlobalState.update('activityTrackerState', activityTracker.serialize());
     durableGlobalState.update('gmTrackerState', gmTracker.serialize());
-    durableFileGlobalState.update('gmDetailedSummary', lastGMSummary);
+    persistGMSummaryToFile(lastGMSummary);
+}
+
+/** Write GM summary to external file, stripping heavy text/metadata fields. */
+function persistGMSummaryToFile(summary: GMSummary | null | undefined): void {
+    durableFileGlobalState.update('gmDetailedSummary', summary ? slimSummaryForPersistence(summary) : null);
 }
 
 function captureDevResetSnapshot(): void {
@@ -305,7 +310,7 @@ export function activate(context: vscode.ExtensionContext): void {
             durableGlobalState.update('activityTrackerState', activityTracker.serialize());
             lastGMSummary = gmTracker.getDetailedSummary() || gmTracker.getCachedSummary();
             durableGlobalState.update('gmTrackerState', gmTracker.serialize());
-            durableFileGlobalState.update('gmDetailedSummary', lastGMSummary);
+            persistGMSummaryToFile(lastGMSummary);
         }
     };
 
@@ -381,7 +386,7 @@ export function activate(context: vscode.ExtensionContext): void {
         if (repairedGMSummary !== lastGMSummary) {
             lastGMSummary = repairedGMSummary;
             durableGlobalState.update('gmTrackerState', gmTracker.serialize());
-            durableFileGlobalState.update('gmDetailedSummary', lastGMSummary);
+            persistGMSummaryToFile(lastGMSummary);
             log('GM summary repaired from quota history during startup');
         }
     }
@@ -983,7 +988,7 @@ async function pollContextUsage(): Promise<void> {
                     if (gmChanged || !lastGMSummary) {
                         const detailedSummary = gmTracker.getDetailedSummary() || gmSummary;
                         monitorStore.recordGMConversations(gmTracker.getAllConversationData());
-                        durableFileGlobalState.update('gmDetailedSummary', detailedSummary);
+                        persistGMSummaryToFile(detailedSummary);
                         const mergedDNA = mergeModelDNAState(persistedModelDNA, detailedSummary);
                         if (mergedDNA.changed) {
                             persistedModelDNA = mergedDNA.entries;
@@ -1006,7 +1011,7 @@ async function pollContextUsage(): Promise<void> {
                     if (gmTracker) {
                         durableGlobalState.update('gmTrackerState', gmTracker.serialize());
                         if (lastGMSummary) {
-                            durableFileGlobalState.update('gmDetailedSummary', lastGMSummary);
+                            persistGMSummaryToFile(lastGMSummary);
                         }
                     }
                     lastActivityPersistTime = now;
@@ -1157,10 +1162,33 @@ function checkQuotaNotification(configs: import('./models').ModelConfig[]): void
     }
 }
 
+function computeAllTimeCost(): number {
+    let total = 0;
+    // Sum all archived cycle costs from dailyStore
+    if (dailyStore) {
+        for (const date of dailyStore.getDatesWithData()) {
+            const record = dailyStore.getRecord(date);
+            if (record) {
+                for (const cycle of record.cycles) {
+                    total += cycle.estimatedCost || 0;
+                }
+            }
+        }
+    }
+    // Add current (in-progress) cycle cost
+    if (lastGMSummary && pricingStore) {
+        total += pricingStore.calculateCosts(lastGMSummary).grandTotal;
+    }
+    return total;
+}
+
 function getStorageDiagnostics(): StorageDiagnostics {
     const stateFilePath = durableState.getFilePath();
     const stateFileExists = durableState.exists();
-    const stateFileSizeBytes = stateFileExists ? fs.statSync(stateFilePath).size : 0;
+    let stateFileSizeBytes = 0;
+    try {
+        stateFileSizeBytes = stateFileExists ? fs.statSync(stateFilePath).size : 0;
+    } catch { /* ignore stat errors */ }
     let calendarCycleCount = 0;
     if (dailyStore) {
         for (const date of dailyStore.getDatesWithData()) {
@@ -1176,15 +1204,14 @@ function getStorageDiagnostics(): StorageDiagnostics {
         stateFileExists,
         stateFileSizeBytes,
         stateFileOpenWarnBytes: LARGE_STATE_FILE_WARN_BYTES,
-        monitorSnapshotCount: monitorStore?.getAll().length || 0,
-        monitorGMConversationCount: Object.keys(monitorStore?.getGMConversations() || {}).length,
-        gmConversationCount: lastGMSummary?.conversations.length || 0,
         gmCallCount: lastGMSummary?.totalCalls || 0,
-        quotaHistoryCount: quotaTracker?.getHistory().length || 0,
-        activityArchiveCount: activityTracker?.getArchives().length || 0,
+        gmTotalInputTokens: lastGMSummary?.totalInputTokens || 0,
+        gmTotalOutputTokens: lastGMSummary?.totalOutputTokens || 0,
+        gmTotalCredits: lastGMSummary?.totalCredits || 0,
+        estimatedCostAllTime: computeAllTimeCost(),
+        quotaResetCount: activityTracker?.getArchives().length || 0,
         calendarDayCount: dailyStore?.totalDays || 0,
         calendarCycleCount,
-        pricingOverrideCount: Object.keys(pricingStore?.getCustom() || {}).length,
         hasDevResetSnapshot: !!devResetSnapshot,
     };
 }

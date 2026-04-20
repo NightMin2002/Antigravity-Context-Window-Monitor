@@ -27,12 +27,12 @@ antigravity-context-monitor/
 │   ├── activity/                 # Activity 模块（从 activity-tracker.ts 拆分）
 │   │   ├── index.ts              #   barrel re-export
 │   │   ├── types.ts              #   所有 Activity 类型定义
-│   │   ├── helpers.ts            #   工具函数（分类/提取/合并/预览构建）
+│   │   ├── helpers.ts            #   工具函数（分类/提取/合并/预览构建/持久化瘦身）
 │   │   └── tracker.ts            #   ActivityTracker 类核心
 │   ├── gm-tracker.ts             # GM 数据层 re-export shim（向后兼容，实际代码在 gm/）
 │   ├── gm/                       # GM 模块（从 gm-tracker.ts 拆分）
 │   │   ├── index.ts              #   barrel re-export
-│   │   ├── types.ts              #   所有 GM 类型定义 + clone 工具（含 GMCheckpointSummary）
+│   │   ├── types.ts              #   所有 GM 类型定义 + clone 工具 + 持久化 slim 函数
 │   │   ├── parser.ts             #   解析器 + 提取器 + 匹配/合并/增强 + 检查点摘要提取
 │   │   ├── summary.ts            #   汇总构建 + 过滤 + 标准化
 │   │   └── tracker.ts            #   GMTracker 类核心（fetch/reset/serialize）
@@ -46,7 +46,7 @@ antigravity-context-monitor/
 │   ├── webview-icons.ts          # WebView 内联 SVG 图标
 │   ├── webview-monitor-tab.ts    # Monitor 标签页 HTML（支持 GM 快照回退）
 │   ├── webview-models-tab.ts     # Models 标签页 HTML（默认模型 + 模型配额 + 模型信息）
-│   ├── webview-settings-tab.ts   # Settings 标签页 HTML（含持久化状态诊断 + 界面提示偏好）
+│   ├── webview-settings-tab.ts   # Settings 标签页 HTML（含持久化存储概览 + 费用统计 + 界面提示偏好）
 │   ├── webview-profile-tab.ts    # Profile 标签页 HTML（账户 / 计划限制 / 功能与团队）
 │   ├── webview-history-tab.ts    # Quota Tracking 标签页 HTML
 │   ├── webview-chat-history-tab.ts # Sessions 标签页 HTML（会话目录 — 全量对话列表 + 筛选）
@@ -192,7 +192,7 @@ Persists `ContextUsage` and `GMConversationData` per conversation for the Monito
 | 特性 / Feature | 说明 / Description |
 |---|---|
 | `record()` | 保存最近会话的 `ContextUsage`，自 v1.14.5 起通过 `sameUsageSnapshot()` 深比较跳过未变化快照（Since v1.14.5, skips unchanged snapshots via deep comparison） |
-| `recordGMConversations()` | 保存每个对话的 GM 细节快照（含 calls），自 v1.14.5 起通过 `sameGMConversationSnapshot()` 去重（Since v1.14.5, de-duplicated via snapshot comparison） |
+| `recordGMConversations()` | 保存每个对话的 GM 细节快照（含 calls），写盘前通过 `slimConversationForPersistence()` 剥离文本字段，自 v1.14.5 起通过 `sameGMConversationSnapshot()` 去重 |
 | `getSnapshot(cascadeId)` | 自 v1.14.5 新增，按 cascadeId 获取单个缓存快照用于轮询复用（Since v1.14.5, retrieves single cached snapshot for poll reuse） |
 | `restore()` | 恢复当前会话、会话列表和 GM 会话快照 |
 | 独立于额度归档 / Independent from quota archives | 不因 quota reset 归档而清空 Monitor 数据 |
@@ -244,6 +244,7 @@ Tracks model activity details: reasoning count, tool usage, token consumption, t
 | 池级归档 / Per-pool archive | 只清空匹配 pool 的模型统计、Timeline、GM breakdown、sub-agent 归属（含 `_gmSubAgentTokens`） |
 | 口径清理 / Metric cleanup | 工具排行从剩余 `modelStats.toolBreakdown` 重算，避免跨池残留 |
 | 序列化 / Serialization | `serialize()` / `restore()` 支持跨会话恢复与迁移检测，`_conversationBreakdown` key 通过 trajectory baselines 重建 |
+| 持久化瘦身 / Slim-on-write | `serialize()` 通过 `slimStepEventForPersistence()` 剥离 `fullUserInput` / `fullAiResponse` / `gmPromptSnippet` / `browserSub` 文本字段，截断长 preview，仅保留结构化统计数据 |
 
 ---
 
@@ -262,7 +263,7 @@ Fetches per-LLM-call data via `GetCascadeTrajectoryGeneratorMetadata`.
 | 检查点提取 / Checkpoint extraction | `extractCheckpointSummaries()` 从 `messagePrompts` 中提取 `{{ CHECKPOINT N }}` 标记后的压缩摘要（跳过系统前导，限 8000 字符），`shouldEnrichConversation()` 在 `checkpointIndex > 0` 时自动触发完整轨迹拉取 |
 | Call baselines | `_callBaselines` 隔离新旧 quota cycle 的调用 |
 | Slim persistence | `serialize()` 去掉 `calls[]`，用于快速恢复基线 |
-| Detailed summary | `getDetailedSummary()` 返回完整 `GMSummary`（含 calls），用于外部文件持久化 |
+| Detailed summary | `getDetailedSummary()` 返回完整 `GMSummary`（含 calls），写盘前通过 `slimSummaryForPersistence()` 剥离文本字段（prompt / chat / checkpoint summaries / token breakdown / tools），仅保留 token/credits 计费数据 |
 | Monitor fallback | `getAllConversationData()` 导出对话级 GM 明细，供 Monitor 标签页回退展示 |
 | Per-pool reset | `reset(modelIds?)` 仅归档并隐藏匹配 pool 的调用 |
 
@@ -349,7 +350,7 @@ Panel framework titled \"Antigravity Monitor\": 9-tab navigation and message com
 |---|---|
 | `webview-monitor-tab.ts` | Monitor 标签页 HTML；支持实时 `gmSummary` 与 `monitor-store` GM 快照双数据源 |
 | `webview-models-tab.ts` | Models 标签页 HTML；聚合默认模型、模型配额、模型信息 |
-| `webview-settings-tab.ts` | Settings 标签页 HTML；含持久化状态诊断卡片、界面提示偏好（Tab Scroll Hint） |
+| `webview-settings-tab.ts` | Settings 标签页 HTML；含持久化存储概览（文件大小 / Input·Output Tokens / Credits / 估算总费用 / 额度重置次数 / 日历天数·周期数）、界面提示偏好 |
 | `webview-script.ts` | 客户端 JS；事件委托、标签切换、设置交互、增量刷新、`<details>` 状态恢复、内部滚动位置保留（含 `.cp-viewer` / `.cp-card-body`） |
 | `webview-styles.ts` | CSS 样式（Design Token 体系） |
 | `webview-icons.ts` | 内联 SVG 图标 |
@@ -531,6 +532,6 @@ npx vsce package --no-dependencies
 | `reset-time.test.ts` | 3 | 倒计时格式化 / 绝对日期时间格式化 / 上下文拼接格式（按本地时区动态断言） |
 | `durable-state.test.ts` | 1 | 外部持久化文件创建 / fallback 迁移 / 重装恢复 |
 
-共 179 个测试，使用 `__mocks__/vscode.ts` 模拟 VS Code API。
+共 149 个测试（13 个文件），使用 `__mocks__/vscode.ts` 模拟 VS Code API。
 
-179 total tests, using `__mocks__/vscode.ts` to mock VS Code API.
+149 total tests (13 files), using `__mocks__/vscode.ts` to mock VS Code API.

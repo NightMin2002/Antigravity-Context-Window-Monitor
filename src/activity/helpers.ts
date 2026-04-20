@@ -332,3 +332,29 @@ export function normalizeStepsByModelRecord(stepsByModel: Record<string, number>
     }
     return normalized;
 }
+
+/**
+ * Strip heavy text fields from a StepEvent for persistence.
+ * Keeps: structural data (stepIndex, category, model, timestamps, token counts).
+ * Drops: fullUserInput, fullAiResponse, gmPromptSnippet, browserSub, long text previews.
+ * These are re-populated from the API / GM on next startup.
+ */
+export function slimStepEventForPersistence(event: StepEvent): StepEvent {
+    const slim: StepEvent = { ...event };
+    // Drop full text content
+    delete slim.fullUserInput;
+    delete slim.fullAiResponse;
+    delete slim.gmPromptSnippet;
+    delete slim.browserSub;
+    // Truncate preview fields to short summaries (keep just enough for timeline display)
+    if (slim.userInput && slim.userInput.length > 40) {
+        slim.userInput = slim.userInput.substring(0, 37) + '...';
+    }
+    if (slim.aiResponse && slim.aiResponse.length > 60) {
+        slim.aiResponse = slim.aiResponse.substring(0, 57) + '...';
+    }
+    if (slim.detail && slim.detail.length > 80) {
+        slim.detail = slim.detail.substring(0, 77) + '...';
+    }
+    return slim;
+}

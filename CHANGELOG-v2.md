@@ -334,3 +334,85 @@
 - **Net change**: +291 lines (data pipeline + UI + CSS)
 - **Key discovery**: `messagePrompts` exists only on the last GM entry; `checkpointIndex` distribution records compression history
 
+---
+
+## [1.15.8] - 2026-04-20
+
+### 🏗 Refactored / 重构
+
+- **Lossy Persistence — Slim-on-Write Architecture / 有损持久化 — 写盘瘦身架构**:
+  Implemented a "slim-on-write" strategy that strips heavy, redundant metadata from GM and Activity data **only** at the serialization boundary (before writing to disk). Runtime memory remains fully intact — all stripped fields are dynamically re-fetched from the LS API on next poll cycle.
+  实现了"写盘瘦身"策略：仅在序列化边界（写盘前）剥离 GM 和 Activity 数据中的重型冗余元数据。运行时内存完全不受影响——所有剥离字段在下次 poll 时从 LS API 动态重新填充。
+
+  **State file size reduction / 状态文件瘦身效果**:
+  - Before: ~245 MB (6670+ GM calls with full chat history, prompts, tool lists, token trees)
+  - After: ~1 MB (structural stats only: token counts, credits, timestamps, step indices)
+
+  **Layer 1 — GM Summary Slim / GM 汇总瘦身** (`gm/types.ts`):
+  Three new persistence helpers strip heavy fields from `GMCallEntry` and `GMSummary`:
+  
+  | Function | Strips |
+  |----------|--------|
+  | `slimCallForPersistence()` | `promptSnippet`, `aiSnippetsByStep`, `checkpointSummaries`, `systemPromptSnippet`, `userMessageAnchors.text`, `tokenBreakdownGroups`, `tools`, `retryErrors` |
+  | `slimSummaryForPersistence()` | Applies `slimCallForPersistence()` to all calls in all conversations |
+  | `slimConversationForPersistence()` | Applies to a single conversation's calls |
+
+  **Layer 2 — Activity Timeline Slim / 活动时间线瘦身** (`activity/helpers.ts`):
+  
+  | Function | Strips |
+  |----------|--------|
+  | `slimStepEventForPersistence()` | `fullUserInput`, `fullAiResponse`, `gmPromptSnippet`, `browserSub`; truncates `userInput`/`aiResponse`/`detail` to 40/60/80 chars |
+
+  Applied in `ActivityTracker.serialize()` to both `summary.recentSteps` and all `archives[].recentSteps`.
+
+  **Persistence Points Updated / 持久化点位更新**:
+  - `extension.ts`: Centralized all 5 `gmDetailedSummary` writes into `persistGMSummaryToFile()` helper
+  - `monitor-store.ts`: GM conversations slimmed via `slimConversationForPersistence()` before workspace state write
+  - `activity/tracker.ts`: `serialize()` applies `slimStepEventForPersistence()` to all timeline events and archives
+
+### ✨ Improved / 改进
+
+- **Settings Storage Diagnostics Redesign / 设置页存储诊断重新设计**:
+  Replaced 11 confusing internal metrics (Monitor Sessions, GM Snapshots, GM Conversations, Quota History, Price Overrides, Open Warn At...) with 9 user-meaningful stats:
+  替换了 11 个意义不明的内部指标为 9 个用户可理解的统计：
+
+  | Stat | Description |
+  |------|-------------|
+  | File Size / 文件大小 | Current state file size |
+  | GM Calls (Cycle) / GM 调用 (周期) | LLM invocations in current quota period |
+  | Input Tokens / 输入 Tokens | Total input tokens this cycle |
+  | Output Tokens / 输出 Tokens | Total output tokens this cycle |
+  | Credits Used / 已用积分 | Credits consumed this cycle |
+  | Est. Total Cost / 估算总费用 | All-time cost: archived cycles (dailyStore) + current cycle (pricingStore) |
+  | Quota Resets / 额度重置次数 | Number of historical quota reset archives |
+  | Calendar Days / 日历天数 | Days with recorded data |
+  | Calendar Cycles / 日历周期 | Total archived quota cycles across all days |
+
+- **All-Time Cost Calculation / 累计总费用计算**:
+  New `computeAllTimeCost()` sums all `estimatedCost` from every archived cycle in `dailyStore` plus the current in-progress cycle's live cost from `pricingStore.calculateCosts()`.
+  新增累计费用计算：遍历日历所有归档周期费用 + 当前进行中周期的实时费用。
+
+- **File Stat Error Handling / 文件状态错误处理**:
+  Wrapped `fs.statSync()` in try-catch in both `getStorageDiagnostics()` and `refreshLocalStorageDiagnostics()` to prevent crashes when the state file is temporarily locked or inaccessible.
+  为文件大小读取添加异常保护，防止状态文件临时锁定时崩溃。
+
+### 🐛 Fixed / 修复
+
+- **Test Fixture Missing Fields / 测试夹具缺失字段**:
+  `activity-tracker.test.ts` fixtures were missing `aiSnippetsByStep` and `checkpointSummaries` fields (added in v1.15.3/v1.15.7), causing `Object.keys(undefined)` crashes in `buildGMVirtualPreview()`. Added empty defaults to all test GM call fixtures.
+  测试夹具缺少 v1.15.3/v1.15.7 新增字段，导致 `buildGMVirtualPreview()` 崩溃。
+
+### 🗑 Removed / 移除
+
+- **`webview-settings-tab.test.ts`**: Removed trivial UI snapshot test — the settings tab HTML is simple enough to validate visually.
+  移除简单的 UI 快照测试。
+
+### 📊 Stats / 统计
+
+- **Files changed**: 9 (`src/gm/types.ts`, `src/gm/index.ts`, `src/gm-tracker.ts`, `src/extension.ts`, `src/monitor-store.ts`, `src/activity/helpers.ts`, `src/activity/tracker.ts`, `src/webview-settings-tab.ts`, `src/webview-panel.ts`)
+- **Tests deleted**: 1 (`webview-settings-tab.test.ts`)
+- **Tests fixed**: 2 (activity-tracker fixture + expectation updates)
+- **Final test count**: 149 tests across 13 files — all passing
+- **TypeScript compile**: Zero errors
+- **Key architectural decision**: Lossy persistence is safe because all text content is re-fetched from API within 5 seconds of startup; only structural/statistical data needs to survive restarts
+

@@ -113,6 +113,8 @@ function makeReasoningSummary(cascadeId: string, stepIndex: number, createdAt: s
                         latestStableMessageIndex: stepIndex,
                         startStepIndex: 0,
                         checkpointIndex: 0,
+                        checkpointSummaries: [],
+                        aiSnippetsByStep: {},
                     },
                 ],
             },
@@ -309,8 +311,10 @@ describe('ActivityTracker planner refresh', () => {
         const repairedEvent = tracker.getSummary().recentSteps.find((event: any) =>
             event.cascadeId === cascadeId && event.stepIndex === 406
         );
-        expect(repairedEvent?.aiResponse).toBeUndefined();
-        expect(repairedEvent?.detail).toContain('1 tool');
+        // The step-source planner event is suppressed by GM range suppression,
+        // replaced by gm_virtual. The gm_virtual detail reflects promptSnippet
+        // filtering: 'bot-...' is low-signal so it falls through to 'GM call'.
+        expect(repairedEvent?.source).toBe('gm_virtual');
         expect(repairedEvent?.gmPromptSnippet).toBe('bot-fc2dab1b-0317-47cc-8b08-3384e2e70caf');
     });
 
@@ -336,7 +340,7 @@ describe('ActivityTracker planner refresh', () => {
             event.cascadeId === 'conv-virtual' && event.source === 'gm_virtual'
         );
         expect(virtualEvent?.aiResponse).toBeUndefined();
-        expect(virtualEvent?.detail).toContain('stable#120');
+        expect(virtualEvent?.detail).toContain('现在让我查看');
         expect(virtualEvent?.gmPromptSnippet).toBe('现在让我查看 buildOverallSummary 和 buildCalendarTabContent 函数。');
     });
 

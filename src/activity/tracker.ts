@@ -38,6 +38,7 @@ import {
     mergeActivityStats,
     mergeGMStats,
     normalizeStepsByModelRecord,
+    slimStepEventForPersistence,
 } from './helpers';
 
 // ─── ActivityTracker Class ───────────────────────────────────────────────────
@@ -1954,12 +1955,22 @@ export class ActivityTracker {
                     : undefined,
             };
         }
+        const summary = this.getSummary();
+        summary.recentSteps = summary.recentSteps.map(slimStepEventForPersistence);
+        const slimArchives = this._archives.map(archive => ({
+            ...archive,
+            summary: {
+                ...archive.summary,
+                recentSteps: archive.summary.recentSteps.map(slimStepEventForPersistence),
+            },
+            recentSteps: archive.recentSteps?.map(slimStepEventForPersistence),
+        }));
         return {
             version: 1,
-            summary: this.getSummary(),
+            summary,
             trajectoryBaselines: baselines,
             warmedUp: this._warmedUp,
-            archives: this._archives,
+            archives: slimArchives,
             gmTotals: this._gmTotals || undefined,
             gmModelBreakdown: this._gmModelBreakdown || undefined,
             windowOutsideAttribution: Object.keys(windowOutsideAttribution).length > 0

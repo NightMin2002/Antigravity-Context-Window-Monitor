@@ -112,7 +112,10 @@ function sanitizeConfigValue(key: string, value: unknown): unknown {
 function refreshLocalStorageDiagnostics(): void {
     if (!lastStorageDiagnostics) { return; }
     const stateFileExists = fs.existsSync(lastStorageDiagnostics.stateFilePath);
-    const stateFileSizeBytes = stateFileExists ? fs.statSync(lastStorageDiagnostics.stateFilePath).size : 0;
+    let stateFileSizeBytes = 0;
+    try {
+        stateFileSizeBytes = stateFileExists ? fs.statSync(lastStorageDiagnostics.stateFilePath).size : 0;
+    } catch { /* ignore stat errors */ }
     let calendarCycleCount = 0;
     if (lastDailyStore) {
         for (const date of lastDailyStore.getDatesWithData()) {
@@ -127,15 +130,24 @@ function refreshLocalStorageDiagnostics(): void {
         stateFileExists,
         stateFileSizeBytes,
         stateFileOpenWarnBytes: LARGE_STATE_FILE_WARN_BYTES,
-        monitorSnapshotCount: lastAllUsages.length,
-        monitorGMConversationCount: Object.keys(lastGMConversations).length,
-        gmConversationCount: lastGMSummary?.conversations.length || 0,
         gmCallCount: lastGMSummary?.totalCalls || 0,
-        quotaHistoryCount: lastQuotaTracker?.getHistory().length || 0,
-        activityArchiveCount: lastArchives.length,
+        gmTotalInputTokens: lastGMSummary?.totalInputTokens || 0,
+        gmTotalOutputTokens: lastGMSummary?.totalOutputTokens || 0,
+        gmTotalCredits: lastGMSummary?.totalCredits || 0,
+        estimatedCostAllTime: (() => {
+            let total = 0;
+            if (lastDailyStore) {
+                for (const date of lastDailyStore.getDatesWithData()) {
+                    const record = lastDailyStore.getRecord(date);
+                    if (record) { for (const c of record.cycles) { total += c.estimatedCost || 0; } }
+                }
+            }
+            if (lastGMSummary && lastPricingStore) { total += lastPricingStore.calculateCosts(lastGMSummary).grandTotal; }
+            return total;
+        })(),
+        quotaResetCount: lastArchives.length,
         calendarDayCount: lastDailyStore?.totalDays || 0,
         calendarCycleCount,
-        pricingOverrideCount: Object.keys(lastPricingStore?.getCustom() || {}).length,
     };
 }
 
@@ -524,9 +536,9 @@ export function showMonitorPanel(p: PanelPayload): void {
             if (panel) {
                 panel.webview.html = buildHtml(lastUsage, lastAllUsages, lastConfigs, lastUserInfo, isPaused, lastQuotaTracker);
             }
-        } else if (msg.command === 'switchCalendarMonth' && typeof (msg as Record<string,unknown>).year === 'number') {
-            calendarYear = (msg as Record<string,unknown>).year as number;
-            calendarMonth = (msg as Record<string,unknown>).month as number;
+        } else if (msg.command === 'switchCalendarMonth' && typeof (msg as Record<string, unknown>).year === 'number') {
+            calendarYear = (msg as Record<string, unknown>).year as number;
+            calendarMonth = (msg as Record<string, unknown>).month as number;
             if (panel) {
                 panel.webview.html = buildHtml(lastUsage, lastAllUsages, lastConfigs, lastUserInfo, isPaused, lastQuotaTracker);
             }
@@ -689,9 +701,9 @@ ${getCalendarTabStyles()}
                 </div>
                 <button class="action-btn${paused ? ' paused' : ''}" id="pauseBtn" data-tooltip="${tBi(paused ? 'Resume auto-refresh' : 'Pause auto-refresh', paused ? '恢复自动刷新' : '暂停自动刷新')}">
                     <svg viewBox="0 0 16 16" width="14" height="14">${paused
-                        ? '<path fill="currentColor" d="M11.596 8.697l-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393"/>'
-                        : '<path fill="currentColor" d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5m5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5"/>'
-                    }</svg>
+            ? '<path fill="currentColor" d="M11.596 8.697l-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393"/>'
+            : '<path fill="currentColor" d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5m5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5"/>'
+        }</svg>
                 </button>
                 <button class="action-btn" id="refreshBtn" data-tooltip="${tBi('Refresh', '刷新')}">
                     ${ICON.refresh}
@@ -718,9 +730,9 @@ ${getCalendarTabStyles()}
             <div class="chip-dropdown-content">
                 <span class="chip-dropdown-text">
                     ${tBi(
-                        'By <strong>AGI-is-going-to-arrive</strong> — open-source on GitHub. If you find it helpful, a',
-                        '作者 <strong>AGI-is-going-to-arrive</strong> — 项目已在 GitHub 开源。如果觉得有帮助，点个',
-                    )}
+            'By <strong>AGI-is-going-to-arrive</strong> — open-source on GitHub. If you find it helpful, a',
+            '作者 <strong>AGI-is-going-to-arrive</strong> — 项目已在 GitHub 开源。如果觉得有帮助，点个',
+        )}
                     <span class="star-inline">${ICON.star}</span>
                     ${tBi('would be appreciated.', '就是最大的支持。')}
                     <span class="heart-inline">${ICON.heart}</span>
@@ -734,18 +746,18 @@ ${getCalendarTabStyles()}
             <div class="chip-dropdown-content">
                 <span class="chip-dropdown-text">
                     ${tBi(
-                        'Recommended: use a single IDE window. Multi-window setups may cause data desync between instances (e.g. activity timeline, quota tracking).',
-                        '建议使用单窗口运行。多窗口可能导致实例间数据不同步（如活动时间线、额度追踪等）。',
-                    )}
+            'Recommended: use a single IDE window. Multi-window setups may cause data desync between instances (e.g. activity timeline, quota tracking).',
+            '建议使用单窗口运行。多窗口可能导致实例间数据不同步（如活动时间线、额度追踪等）。',
+        )}
                 </span>
             </div>
         </div>
         <div class="chip-dropdown chip-dropdown-disclaimer" id="chip-disclaimer" hidden>
             <div class="chip-dropdown-content disclaimer-body">
                 ${tBi(
-                    '<p style="margin-bottom:var(--space-2); color:var(--vscode-editorError-foreground);"><strong>⚠️ Disclaimer: This is an unofficial community project and is not affiliated with, endorsed by, or associated with Google. It acts strictly in read-only mode to visualize usage data. Use at your own risk.</strong></p><p>Data is derived from <strong>internal interfaces that are undocumented and may change without notice</strong>. Items marked with a <strong style="color:var(--color-ok)">GM</strong> badge come from Generator Metadata and have <strong>higher per-call fidelity</strong>. Other metrics (context usage, token estimates) are derived from checkpoint snapshots or character-based heuristics and may have deviations. <strong>All numbers are best-effort approximations.</strong> Use this data as a reference only.</p><p style="margin-top:var(--space-2)"><strong>⚠️ Context Window Limitation:</strong> Antigravity (Windsurf) does not utilize the full 1M context window advertised by the underlying model. The effective context is roughly <strong>128K–200K tokens</strong>. The compression warning threshold defaults to <strong>150K</strong> accordingly.</p><p style="margin-top:var(--space-2)"><strong>🌐 Language:</strong> This extension supports <strong>Chinese / English / Bilingual</strong> display. Use the <strong>中文 | EN | 双语</strong> buttons in the top-right corner of this panel to switch.</p>',
-                    '<p style="margin-bottom:var(--space-2); color:var(--vscode-editorError-foreground);"><strong>⚠️ 极客免责声明：本分支扩展为非官方社区开源项目，与 Google 没有任何关联或官方背书。本工具仅以只读模式监控本地内部 API 用于可视化个人日常数据，产生的所有可能影响由使用者自行承担，使用风险自负。</strong></p><p>数据通过<strong>内部接口</strong>获取，这些接口<strong>未公开文档且可能随时变更</strong>。标有 <strong style="color:var(--color-ok)">GM</strong> 徽章的数据来自 <strong>Generator Metadata（生成元数据）</strong>，<strong>单次调用精度较高</strong>。其余指标（上下文用量、Token 估算）基于 <strong>Checkpoint（检查点）</strong> 快照或字符启发式计算，可能存在偏差。<strong>所有数值均为尽力计算的近似值。</strong>请仅将数据作为参考。</p><p style="margin-top:var(--space-2)"><strong>⚠️ 上下文窗口限制：</strong>Antigravity（Windsurf）并未适配底层模型标称的 1M 上下文窗口，实际有效上下文大致为 <strong>128K–200K Token</strong>。压缩警告阈值默认设为 <strong>150K</strong>。</p><p style="margin-top:var(--space-2)"><strong>🌐 语言切换：</strong>本插件支持 <strong>中文 / English / 双语</strong> 显示。请使用面板右上角的 <strong>中文 | EN | 双语</strong> 按钮切换。</p>'
-                )}
+            '<p style="margin-bottom:var(--space-2); color:var(--vscode-editorError-foreground);"><strong>⚠️ Disclaimer: This is an unofficial community project and is not affiliated with, endorsed by, or associated with Google. It acts strictly in read-only mode to visualize usage data. Use at your own risk.</strong></p><p>Data is derived from <strong>internal interfaces that are undocumented and may change without notice</strong>. Items marked with a <strong style="color:var(--color-ok)">GM</strong> badge come from Generator Metadata and have <strong>higher per-call fidelity</strong>. Other metrics (context usage, token estimates) are derived from checkpoint snapshots or character-based heuristics and may have deviations. <strong>All numbers are best-effort approximations.</strong> Use this data as a reference only.</p><p style="margin-top:var(--space-2)"><strong>⚠️ Context Window Limitation:</strong> Antigravity (Windsurf) does not utilize the full 1M context window advertised by the underlying model. The effective context is roughly <strong>128K–200K tokens</strong>. The compression warning threshold defaults to <strong>150K</strong> accordingly.</p><p style="margin-top:var(--space-2)"><strong>🌐 Language:</strong> This extension supports <strong>Chinese / English / Bilingual</strong> display. Use the <strong>中文 | EN | 双语</strong> buttons in the top-right corner of this panel to switch.</p>',
+            '<p style="margin-bottom:var(--space-2); color:var(--vscode-editorError-foreground);"><strong>⚠️ 极客免责声明：本分支扩展为非官方社区开源项目，与 Google 没有任何关联或官方背书。本工具仅以只读模式监控本地内部 API 用于可视化个人日常数据，产生的所有可能影响由使用者自行承担，使用风险自负。</strong></p><p>数据通过<strong>内部接口</strong>获取，这些接口<strong>未公开文档且可能随时变更</strong>。标有 <strong style="color:var(--color-ok)">GM</strong> 徽章的数据来自 <strong>Generator Metadata（生成元数据）</strong>，<strong>单次调用精度较高</strong>。其余指标（上下文用量、Token 估算）基于 <strong>Checkpoint（检查点）</strong> 快照或字符启发式计算，可能存在偏差。<strong>所有数值均为尽力计算的近似值。</strong>请仅将数据作为参考。</p><p style="margin-top:var(--space-2)"><strong>⚠️ 上下文窗口限制：</strong>Antigravity（Windsurf）并未适配底层模型标称的 1M 上下文窗口，实际有效上下文大致为 <strong>128K–200K Token</strong>。压缩警告阈值默认设为 <strong>150K</strong>。</p><p style="margin-top:var(--space-2)"><strong>🌐 语言切换：</strong>本插件支持 <strong>中文 / English / 双语</strong> 显示。请使用面板右上角的 <strong>中文 | EN | 双语</strong> 按钮切换。</p>'
+        )}
             </div>
         </div>
         <div class="tab-bar-wrapper">

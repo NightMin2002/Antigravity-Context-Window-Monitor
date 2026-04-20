@@ -238,3 +238,100 @@ export function cloneConversationData(conversation: GMConversationData): GMConve
         checkpointSummaries: conversation.checkpointSummaries.map(cs => ({ ...cs })),
     };
 }
+
+// ─── Persistence Slimming ────────────────────────────────────────────────────
+// Strip heavy text/metadata fields at the serialization boundary.
+// Runtime data in memory is unaffected — only the on-disk JSON gets slimmed.
+// Heavy fields (chat content, prompt snippets, checkpoint full text, breakdown
+// trees, tool name lists, etc.) are re-fetched from the LS API on next startup.
+
+/**
+ * Strip a single GMCallEntry down to its billing/identification skeleton.
+ * Drops: systemPromptSnippet, promptSnippet, userMessageAnchors, aiSnippetsByStep,
+ *        checkpointSummaries[].fullText, tokenBreakdownGroups, toolNames,
+ *        promptSectionTitles, retryErrors, messageMetadataKeys, responseHeaderKeys.
+ */
+export function slimCallForPersistence(call: GMCallEntry): GMCallEntry {
+    return {
+        stepIndices: call.stepIndices,
+        executionId: call.executionId,
+        model: call.model,
+        modelDisplay: call.modelDisplay,
+        responseModel: call.responseModel,
+        modelAccuracy: call.modelAccuracy,
+        inputTokens: call.inputTokens,
+        outputTokens: call.outputTokens,
+        thinkingTokens: call.thinkingTokens,
+        responseTokens: call.responseTokens,
+        cacheReadTokens: call.cacheReadTokens,
+        cacheCreationTokens: call.cacheCreationTokens,
+        apiProvider: call.apiProvider,
+        ttftSeconds: call.ttftSeconds,
+        streamingSeconds: call.streamingSeconds,
+        credits: call.credits,
+        creditType: call.creditType,
+        hasError: call.hasError,
+        errorMessage: '',
+        contextTokensUsed: call.contextTokensUsed,
+        completionConfig: null,
+        systemPromptSnippet: '',
+        toolCount: call.toolCount,
+        toolNames: [],
+        promptSectionTitles: [],
+        promptSnippet: '',
+        promptSource: 'none',
+        messagePromptCount: 0,
+        messageMetadataKeys: [],
+        responseHeaderKeys: [],
+        userMessageAnchors: [],
+        aiSnippetsByStep: {},
+        retries: call.retries,
+        stopReason: call.stopReason,
+        retryTokensIn: call.retryTokensIn,
+        retryTokensOut: call.retryTokensOut,
+        retryCredits: call.retryCredits,
+        retryErrors: [],
+        timeSinceLastInvocation: call.timeSinceLastInvocation,
+        tokenBreakdownGroups: [],
+        createdAt: call.createdAt,
+        latestStableMessageIndex: call.latestStableMessageIndex,
+        startStepIndex: call.startStepIndex,
+        checkpointIndex: call.checkpointIndex,
+        checkpointSummaries: [],
+    };
+}
+
+/**
+ * Slim a full GMSummary for file persistence.
+ * Keeps: all aggregate numbers (modelBreakdown, totals, stopReasonCounts).
+ * Strips: per-call text content, checkpoint full text, token breakdown trees.
+ */
+export function slimSummaryForPersistence(summary: GMSummary): GMSummary {
+    return {
+        ...summary,
+        conversations: summary.conversations.map(conv => ({
+            ...conv,
+            calls: conv.calls.map(slimCallForPersistence),
+            checkpointSummaries: [],
+        })),
+        latestTokenBreakdown: [],
+        contextGrowth: summary.contextGrowth.map(p => ({ ...p })),
+        modelBreakdown: Object.fromEntries(
+            Object.entries(summary.modelBreakdown).map(([name, stats]) => [name, {
+                ...stats,
+                promptSectionTitles: [],
+                completionConfig: null,
+            }]),
+        ),
+        stopReasonCounts: { ...summary.stopReasonCounts },
+    };
+}
+
+/** Slim a GMConversationData for persistence (same logic as summary slimming). */
+export function slimConversationForPersistence(conversation: GMConversationData): GMConversationData {
+    return {
+        ...conversation,
+        calls: conversation.calls.map(slimCallForPersistence),
+        checkpointSummaries: [],
+    };
+}

@@ -16,7 +16,7 @@ export type {
     GMSummary,
     GMTrackerState,
 } from './types';
-export { cloneTokenBreakdownGroups, cloneGMCallEntry, cloneConversationData } from './types';
+export { cloneTokenBreakdownGroups, cloneGMCallEntry, cloneConversationData, slimCallForPersistence, slimSummaryForPersistence, slimConversationForPersistence } from './types';
 
 // Parser & Enrichment
 export {
