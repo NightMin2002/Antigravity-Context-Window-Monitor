@@ -120,6 +120,7 @@ export function performDailyArchival(
             gmSummary || null,
             costTotal,
             costPerModel,
+            true, // append — preserve intra-day quota-reset cycles
         );
         ctx.log(`Daily snapshot written for ${archiveDateKey}`);
     } else {

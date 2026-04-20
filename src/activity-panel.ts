@@ -7,7 +7,7 @@ import { tBi } from './i18n';
 import { ActivitySummary, ActivityArchive, ModelActivityStats, CheckpointSnapshot, ConversationBreakdown } from './activity-tracker';
 import { esc, formatShortTime as formatTime } from './webview-helpers';
 import type { ContextUsage } from './tracker';
-import type { GMSummary, GMModelStats, GMConversationData, TokenBreakdownGroup } from './gm-tracker';
+import type { GMSummary, GMModelStats, GMConversationData, TokenBreakdownGroup, PendingArchiveEntry } from './gm-tracker';
 import { normalizeModelDisplayName } from './models';
 import { formatResetCountdown, formatResetAbsolute, parseResetDate } from './reset-time';
 
@@ -19,6 +19,8 @@ export interface ResetPool {
     resetTime: string;
     /** Model labels in this pool (e.g. ["Claude 3.5 Sonnet", "GPT-4o"]) */
     modelLabels: string[];
+    /** Whether at least one model in this pool has consumed quota (remainingFraction < 1.0) */
+    hasUsage?: boolean;
 }
 
 /** Snapshot of an account's key status, cached per-email for multi-account display. */
@@ -55,6 +57,7 @@ export function buildGMDataTabContent(
     gmSummary: GMSummary | null,
     currentUsage?: ContextUsage | null,
     accountSnapshots?: AccountSnapshot[],
+    pendingArchives?: PendingArchiveEntry[],
 ): string {
     // Always render account status panel if we have snapshots
     const accountPanel = (accountSnapshots && accountSnapshots.length > 0)
@@ -73,6 +76,11 @@ export function buildGMDataTabContent(
     // ── Account Status Panel (multi-account)
     if (accountPanel) {
         parts.push(accountPanel);
+    }
+
+    // ── Pending Archive Panel (baselined cycles awaiting midnight sweep)
+    if (pendingArchives && pendingArchives.length > 0) {
+        parts.push(buildPendingArchivePanel(pendingArchives));
     }
 
     // ── Data scope explanation
@@ -343,6 +351,109 @@ export function getGMDataTabStyles(): string {
         font-size: 0.72em;
         color: var(--color-text-dim);
         opacity: 0.6;
+    }
+    .acct-pool-idle {
+        opacity: 0.45;
+    }
+    .acct-reset-idle {
+        font-size: 0.82em;
+        font-weight: 400;
+        color: var(--color-text-dim);
+        opacity: 0.7;
+        font-style: italic;
+    }
+    .acct-delete-btn {
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+        border: none;
+        border-radius: var(--radius-sm);
+        background: transparent;
+        color: var(--color-text-dim);
+        opacity: 0;
+        cursor: pointer;
+        transition: opacity 0.15s, color 0.15s, background 0.15s;
+    }
+    .acct-card:hover .acct-delete-btn {
+        opacity: 0.5;
+    }
+    .acct-delete-btn:hover {
+        opacity: 1 !important;
+        color: #f87171;
+        background: rgba(248,113,113,0.12);
+    }
+    .acct-delete-spacer {
+        flex-shrink: 0;
+        width: 20px;
+        height: 20px;
+    }
+
+    /* ─── Pending Archive Panel ─── */
+    .pending-archive-panel {
+        margin: var(--space-3) 0;
+        padding: var(--space-3);
+        border: 1px solid rgba(234,179,8,0.25);
+        border-left: 3px solid rgba(234,179,8,0.6);
+        border-radius: var(--radius);
+        background: rgba(234,179,8,0.04);
+    }
+    .pending-archive-header {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-weight: 600;
+        font-size: 0.9em;
+        color: #eab308;
+        margin-bottom: var(--space-2);
+    }
+    .pending-archive-count {
+        font-weight: 400;
+        font-size: 0.85em;
+        color: var(--color-text-dim);
+        margin-left: auto;
+    }
+    .pending-archive-stats {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-2) var(--space-3);
+        margin-bottom: var(--space-2);
+    }
+    .pending-stat {
+        font-size: 0.82em;
+        color: var(--color-text-dim);
+    }
+    .pending-stat b {
+        color: var(--color-text);
+        margin-left: 3px;
+    }
+    .pending-archive-models {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        margin-bottom: var(--space-2);
+    }
+    .pending-model-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 8px;
+        border-radius: var(--radius-sm);
+        background: rgba(234,179,8,0.1);
+        border: 1px solid rgba(234,179,8,0.2);
+        font-size: 0.78em;
+        color: var(--color-text-dim);
+    }
+    .pending-model-chip b {
+        color: #eab308;
+    }
+    .pending-archive-note {
+        font-size: 0.78em;
+        color: var(--color-text-dim);
+        opacity: 0.7;
+        font-style: italic;
     }
 
     /* ─── Activity Tab: Summary Bar ─── */
@@ -2295,6 +2406,48 @@ function getPlanClass(planName: string): string {
     return 'acct-plan-free';
 }
 
+function buildPendingArchivePanel(entries: PendingArchiveEntry[]): string {
+    const totalCalls = entries.reduce((s, e) => s + e.totalCalls, 0);
+    const totalIn = entries.reduce((s, e) => s + e.totalInputTokens, 0);
+    const totalOut = entries.reduce((s, e) => s + e.totalOutputTokens, 0);
+    const totalCredits = entries.reduce((s, e) => s + e.totalCredits, 0);
+
+    // Aggregate per-model across all entries
+    const allModels = new Map<string, number>();
+    for (const e of entries) {
+        for (const [m, c] of Object.entries(e.modelCalls)) {
+            allModels.set(m, (allModels.get(m) || 0) + c);
+        }
+    }
+    const modelChips = [...allModels.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .map(([model, count]) => `<span class="pending-model-chip">${esc(normalizeModelDisplayName(model))} <b>${count}</b></span>`)
+        .join('');
+
+    const formatK = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1)}K` : String(n);
+
+    const archiveIcon = `<svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path d="M0 2a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1v7.5a2.5 2.5 0 0 1-2.5 2.5h-9A2.5 2.5 0 0 1 1 12.5V5a1 1 0 0 1-1-1zm2 3v7.5A1.5 1.5 0 0 0 3.5 14h9a1.5 1.5 0 0 0 1.5-1.5V5zm13-3H1v2h14zM5 7.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5"/></svg>`;
+
+    return `<div class="pending-archive-panel">
+        <div class="pending-archive-header">
+            ${archiveIcon}
+            ${tBi('Pending Archive', '待归档')}
+            <span class="pending-archive-count">${entries.length} ${tBi('cycle(s)', '个周期')}</span>
+        </div>
+        <div class="pending-archive-stats">
+            <span class="pending-stat">${tBi('Calls', '调用')} <b>${totalCalls}</b></span>
+            <span class="pending-stat">${tBi('Input', '输入')} <b>${formatK(totalIn)}</b></span>
+            <span class="pending-stat">${tBi('Output', '输出')} <b>${formatK(totalOut)}</b></span>
+            ${totalCredits > 0 ? `<span class="pending-stat">Credits <b>${totalCredits}</b></span>` : ''}
+        </div>
+        <div class="pending-archive-models">${modelChips}</div>
+        <div class="pending-archive-note">${tBi(
+        'These calls have been baselined after quota reset. They will be archived to the calendar at midnight.',
+        '这些调用已在额度重置后基线化，将于午夜归档到日历。',
+    )}</div>
+    </div>`;
+}
+
 function buildAccountStatusPanel(snapshots: AccountSnapshot[]): string {
     const nowMs = Date.now();
     // Sort: active first, then by lastSeen desc
@@ -2329,6 +2482,14 @@ function buildAccountStatusPanel(snapshots: AccountSnapshot[]): string {
                 ).join('');
                 const extraChip = extra > 0 ? `<span class="acct-pool-more">+${extra}</span>` : '';
 
+                // Pool has no usage — show "未使用" instead of fake countdown
+                if (pool.hasUsage === false) {
+                    return `<div class="acct-pool-row acct-pool-idle">
+                        <div class="acct-pool-models">${modelChips}${extraChip}</div>
+                        <span class="acct-reset-countdown acct-reset-idle">${tBi('Idle', '未使用')}</span>
+                    </div>`;
+                }
+
                 if (diffMs <= 0) {
                     return `<div class="acct-pool-row">
                         <div class="acct-pool-models">${modelChips}${extraChip}</div>
@@ -2355,6 +2516,13 @@ function buildAccountStatusPanel(snapshots: AccountSnapshot[]): string {
             ? `<span class="acct-tag-active">${tBi('active', '在线')}</span>`
             : `<span class="acct-tag-cached">${tBi('cached', '已缓存')}</span>`;
 
+        // Delete button for cached accounts, invisible spacer for active account
+        const deleteBtn = !snap.isActive
+            ? `<button class="acct-delete-btn" data-email="${esc(snap.email)}" title="${tBi('Remove cached account', '移除缓存账号')}">
+                <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor"><path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708"/></svg>
+            </button>`
+            : `<span class="acct-delete-spacer"></span>`;
+
         return `<div class="acct-card">
             <div class="acct-indicator ${indicatorClass}"></div>
             <div class="acct-identity">
@@ -2363,6 +2531,7 @@ function buildAccountStatusPanel(snapshots: AccountSnapshot[]): string {
             </div>
             <span class="acct-plan ${planClass}">${esc(planLabel)}</span>
             ${resetHtml}
+            ${deleteBtn}
         </div>`;
     }).join('');
 

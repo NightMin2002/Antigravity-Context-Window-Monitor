@@ -259,6 +259,7 @@ function makePanelPayload(extra: Partial<PanelPayload> = {}): PanelPayload {
         storageDiagnostics: getStorageDiagnostics(),
         modelDNA: persistedModelDNA,
         accountSnapshots: getAccountSnapshotArray(),
+        pendingArchives: gmTracker.getPendingArchives(),
         ...extra,
     };
 }
@@ -272,15 +273,21 @@ function updateAccountSnapshot(
     const email = userInfo.email;
     if (!email) { return; }
 
-    // Group models by their resetTime to form pools
-    const poolMap = new Map<string, string[]>();
+    // Group models by their resetTime to form pools, tracking usage
+    const poolMap = new Map<string, { labels: string[]; hasUsage: boolean }>();
     for (const c of configs) {
         if (c.quotaInfo?.resetTime) {
             const rt = c.quotaInfo.resetTime;
-            if (!poolMap.has(rt)) { poolMap.set(rt, []); }
-            const labels = poolMap.get(rt)!;
-            if (!labels.includes(c.label)) {
-                labels.push(c.label);
+            if (!poolMap.has(rt)) { poolMap.set(rt, { labels: [], hasUsage: false }); }
+            const pool = poolMap.get(rt)!;
+            if (!pool.labels.includes(c.label)) {
+                pool.labels.push(c.label);
+            }
+            // remainingFraction < 1.0 means quota has been consumed
+            // LS omits the field (undefined) when exhausted → treat as used
+            const frac = c.quotaInfo.remainingFraction;
+            if (frac === undefined || frac < 1.0) {
+                pool.hasUsage = true;
             }
         }
     }
@@ -288,8 +295,8 @@ function updateAccountSnapshot(
     // Build resetPools sorted by resetTime (earliest first)
     const resetPools: import('./activity-panel').ResetPool[] = [];
     const allResetTimes: string[] = [];
-    for (const [resetTime, modelLabels] of [...poolMap.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
-        resetPools.push({ resetTime, modelLabels });
+    for (const [resetTime, pool] of [...poolMap.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+        resetPools.push({ resetTime, modelLabels: pool.labels, hasUsage: pool.hasUsage });
         allResetTimes.push(resetTime);
     }
     const earliestResetTime = allResetTimes.length > 0 ? allResetTimes[0] : '';
@@ -335,6 +342,18 @@ function restoreAccountSnapshots(): void {
             }
         }
     }
+}
+
+/** Remove a cached (non-active) account snapshot. Returns updated snapshot list. */
+export function removeAccountSnapshot(email: string): AccountSnapshot[] {
+    const snap = accountSnapshots.get(email);
+    if (!snap || snap.isActive) {
+        // Don't remove the currently active account
+        return [...accountSnapshots.values()];
+    }
+    accountSnapshots.delete(email);
+    persistAccountSnapshots();
+    return [...accountSnapshots.values()];
 }
 
 function getAccountSnapshotArray(): AccountSnapshot[] {
@@ -414,9 +433,45 @@ export function activate(context: vscode.ExtensionContext): void {
     // Initialize quota tracker
     quotaTracker = new QuotaTracker(context, durableGlobalState);
     quotaTracker.onQuotaReset = (modelIds: string[]) => {
-        // Data archival has been moved to performDailyArchival().
-        // QuotaTracker still archives its own sessions internally.
-        log(`Quota reset detected: [${modelIds.join(', ')}] — session archived by QuotaTracker`);
+        // ── Step 1: Snapshot current data to DailyStore BEFORE baselining ──
+        // This preserves the outgoing cycle's stats in the calendar.
+        const preBaselineSummary = gmTracker.getDetailedSummary();
+        if (preBaselineSummary && preBaselineSummary.totalCalls > 0 && dailyStore) {
+            const todayKey = toLocalDateKey();
+            let costTotal: number | undefined;
+            let costPerModel: Record<string, number> | undefined;
+            if (pricingStore) {
+                const result = pricingStore.calculateCosts(preBaselineSummary);
+                if (result.grandTotal > 0) { costTotal = result.grandTotal; }
+                costPerModel = {};
+                for (const row of result.rows) {
+                    if (row.totalCost > 0) { costPerModel[row.name] = row.totalCost; }
+                }
+            }
+            dailyStore.addDailySnapshot(
+                todayKey,
+                activityTracker.getSummary(),
+                preBaselineSummary,
+                costTotal,
+                costPerModel,
+                true, // append — don't replace existing cycles
+            );
+            log(`Pre-baseline snapshot appended to DailyStore for ${todayKey}`);
+        }
+
+        // ── Step 2: Baseline current account's GM calls ──
+        const baselinedCount = gmTracker.baselineForQuotaReset();
+        log(`Quota reset detected: [${modelIds.join(', ')}] — ${baselinedCount} GM calls baselined for new cycle`);
+
+        // Update cached summary and persist
+        lastGMSummary = gmTracker.getDetailedSummary() || gmTracker.getCachedSummary();
+        durableGlobalState.update('gmTrackerState', gmTracker.serialize());
+        persistGMSummaryToFile(lastGMSummary);
+
+        // Refresh panel immediately so user sees fresh counts
+        if (isMonitorPanelVisible()) {
+            updateMonitorPanel(makePanelPayload());
+        }
     };
 
     // Initialize i18n from persisted state
@@ -1290,6 +1345,17 @@ function checkCachedAccountResets(): void {
             const extra = pool.modelLabels.length > 3 ? ` +${pool.modelLabels.length - 3}` : '';
             const displayName = snap.name || snap.email;
             const openMonitorLabel = tBi('Open Monitor', '打开监控');
+
+
+            // Baseline this cached account's GM calls so data is clean
+            // even before the user switches to it.
+            const baselinedCount = gmTracker.baselineForQuotaReset(snap.email);
+            if (baselinedCount > 0) {
+                log(`Cached account ${snap.email}: ${baselinedCount} GM calls baselined on quota expiry`);
+                lastGMSummary = gmTracker.getDetailedSummary() || gmTracker.getCachedSummary();
+                durableGlobalState.update('gmTrackerState', gmTracker.serialize());
+                persistGMSummaryToFile(lastGMSummary);
+            }
 
             vscode.window.showInformationMessage(
                 tBi(

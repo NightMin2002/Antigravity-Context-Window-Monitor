@@ -8,6 +8,57 @@
 
 ---
 
+## [1.15.11] - 2026-04-21
+
+### ✨ Added / 新增
+
+- **额度周期基线化 / Quota-Cycle Baselining**:
+  新增 `baselineForQuotaReset(targetEmail?)` 方法，按账号标记当前额度周期的 GM 调用为已归档（`_archivedCallIds` + `_archivedModelCutoffs`），同时累加统计生成 `PendingArchiveEntry`，包含调用数、token、credits 和 per-model 分布。`getPendingArchives()` 暴露待归档列表供 UI 渲染。
+  New `baselineForQuotaReset(targetEmail?)` marks current cycle's GM calls as archived by account, generating `PendingArchiveEntry` with per-model stats. `getPendingArchives()` exposes the pending list for UI rendering.
+
+- **待归档面板 / Pending Archive Panel**:
+  在 GM Data 标签页账号面板下方新增黄色主题待归档区域。显示已基线化周期的调用数、输入/输出 token、credits 和 per-model 芯片分布。仅在额度重置触发基线化后可见，为用户提供"数据已保存、等待午夜归档"的可视化确认。
+  New amber-themed pending archive panel below the account status cards. Shows baselined cycle stats with per-model chip breakdown. Only visible after a quota reset triggers baselining.
+
+- **缓存账号删除 / Cached Account Removal**:
+  缓存（非在线）账号卡片右侧新增删除按钮（X），支持一键移除不再需要的历史账号快照。在线账号卡片使用等宽占位符保持视觉对齐。
+  Cached account cards now have a delete button (X) on the right side. Active account cards use invisible spacers for alignment.
+
+- **额度池未使用检测 / Idle Pool Detection**:
+  `updateAccountSnapshot()` 新增 `hasUsage` 字段检测池内模型是否消耗了额度（`remainingFraction < 1.0`）。未消耗的池在账号卡片中以灰色半透明「未使用」标签显示，代替虚假的倒计时。
+  `updateAccountSnapshot()` now tracks `hasUsage` per pool. Unused pools display a dimmed "Idle" label instead of a misleading countdown.
+
+- **按账号过滤 GM 统计 / Per-Account GM Filtering**:
+  `_buildSummary()` 新增 `accountFilteredCalls` 过滤，确保 `totalCalls` / `modelBreakdown` / `totalCredits` 等全局统计只计当前在线账号的调用。`conversations[]` 数组保留所有账号的调用，支持跨账号分布标签渲染。
+  `_buildSummary()` now filters calls by `_currentAccountEmail` for global stats while keeping `conversations[]` unfiltered for cross-account breakdown tags.
+
+### 🏗 Improved / 改进
+
+- **额度重置自动预快照 / Automatic Pre-Reset Snapshot**:
+  在线账号额度重置时，`onQuotaReset` 回调先将当前 GM+Activity 数据以 `append` 模式写入 DailyStore，再执行基线化。确保旧额度周期的数据不会因清零而从日历中丢失。
+  Active account quota resets now snapshot current data to DailyStore (append mode) before baselining, preventing data loss across quota cycles.
+
+- **缓存账号额度过期自动基线化 / Cached Account Auto-Baselining**:
+  `checkCachedAccountResets()` 在检测到缓存账号额度过期时，自动调用 `baselineForQuotaReset(email)` 标记该账号的调用为已归档，确保用户切回时不会看到旧周期的重复数据。
+  Cached account quota expiry now automatically baselines that account's calls, preventing duplicate counts when switching back.
+
+- **DailyStore 追加模式 / DailyStore Append Mode**:
+  `addDailySnapshot()` 新增 `append` 参数。`append=true` 追加周期而非替换当天记录，支持同一天内多个额度重置产生的多个数据周期。`performDailyArchival` 也改为 append 模式，不覆盖白天额度重置写入的预快照。
+  `addDailySnapshot()` now supports `append` mode. Both quota-reset pre-snapshots and midnight archival use append, preserving multiple cycles per day.
+
+- **存储清理 / Storage Cleanup**:
+  `_callAccountMap`（调用→账号映射）现随午夜 `reset()` 一同清空，防止从 3 月以来的历史映射无限增长导致状态文件膨胀。
+  `_callAccountMap` is now cleared on `reset()`, preventing unbounded growth from historical call-to-account mappings.
+
+### 📊 Stats / 统计
+
+- **Files changed**: 9 (`src/gm/tracker.ts`, `src/gm/index.ts`, `src/gm-tracker.ts`, `src/extension.ts`, `src/daily-store.ts`, `src/daily-archival.ts`, `src/activity-panel.ts`, `src/webview-panel.ts`, `src/webview-script.ts`)
+- **Net change**: +398 lines, −18 lines
+- **TypeScript compile**: Zero errors
+- **Tests**: 166 passed (14 files)
+
+---
+
 ## [1.15.3] - 2026-04-20
 
 ### ✨ Added / 新增

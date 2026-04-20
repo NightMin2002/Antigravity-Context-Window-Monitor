@@ -38,6 +38,24 @@ function deduplicateCheckpoints(calls: GMCallEntry[]): GMCheckpointSummary[] {
     return [...byStep.values()].sort((a, b) => a.stepIndex - b.stepIndex);
 }
 
+/** Lightweight snapshot of a baselined quota cycle ("pending archive"). */
+export interface PendingArchiveEntry {
+    /** ISO timestamp when the baseline was created */
+    timestamp: string;
+    /** Account email that was baselined */
+    accountEmail: string;
+    /** Number of calls baselined */
+    totalCalls: number;
+    /** Total input tokens */
+    totalInputTokens: number;
+    /** Total output tokens */
+    totalOutputTokens: number;
+    /** Total credits consumed */
+    totalCredits: number;
+    /** Per-model call counts */
+    modelCalls: Record<string, number>;
+}
+
 export class GMTracker {
     private _cache = new Map<string, GMConversationData>();
     private _lastFetchedAt = '';
@@ -55,6 +73,8 @@ export class GMTracker {
     private _currentAccountEmail = '';
     /** Persistent map: executionId → accountEmail. Survives cache overwrites from re-fetches. */
     private _callAccountMap = new Map<string, string>();
+    /** Baselined cycle snapshots waiting for midnight archival */
+    private _pendingArchives: PendingArchiveEntry[] = [];
 
     /**
      * Fetch GM data for the given trajectories.
@@ -234,6 +254,18 @@ export class GMTracker {
                     return true;
                 })
                 : sliced;
+
+            // ── Account-level filtering for model statistics ──
+            // The conversations[] array keeps ALL calls (all accounts) so the UI
+            // can still show per-account breakdown tags. But modelBreakdown and
+            // global totals only count calls belonging to the current online account.
+            // Calls with empty accountEmail (legacy / pre-tagging data) are included
+            // as a migration courtesy — they'll be tagged on next re-fetch.
+            const accountFilteredCalls = this._currentAccountEmail
+                ? activeCalls.filter(c =>
+                    !c.accountEmail || c.accountEmail === this._currentAccountEmail)
+                : activeCalls;
+
             const activeStepsCovered = activeCalls.reduce((sum, c) => sum + c.stepIndices.length, 0);
             conversations.push({
                 ...conv,
@@ -244,7 +276,7 @@ export class GMTracker {
                 checkpointSummaries: conv.checkpointSummaries || deduplicateCheckpoints(activeCalls),
             });
 
-            for (const c of activeCalls) {
+            for (const c of accountFilteredCalls) {
                 totalCalls++;
                 totalStepsCovered += c.stepIndices.length;
                 totalCredits += c.credits;
@@ -395,6 +427,86 @@ export class GMTracker {
      * Global reset: archive call baselines, clear all calls, reset summary.
      * Called during daily archival when the date rolls over.
      */
+    /**
+     * Quota-cycle baseline: mark all current account's calls as archived
+     * so _buildSummary() excludes them. The new cycle starts with zero counts.
+     * Calls remain in cache — midnight's performDailyArchival() will sweep them.
+     *
+     * @param targetEmail  Optional — baselines calls for this account.
+     *                     Defaults to _currentAccountEmail (active account).
+     * @returns number of calls baselined
+     */
+    baselineForQuotaReset(targetEmail?: string): number {
+        let count = 0;
+        let totalInputTokens = 0;
+        let totalOutputTokens = 0;
+        let totalCredits = 0;
+        const modelCallCounts = new Map<string, number>();
+        const email = targetEmail || this._currentAccountEmail;
+        for (const [, conv] of this._cache) {
+            const baseline = this._callBaselines.get(conv.cascadeId) || 0;
+            const activeCalls = baseline > 0 ? conv.calls.slice(baseline) : conv.calls;
+            for (const call of activeCalls) {
+                // Only baseline calls belonging to the current account
+                if (email && call.accountEmail && call.accountEmail !== email) {
+                    continue;
+                }
+                // Skip already-archived calls
+                const archKey = buildGMArchiveKey(call);
+                if (this._archivedCallIds.has(call.executionId) || this._archivedCallIds.has(archKey)) {
+                    continue;
+                }
+                // Mark as archived
+                if (call.executionId) {
+                    this._archivedCallIds.add(call.executionId);
+                }
+                this._archivedCallIds.add(archKey);
+                // Also record model cutoff so new calls to the same model aren't filtered
+                if (call.createdAt) {
+                    const existing = this._archivedModelCutoffs.get(call.model);
+                    if (!existing || call.createdAt > existing) {
+                        this._archivedModelCutoffs.set(call.model, call.createdAt);
+                    }
+                    if (call.responseModel) {
+                        const existingResp = this._archivedModelCutoffs.get(call.responseModel);
+                        if (!existingResp || call.createdAt > existingResp) {
+                            this._archivedModelCutoffs.set(call.responseModel, call.createdAt);
+                        }
+                    }
+                }
+                // Accumulate stats
+                totalInputTokens += call.inputTokens;
+                totalOutputTokens += call.outputTokens;
+                totalCredits += call.credits;
+                const modelKey = call.responseModel || call.model;
+                modelCallCounts.set(modelKey, (modelCallCounts.get(modelKey) || 0) + 1);
+                count++;
+            }
+        }
+        // Record pending archive entry
+        if (count > 0) {
+            const modelCalls: Record<string, number> = {};
+            for (const [model, c] of modelCallCounts) { modelCalls[model] = c; }
+            this._pendingArchives.push({
+                timestamp: new Date().toISOString(),
+                accountEmail: email,
+                totalCalls: count,
+                totalInputTokens,
+                totalOutputTokens,
+                totalCredits,
+                modelCalls,
+            });
+        }
+        // Invalidate cached summary so next access rebuilds
+        this._lastSummary = null;
+        return count;
+    }
+
+    /** Get all pending archive entries (waiting for midnight sweep). */
+    getPendingArchives(): PendingArchiveEntry[] {
+        return this._pendingArchives;
+    }
+
     reset(): void {
         // Record call baselines: for conversations that were fetched from API
         // (calls.length > 0), set baseline to their absolute call count.
@@ -418,6 +530,8 @@ export class GMTracker {
         }
         this._archivedCallIds.clear();
         this._archivedModelCutoffs.clear();
+        this._callAccountMap.clear();
+        this._pendingArchives = [];
         this._lastSummary = null;
         this._lastFetchedAt = '';
     }
@@ -433,6 +547,7 @@ export class GMTracker {
         this._archivedCallIds.clear();
         this._archivedModelCutoffs.clear();
         this._callAccountMap.clear();
+        this._pendingArchives = [];
         this._lastSummary = null;
         this._lastFetchedAt = '';
         this._needsBaselineInit = true;

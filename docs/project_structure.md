@@ -105,7 +105,8 @@ Extension lifecycle management hub.
 | 会话选择 / Session selection | 按 RUNNING → 当前 tracked cascade 的 stepCount 变化 → 新会话 → 最近修改 的优先级选当前对话，已建立的当前会话会尽量保持稳定不被其他对话抢占 |
 | 每日归档 / Daily archival | 通过 `daily-archival.ts` 核心逻辑委托；`extension.ts` 构造 `DailyArchivalContext` 注入所有运行时状态 |
 | 持久化协调 / Persistence orchestration | 协调 `durable-state.ts`、`monitor-store.ts`、`activity-tracker.ts`、`gm-tracker.ts`、`daily-store.ts`、`model-dna-store.ts` 的恢复与写回 |
-| 多账号快照 / Multi-account snapshots | `updateAccountSnapshot()` 在每次 `fetchFullUserStatus` 后提取 email + resetPools，按 email 维护 `AccountSnapshot` Map 并持久化至文件；`checkCachedAccountResets()` 在轮询中检查缓存账号额度重置并弹出一次性通知 |
+| 多账号快照 / Multi-account snapshots | `updateAccountSnapshot()` 在每次 `fetchFullUserStatus` 后提取 email + resetPools（含 `hasUsage` 额度消耗检测），按 email 维护 `AccountSnapshot` Map 并持久化至文件；`checkCachedAccountResets()` 在轮询中检查缓存账号额度重置、自动基线化 GM 调用并弹出一次性通知；`removeAccountSnapshot()` 支持 UI 端删除缓存账号 |
+| 额度重置归档 / Quota-reset archival | `onQuotaReset` 回调先预快照当前数据到 DailyStore（append 模式），再调用 `baselineForQuotaReset()` 标记旧调用为已归档，确保数据不因额度周期切换而丢失 |
 | 跨账号隔离 / Cross-account isolation | `handleAccountSwitchIfNeeded()` 在每次状态拉取前检测账号切换，重置 `quotaTracker` 追踪状态防止旧 resetTime 触发误归档 |
 | 开发命令 / Dev commands | `devSimulateReset`（模拟每日归档）、`devClearGM`、`devPersistActivity` |
 
@@ -265,11 +266,13 @@ Fetches per-LLM-call data via `GetCascadeTrajectoryGeneratorMetadata`.
 | 富化 / Enrichment | 对大对话或精确模型缺失的调用，按需用 `GetCascadeTrajectory` 中的内嵌 `generatorMetadata` 补充 prompt / tools / systemPrompt / user anchors |
 | 检查点提取 / Checkpoint extraction | `extractCheckpointSummaries()` 从 `messagePrompts` 中提取 `{{ CHECKPOINT N }}` 标记后的压缩摘要（跳过系统前导，限 8000 字符），`shouldEnrichConversation()` 在 `checkpointIndex > 0` 时自动触发完整轨迹拉取 |
 | Call baselines | `_callBaselines` 隔离新旧 cycle 的调用 |
+| 额度周期基线化 / Quota-cycle baseline | `baselineForQuotaReset(targetEmail?)` 按账号标记调用为已归档（`_archivedCallIds` + `_archivedModelCutoffs`），累加统计生成 `PendingArchiveEntry`。`getPendingArchives()` 提供待归档列表供 UI 展示 |
+| 按账号过滤 / Account filtering | `_buildSummary()` 通过 `_currentAccountEmail` 过滤 `accountFilteredCalls`，确保 `totalCalls`/`modelBreakdown` 等统计只计当前在线账号的调用 |
 | Slim persistence | `serialize()` 去掉 `calls[]`，用于快速恢复基线 |
-| Detailed summary | `getDetailedSummary()` 返回完整 `GMSummary`（含 calls），写盘前通过 `slimSummaryForPersistence()` 剥离文本字段（prompt / chat / checkpoint summaries / token breakdown / tools），仅保留 token/credits 计费数据 |
+| Detailed summary | `getDetailedSummary()` 返回完整 `GMSummary`（含 calls），写盘前通过 `slimSummaryForPersistence()` 剥离文本字段，仅保留 token/credits 计费数据 |
 | Monitor fallback | `getAllConversationData()` 导出对话级 GM 明细，供 Monitor 标签页回退展示 |
-| 全局重置 / Global reset | `reset()` 全局重置所有调用基线和缓存，由每日归档逻辑统一调用 |
-| 跨账号调用标记 / Account tagging | `_currentAccountEmail` 记录当前活跃账号；`_callAccountMap`（`cascadeId:index → email`）持久映射每个调用的归属账号，跨 re-fetch 和 VS Code 重启稳定保留。`serialize()` / `restore()` 负责映射表的序列化和恢复 |
+| 全局重置 / Global reset | `reset()` 全局重置所有调用基线、缓存、`_callAccountMap` 和 `_pendingArchives`，由每日归档逻辑统一调用 |
+| 跨账号调用标记 / Account tagging | `_currentAccountEmail` 记录当前活跃账号；`_callAccountMap` 持久映射每个调用的归属账号，随午夜 `reset()` 清空防止无限增长 |
 
 ---
 
@@ -282,7 +285,8 @@ Unified "GM Data" tab merging Activity and GM precise data.
 | 特性 / Feature | 说明 / Description |
 |---|---|
 | 检查点查看器 / Checkpoint Viewer | `buildCheckpointViewer()` 渲染当前活跃对话（通过最新 `createdAt` 定位）的 `{{ CHECKPOINT N }}` 压缩摘要全文，琥珀色可折叠卡片 + 限高滚动容器 |
-| 多账号状态面板 / Account Status Panel | `buildAccountStatusPanel()` 在 GM Data 顶部渲染多账号状态卡片：`AccountSnapshot[]` → 按 email 分行，显示在线/缓存状态、Plan 徽章、按模型池独立倒计时（`ResetPool[]`），到期显示红色「已就绪」|
+| 多账号状态面板 / Account Status Panel | `buildAccountStatusPanel()` 在 GM Data 顶部渲染多账号状态卡片：`AccountSnapshot[]` → 按 email 分行，显示在线/缓存状态、Plan 徽章、按模型池独立倒计时（`ResetPool[]` 含 `hasUsage` 检测），到期显示红色「已就绪」，未消耗额度池显示灰色「未使用」；缓存账号卡片右侧有删除按钮（X），在线账号卡片有等宽占位符保持对齐 |
+| 待归档面板 / Pending Archive Panel | `buildPendingArchivePanel()` 在账号面板下方渲染黄色主题的待归档区域，显示基线化周期的调用数/token/credits 统计和 per-model 分布芯片；额度重置前不可见 |
 | 增量刷新保护 / Refresh preservation | `<details>` 展开状态通过 `restoreDetailsState()` 自动保护；`.cp-viewer` / `.cp-card-body` 滚动位置通过 `scrollableSelectors` 保留 |
 | 账号分布标签 / Account breakdown tags | 模型卡片 footer 区域垂直排列紫色药丸标签，按 `accountEmail` 分组显示各账号的调用次数，支持完整邮箱前缀展示 |
 
@@ -343,7 +347,7 @@ Testable pure-function module extracted from `extension.ts`. All runtime depende
 | 函数 / Function | 说明 / Description |
 |---|---|
 | `toLocalDateKey(date?)` | 提取本地日期字符串 `YYYY-MM-DD` |
-| `performDailyArchival(ctx, force?, now?)` | 核心归档流程：检测日期变更 → 快照 Activity/GM/Cost → 写入 DailyStore → 全局重置 Tracker → 持久化 |
+| `performDailyArchival(ctx, force?, now?)` | 核心归档流程：检测日期变更 → 快照 Activity/GM/Cost → 写入 DailyStore（append 模式，保留白天额度重置的预快照） → 全局重置 Tracker → 持久化 |
 
 **归档触发规则**：
 - 首次运行：仅记录当前日期，不归档
@@ -356,9 +360,9 @@ Testable pure-function module extracted from `extension.ts`. All runtime depende
 
 ### 📅 daily-store.ts — 日历数据层
 
-按天聚合 Activity + GM + Cost 的快照数据。每天仅一条 `DailyCycleEntry`（通过 `addDailySnapshot()` 写入，重复调用会替换而非追加）。旧版 `addCycle()` 保留向后兼容。
+按天聚合 Activity + GM + Cost 的快照数据。`addDailySnapshot()` 支持 `append` 参数：默认为 replace 模式（单快照），`append=true` 时追加周期（额度重置时保留白天预快照 + 午夜追加最终数据，同一天可含多个周期）。旧版 `addCycle()` 保留向后兼容。
 
-Aggregates Activity + GM + Cost snapshots per day. Each day has exactly one `DailyCycleEntry` (written via `addDailySnapshot()`, re-calls replace rather than append). Legacy `addCycle()` retained for backward compatibility.
+Aggregates Activity + GM + Cost snapshots per day. `addDailySnapshot()` supports an `append` parameter: defaults to replace mode (single snapshot), `append=true` appends a cycle (preserving intra-day quota-reset pre-snapshots + midnight final data, allowing multiple cycles per day). Legacy `addCycle()` retained for backward compatibility.
 
 ---
 

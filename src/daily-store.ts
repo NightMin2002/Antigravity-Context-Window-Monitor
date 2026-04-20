@@ -199,6 +199,8 @@ export class DailyStore {
         gmSummary: GMSummary | null,
         costTotal?: number,
         costPerModel?: Record<string, number>,
+        /** If true, appends a cycle instead of replacing the day's entry. */
+        append?: boolean,
     ): void {
         let record = this._records.get(dateKey);
         if (!record) {
@@ -236,8 +238,12 @@ export class DailyStore {
 
         entry.gmModelStats = buildGMPerModelStats(gmSummary, costPerModel);
 
-        // One entry per day — replace existing
-        record.cycles = [entry];
+        if (append) {
+            record.cycles.push(entry);
+        } else {
+            // One entry per day — replace existing
+            record.cycles = [entry];
+        }
         this._trimOld();
         this._persist();
     }

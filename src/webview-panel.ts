@@ -8,6 +8,8 @@ import { ModelConfig, UserStatusInfo } from './models';
 import { QuotaTracker } from './quota-tracker';
 import { ActivityTracker, ActivitySummary, ActivityArchive } from './activity-tracker';
 import { buildGMDataTabContent, getGMDataTabStyles, type AccountSnapshot } from './activity-panel';
+import { removeAccountSnapshot } from './extension';
+import type { PendingArchiveEntry } from './gm-tracker';
 import { buildPricingTabContent, getPricingTabStyles } from './pricing-panel';
 import { PricingStore, ModelPricing } from './pricing-store';
 import { GMSummary, GMConversationData } from './gm-tracker';
@@ -49,6 +51,7 @@ export interface PanelPayload {
     storageDiagnostics?: StorageDiagnostics;
     modelDNA?: Record<string, PersistedModelDNA>;
     accountSnapshots?: AccountSnapshot[];
+    pendingArchives?: PendingArchiveEntry[];
 }
 
 // ─── Panel State ──────────────────────────────────────────────────────────────
@@ -75,6 +78,7 @@ let lastStorageDiagnostics: StorageDiagnostics | undefined;
 let panelDurableState: StateBucket | undefined;
 let lastModelDNA: Record<string, PersistedModelDNA> = {};
 let lastAccountSnapshots: AccountSnapshot[] = [];
+let lastPendingArchives: PendingArchiveEntry[] = [];
 export const LARGE_STATE_FILE_WARN_BYTES = 1 * 1024 * 1024;
 
 /** Provide a durable state bucket for panel-level persistence (zoom, etc.). */
@@ -558,6 +562,13 @@ export function showMonitorPanel(p: PanelPayload): void {
                 panel.webview.html = buildHtml(lastUsage, lastAllUsages, lastConfigs, lastUserInfo, isPaused, lastQuotaTracker);
                 safePostMessage({ command: 'switchToTab', tab: 'settings' });
             }
+        } else if (msg.command === 'removeAccount' && typeof (msg as Record<string, unknown>).email === 'string') {
+            const email = (msg as Record<string, unknown>).email as string;
+            const updated = removeAccountSnapshot(email);
+            lastAccountSnapshots = updated;
+            if (panel) {
+                panel.webview.html = buildHtml(lastUsage, lastAllUsages, lastConfigs, lastUserInfo, isPaused, lastQuotaTracker);
+            }
         }
     });
 
@@ -603,6 +614,7 @@ export function updateMonitorPanel(p: PanelPayload): void {
     if (p.storageDiagnostics) { lastStorageDiagnostics = p.storageDiagnostics; }
     if (p.modelDNA) { lastModelDNA = p.modelDNA; }
     if (p.accountSnapshots) { lastAccountSnapshots = p.accountSnapshots; }
+    if (p.pendingArchives !== undefined) { lastPendingArchives = p.pendingArchives; }
     if (panel && !isPaused) {
         // Incremental update: send tab contents via postMessage — no DOM teardown
         safePostMessage({
@@ -624,7 +636,7 @@ function buildTabContents(
     const eoc = `<div class="eoc-sentinel"><span class="eoc-sentinel-text">${tBi('— End of content —', '— 已到底 —')}</span></div>`;
     return {
         monitor: buildMonitorSections(usage, allUsages, configs, userInfo, lastGMSummary, lastGMConversations, tracker, lastPricingStore) + eoc,
-        gmdata: buildGMDataTabContent(lastActivitySummary, lastGMSummary, usage, lastAccountSnapshots) + eoc,
+        gmdata: buildGMDataTabContent(lastActivitySummary, lastGMSummary, usage, lastAccountSnapshots, lastPendingArchives) + eoc,
         chats: buildChatHistoryTabContent(lastTrajectories, usage, lastGMSummary, lastGMConversations, lastWorkspaceUri) + eoc,
         pricing: (lastPricingStore
             ? buildPricingTabContent(
@@ -659,7 +671,7 @@ function buildHtml(
     tracker?: QuotaTracker,
 ): string {
     const monitorHtml = buildMonitorSections(usage, allUsages, configs, userInfo, lastGMSummary, lastGMConversations, tracker, lastPricingStore);
-    const gmDataHtml = buildGMDataTabContent(lastActivitySummary, lastGMSummary, usage, lastAccountSnapshots);
+    const gmDataHtml = buildGMDataTabContent(lastActivitySummary, lastGMSummary, usage, lastAccountSnapshots, lastPendingArchives);
     const chatsHtml = buildChatHistoryTabContent(lastTrajectories, usage, lastGMSummary, lastGMConversations, lastWorkspaceUri);
     const pricingHtml = lastPricingStore
         ? buildPricingTabContent(

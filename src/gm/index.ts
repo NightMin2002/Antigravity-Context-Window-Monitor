@@ -45,4 +45,4 @@ export {
 } from './summary';
 
 // Tracker Class
-export { GMTracker } from './tracker';
+export { GMTracker, type PendingArchiveEntry } from './tracker';

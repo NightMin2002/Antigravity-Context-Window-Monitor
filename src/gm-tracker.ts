@@ -15,6 +15,7 @@ export type {
     GMConversationData,
     GMSummary,
     GMTrackerState,
+    PendingArchiveEntry,
 } from './gm';
 
 export {

@@ -895,6 +895,16 @@ export function getScript(): string {
                     return;
                 }
 
+                // ── Remove Cached Account ──
+                var acctDelBtn = target.closest('.acct-delete-btn');
+                if (acctDelBtn) {
+                    var email = acctDelBtn.getAttribute('data-email');
+                    if (email) {
+                        vscode.postMessage({ command: 'removeAccount', email: email });
+                    }
+                    return;
+                }
+
                 // ── Clear History Button ──
                 if (target.closest('#clearCalendarBtn')) {
                     vscode.postMessage({ command: 'clearCalendarHistory' });
