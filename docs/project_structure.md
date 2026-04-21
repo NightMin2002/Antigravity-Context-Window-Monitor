@@ -22,7 +22,7 @@ antigravity-context-monitor/
 │   ├── durable-state.ts          # 扩展外部持久化：JSON 文件 + VS Code state 镜像
 │   ├── monitor-store.ts          # 监控页持久化：按对话保存 ContextUsage + GM 会话快照
 │   ├── pool-utils.ts             # 配额池工具：按稳定 pool key 分组 / 扩池 / 查找最近 quota session
-│   ├── quota-tracker.ts          # 模型额度消费时间线追踪（per-model knownWindowMs + 稳定池代表）
+│   ├── quota-tracker.ts          # 模型额度消费时间线追踪（per-account 隔离 + GMTracker 辅助检测 + 稳定池代表）
 │   ├── reset-time.ts             # 重置时间格式化工具（倒计时 + 绝对日期时间）
 │   ├── activity-tracker.ts       # 活动追踪 re-export shim（向后兼容，实际代码在 activity/）
 │   ├── activity/                 # Activity 模块（从 activity-tracker.ts 拆分）
@@ -223,7 +223,11 @@ Helpers for shared quota-pool operations based on stable pool keys from `models.
 
 状态机追踪每个模型的额度消费过程（`idle→tracking→(archive)→idle`），并按稳定 pool key 去重同池模型。v1.13.7 移除 `done` 状态，引入 `cycleResetTime` 和 `isCycleEnded()`。v1.13.8 移除全局 `maxTimeToResetMs` 跨模型推算，改为 per-model `knownWindowMs`（每个模型只信任自己学到的完整窗口长度），新增 `getUsableKnownWindowMs()` 安全校验函数，并修复 0% 额度锁死 bug（`completed` 标记可逆）。后续补丁又加入“已在 tracking 的池代表优先保留”和脏 active session 自愈，避免跨轮询代表切换导致归档卡死。
 
-State machine tracking per-model quota consumption (`idle→tracking→(archive)→idle`) with stable pool-key deduplication. v1.13.7 removes `done` state, adds `cycleResetTime` and `isCycleEnded()`. v1.13.8 replaces global `maxTimeToResetMs` cross-model inference with per-model `knownWindowMs`, adds `getUsableKnownWindowMs()` safety check, and fixes the 0% lock-dead bug (completed marker is now reversible). Later patches also preserve the active pool representative across polls and self-heal dirty active sessions.
+State machine tracking per-model quota consumption (`idle->tracking->(archive)->idle`) with stable pool-key deduplication. v1.13.7 removes `done` state, adds `cycleResetTime` and `isCycleEnded()`. v1.13.8 replaces global `maxTimeToResetMs` cross-model inference with per-model `knownWindowMs`, adds `getUsableKnownWindowMs()` safety check, and fixes the 0% lock-dead bug (completed marker is now reversible). Later patches also preserve the active pool representative across polls and self-heal dirty active sessions.
+
+v1.15.2 重构使用检测策略：移除 instant detect 和 observation window（均依赖时间窗口推算，在 20% 量化下不可靠），改为 GMTracker 辅助检测。调用方传入 `usedModelIds`（从 GMTracker 调用记录按 account 过滤构建），frac=1.0 时若确认有实际调用则立即进入追踪。同时引入 per-account 状态隔离：`modelStates` key 从 `modelId` 变更为 `email:modelId`，`QuotaSession` 新增 `accountEmail` 字段，切换账号后各自独立追踪。
+
+v1.15.2 overhauls usage detection: removes instant detect and observation window (both unreliable under 20% quantization), replacing them with GMTracker-assisted detection. Callers pass `usedModelIds` (built from GMTracker call records filtered by account), entering tracking immediately at frac=1.0 when actual API calls are confirmed. Also introduces per-account state isolation: `modelStates` key changes from `modelId` to `email:modelId`, `QuotaSession` gains an `accountEmail` field, ensuring tracking states remain independent across account switches.
 
 ---
 

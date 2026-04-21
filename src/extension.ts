@@ -266,6 +266,24 @@ function makePanelPayload(extra: Partial<PanelPayload> = {}): PanelPayload {
 
 // ─── Account Snapshot Helpers ─────────────────────────────────────────────────
 
+/**
+ * Build a set of model IDs that have confirmed LLM calls in the current cycle
+ * for the given account. Used by both account snapshot hasUsage detection and
+ * QuotaTracker's early tracking entry.
+ */
+function buildUsedModelIds(email?: string): Set<string> {
+    const ids = new Set<string>();
+    if (!lastGMSummary?.conversations) { return ids; }
+    for (const conv of lastGMSummary.conversations) {
+        for (const call of conv.calls) {
+            if ((!call.accountEmail || call.accountEmail === email) && call.model) {
+                ids.add(call.model);
+            }
+        }
+    }
+    return ids;
+}
+
 function updateAccountSnapshot(
     userInfo: UserStatusInfo,
     configs: import('./models').ModelConfig[],
@@ -274,20 +292,46 @@ function updateAccountSnapshot(
     if (!email) { return; }
 
     // Group models by their resetTime to form pools, tracking usage
-    const poolMap = new Map<string, { labels: string[]; hasUsage: boolean }>();
+    // Also build a modelId → resetTime mapping for GMTracker cross-reference
+    const poolMap = new Map<string, { labels: string[]; modelIds: string[]; hasUsage: boolean }>();
     for (const c of configs) {
         if (c.quotaInfo?.resetTime) {
             const rt = c.quotaInfo.resetTime;
-            if (!poolMap.has(rt)) { poolMap.set(rt, { labels: [], hasUsage: false }); }
+            if (!poolMap.has(rt)) { poolMap.set(rt, { labels: [], modelIds: [], hasUsage: false }); }
             const pool = poolMap.get(rt)!;
             if (!pool.labels.includes(c.label)) {
                 pool.labels.push(c.label);
             }
-            // remainingFraction < 1.0 means quota has been consumed
+            if (c.model && !pool.modelIds.includes(c.model)) {
+                pool.modelIds.push(c.model);
+            }
+            // remainingFraction < 1.0 means quota has been consumed (crossed 20% threshold)
             // LS omits the field (undefined) when exhausted → treat as used
             const frac = c.quotaInfo.remainingFraction;
             if (frac === undefined || frac < 1.0) {
                 pool.hasUsage = true;
+            }
+        }
+    }
+
+    // ── Enhanced usage detection: GMTracker cross-reference ──────────────
+    // remainingFraction is quantized in 20% steps (1.0→0.8→0.6→0.4→0.2→0.0),
+    // so frac=1.0 does NOT mean "unused" — it could mean consumption < 20%.
+    // The reliable signal: check GMTracker's actual call records for this cycle.
+    // If any model in a pool has been called by THIS account, the pool is "used".
+    //
+    // Match by model ID (language-independent), NOT display name.
+    // e.g. pool has "Gemini 3.1 Pro (High)" but call.modelDisplay is "Gemini 3.1 Pro (强)"
+    //      both share model ID "MODEL_PLACEHOLDER_M37" — this always matches.
+    const usedModelIds = buildUsedModelIds(email);
+    if (usedModelIds.size > 0) {
+        for (const [, pool] of poolMap) {
+            if (pool.hasUsage) { continue; } // already confirmed ≥20% consumed
+            for (const mid of pool.modelIds) {
+                if (usedModelIds.has(mid)) {
+                    pool.hasUsage = true;
+                    break;
+                }
             }
         }
     }
@@ -731,7 +775,7 @@ async function pollContextUsage(): Promise<void> {
                     if (fullStatus.userInfo?.email) {
                         handleAccountSwitchIfNeeded(fullStatus.userInfo.email);
                     }
-                    quotaTracker.processUpdate(fullStatus.configs);
+                    quotaTracker.processUpdate(fullStatus.configs, buildUsedModelIds(fullStatus.userInfo?.email), fullStatus.userInfo?.email);
                     checkQuotaNotification(fullStatus.configs);
                     log(`Updated model display names: ${fullStatus.configs.map(c => c.label).join(', ')}`);
                 }
@@ -771,7 +815,7 @@ async function pollContextUsage(): Promise<void> {
                                 if (fullStatus.userInfo?.email) {
                                     handleAccountSwitchIfNeeded(fullStatus.userInfo.email);
                                 }
-                                quotaTracker.processUpdate(fullStatus.configs);
+                                quotaTracker.processUpdate(fullStatus.configs, buildUsedModelIds(fullStatus.userInfo?.email), fullStatus.userInfo?.email);
                                 checkQuotaNotification(fullStatus.configs);
                             }
                             if (fullStatus.userInfo) {
@@ -802,7 +846,7 @@ async function pollContextUsage(): Promise<void> {
                         if (fullStatus.userInfo?.email) {
                             handleAccountSwitchIfNeeded(fullStatus.userInfo.email);
                         }
-                        quotaTracker.processUpdate(fullStatus.configs);
+                        quotaTracker.processUpdate(fullStatus.configs, buildUsedModelIds(fullStatus.userInfo?.email), fullStatus.userInfo?.email);
                         checkQuotaNotification(fullStatus.configs);
                     }
                     if (fullStatus.userInfo) {

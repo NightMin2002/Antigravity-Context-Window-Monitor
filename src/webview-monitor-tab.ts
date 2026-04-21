@@ -276,9 +276,9 @@ function buildGMOverviewCard(gmSummary: GMSummary | null): string {
                     </div>
                 </div>
                 <p class="monitor-summary-empty">${tBi(
-                    'GM data will appear automatically after the first precise call is captured.',
-                    '捕捉到第一批精确 GM 调用后，这里会自动显示。',
-                )}</p>
+            'GM data will appear automatically after the first precise call is captured.',
+            '捕捉到第一批精确 GM 调用后，这里会自动显示。',
+        )}</p>
             </section>`;
     }
 
@@ -377,9 +377,9 @@ function buildCostOverviewCard(
                     </div>
                 </div>
                 <p class="monitor-summary-empty">${tBi(
-                    'Cost overview will appear after GM data and pricing are both available.',
-                    'GM 数据和价格表都就绪后，这里会自动显示成本速览。',
-                )}</p>
+            'Cost overview will appear after GM data and pricing are both available.',
+            'GM 数据和价格表都就绪后，这里会自动显示成本速览。',
+        )}</p>
             </section>`;
     }
 
@@ -473,6 +473,7 @@ function buildQuotaTrackingOverviewCard(tracker?: QuotaTracker): string {
                         <span class="monitor-mini-tag">${tBi('Elapsed', '已追踪')} ${elapsed}</span>
                         ${countdown ? `<span class="monitor-mini-tag">${tBi('Reset in', '重置剩余')} ${countdown}</span>` : ''}
                         ${absolute ? `<span class="monitor-mini-tag">${tBi('At', '时间')} ${absolute}</span>` : ''}
+                        ${session.accountEmail ? `<span class="monitor-mini-tag" style="background:rgba(130,170,255,0.15);color:rgba(130,170,255,0.9)"><svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" style="vertical-align:-1px;margin-right:2px"><path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0m4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4m-1-.004c0-.246-.178-.986-.96-1.728C11.265 10.514 10.065 10 8 10s-3.265.514-4.04 1.268c-.782.742-.96 1.482-.96 1.728z"/></svg> ${esc(session.accountEmail.split('@')[0])}</span>` : ''}
                     </div>
                 </div>
             </div>`;
@@ -502,11 +503,11 @@ function buildQuotaTrackingOverviewCard(tracker?: QuotaTracker): string {
                 </div>
             </div>
             ${activeRows
-                ? `<div class="monitor-tracking-list">${activeRows}</div>`
-                : `<p class="monitor-summary-empty">${tBi(
-                    'Tracking is enabled, but there are no active quota sessions right now.',
-                    '额度追踪已启用，但当前没有活跃追踪会话。',
-                )}</p>`}
+            ? `<div class="monitor-tracking-list">${activeRows}</div>`
+            : `<p class="monitor-summary-empty">${tBi(
+                'Tracking is enabled, but there are no active quota sessions right now.',
+                '额度追踪已启用，但当前没有活跃追踪会话。',
+            )}</p>`}
             ${latestReset?.endTime ? `<div class="monitor-mini-tags">
                 <span class="monitor-mini-tag">${tBi('Latest archive', '最近归档')} ${formatResetAbsolute(latestReset.endTime)}</span>
             </div>` : ''}
@@ -524,9 +525,9 @@ function buildCurrentSessionSection(
             <section class="card empty">
                 <h2>${ICON.clock} ${tBi('Waiting for Session', '等待会话')}</h2>
                 <p class="empty-desc">${tBi(
-                    'Start a conversation in Antigravity to see usage data.',
-                    '在 Antigravity 中开始对话即可查看使用数据。',
-                )}</p>
+            'Start a conversation in Antigravity to see usage data.',
+            '在 Antigravity 中开始对话即可查看使用数据。',
+        )}</p>
             </section>`);
         return;
     }

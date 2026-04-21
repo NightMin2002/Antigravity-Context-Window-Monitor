@@ -59,6 +59,43 @@
 
 ---
 
+## [1.15.12] - 2026-04-21
+
+### 🏗 Refactored / 重构
+
+- **QuotaTracker 使用检测策略重构 / Usage Detection Overhaul**:
+  移除旧的 instant detect（基于 `knownWindowMs` 推算已消耗时间）和 observation window（10 分钟 resetTime 稳定性检测）两种猜测策略，均在 `remainingFraction` 20% 量化下不可靠且会产生幽灵 session。改为 GMTracker 辅助检测：调用方通过新增 `usedModelIds` 参数传入当前周期内有实际 LLM 调用的模型 ID 集合，frac=1.0 时若确认有调用则立即进入追踪。同时移除废弃常量 `ELAPSED_THRESHOLD_MS` 和 `OBSERVATION_WINDOW_MS`。
+  Removed unreliable instant detect (elapsed time inference from `knownWindowMs`) and observation window (10-min resetTime stability check) strategies — both produced ghost sessions under 20% quantization. Replaced with GMTracker-assisted detection via new `usedModelIds` parameter. Removed unused `ELAPSED_THRESHOLD_MS` and `OBSERVATION_WINDOW_MS` constants.
+
+- **QuotaTracker 按账号隔离 / Per-Account State Isolation**:
+  `modelStates` key 从 `modelId` 变更为 `email:modelId`，切换账号后各账号的追踪状态完全独立——旧账号状态冻结在 Map 中不被覆盖，切回时恢复追踪。旧格式（无 `:` 前缀）的 key 保留在 Map 中，逐步自然淘汰。
+  `modelStates` key changed from `modelId` to `email:modelId`. Each account's tracking state is fully independent — switching accounts freezes the old state in the map without overwriting, resuming when switching back.
+
+- **公共 `buildUsedModelIds()` / Shared Helper**:
+  从 `updateAccountSnapshot()` 中提取重复的 GMTracker 调用记录过滤逻辑为独立公共函数。按 `accountEmail` 过滤、使用语言无关的 `model` (model ID) 匹配，被 account snapshot 和 QuotaTracker 共同使用。
+  Extracted duplicated GMTracker call filtering logic into a shared function, used by both account snapshot `hasUsage` detection and QuotaTracker early tracking entry.
+
+### ✨ Added / 新增
+
+- **QuotaSession 账号归属 / Session Account Attribution**:
+  `QuotaSession` 新增 `accountEmail?: string` 字段，每个追踪 session 记录所属账号。
+
+- **追踪卡片账号标识 / Tracking Card Account Badge**:
+  额度追踪标签页（`webview-history-tab.ts`）和监控标签页（`webview-monitor-tab.ts`）的 session 卡片均新增蓝色账号 badge，带用户 SVG 图标，显示邮箱前缀（如 `moonwolf200202`），一眼区分不同账号的追踪数据。
+  Both the Quota Tracking tab and Monitor tab session cards now show a blue account badge with user SVG icon displaying the email prefix.
+
+### ✨ Improved / 改进
+
+- **追踪描述文案更新 / Tracking Description Update**:
+  活跃追踪区域的描述从"100% 模型回退到 resetTime 漂移观测（约 10 分钟）"更新为"100% 模型在 GMTracker 确认实际调用后开始追踪"，反映新的检测策略。
+
+### 📊 Stats / 统计
+
+- **Files changed**: 4 (`src/extension.ts`, `src/quota-tracker.ts`, `src/webview-history-tab.ts`, `src/webview-monitor-tab.ts`)
+- **Docs updated**: 1 (`docs/project_structure.md`)
+- **TypeScript compile**: Zero errors
+- **Key architectural decision**: GMTracker call records as the definitive usage signal at frac=1.0, replacing unreliable time-based heuristics
+
 ## [1.15.3] - 2026-04-20
 
 ### ✨ Added / 新增
