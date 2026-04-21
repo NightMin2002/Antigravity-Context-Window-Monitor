@@ -886,14 +886,11 @@ function buildDayDetail(record: DailyRecord, dateStr: string): string {
                 </span>
             </div>
             <div class="cal-day-summary">
+                ${totalGMCalls > 0 ? `
                 <div class="cal-day-total">
-                    <div class="cal-day-total-val">${totalReasoning}</div>
-                    <div class="cal-day-total-label">${tBi('Reasoning', '推理')}</div>
-                </div>
-                <div class="cal-day-total">
-                    <div class="cal-day-total-val">${totalToolCalls}</div>
-                    <div class="cal-day-total-label">${tBi('Tools', '工具')}</div>
-                </div>
+                    <div class="cal-day-total-val">${totalGMCalls}</div>
+                    <div class="cal-day-total-label">${tBi('GM Calls', 'GM 调用')}</div>
+                </div>` : ''}
                 <div class="cal-day-total">
                     <div class="cal-day-total-val">${formatTokensK(displayTokens)}</div>
                     <div class="cal-day-total-label">${tBi('Tokens', '令牌')}</div>
@@ -908,23 +905,12 @@ function buildDayDetail(record: DailyRecord, dateStr: string): string {
                     <div class="cal-day-total-val">${totalGMCredits}</div>
                     <div class="cal-day-total-label">${tBi('Credits', '积分')}</div>
                 </div>` : ''}
-                ${totalGMCalls > 0 ? `
-                <div class="cal-day-total">
-                    <div class="cal-day-total-val">${totalGMCalls}</div>
-                    <div class="cal-day-total-label">${tBi('GM Calls', 'GM 调用')}</div>
-                </div>` : ''}
                 ${avgCacheRate > 0 ? `
                 <div class="cal-day-total">
                     <div class="cal-day-total-val">${(avgCacheRate * 100).toFixed(0)}%</div>
                     <div class="cal-day-total-label">${tBi('Cache', '缓存')}</div>
                 </div>` : ''}
-                ${totalErrors > 0 ? `
-                <div class="cal-day-total">
-                    <div class="cal-day-total-val cal-day-total-danger">${totalErrors}</div>
-                    <div class="cal-day-total-label">${tBi('Errors', '错误')}</div>
-                </div>` : ''}
             </div>
-            ${mergedModelHtml}
             ${mergedGMHtml}
         </div>`;
 }
@@ -986,11 +972,8 @@ function buildCycleCard(cycle: DailyCycleEntry, index: number): string {
         .join('');
 
     const stats: string[] = [];
-    if (cycle.totalReasoning > 0) {
-        stats.push(`<span class="cal-stat"><span class="cal-stat-val">${cycle.totalReasoning}</span> <span class="cal-stat-label">${tBi('reasoning', '推理')}</span></span>`);
-    }
-    if (cycle.totalToolCalls > 0) {
-        stats.push(`<span class="cal-stat"><span class="cal-stat-val">${cycle.totalToolCalls}</span> <span class="cal-stat-label">${tBi('tools', '工具')}</span></span>`);
+    if (cycle.gmTotalCalls && cycle.gmTotalCalls > 0) {
+        stats.push(`<span class="cal-stat"><span class="cal-stat-val">${cycle.gmTotalCalls}</span> <span class="cal-stat-label">${tBi('GM calls', 'GM 调用')}</span></span>`);
     }
     if (cycle.totalInputTokens + cycle.totalOutputTokens > 0) {
         stats.push(`<span class="cal-stat"><span class="cal-stat-val">${formatTokensK(cycle.totalInputTokens + cycle.totalOutputTokens)}</span> <span class="cal-stat-label">${tBi('tokens', '令牌')}</span></span>`);
@@ -1000,9 +983,6 @@ function buildCycleCard(cycle: DailyCycleEntry, index: number): string {
     }
     if (cycle.gmTotalCredits && cycle.gmTotalCredits > 0) {
         stats.push(`<span class="cal-stat"><span class="cal-stat-val">${cycle.gmTotalCredits}</span> <span class="cal-stat-label">${tBi('credits', '积分')}</span></span>`);
-    }
-    if (cycle.totalErrors > 0) {
-        stats.push(`<span class="cal-stat cal-day-total-danger"><span class="cal-stat-val">${cycle.totalErrors}</span> <span class="cal-stat-label">${tBi('errors', '错误')}</span></span>`);
     }
 
     const accountTag = cycle.accountEmail
@@ -1024,7 +1004,6 @@ function buildCycleCard(cycle: DailyCycleEntry, index: number): string {
             <div class="cal-cycle-stats cal-cycle-stats-spaced">
                 ${stats.join('')}
             </div>
-            ${buildPerModelRows(cycle.modelStats)}
             ${buildGMModelRows(cycle.gmModelStats)}
         </div>`;
 }
@@ -1185,14 +1164,11 @@ function buildSummaryOverviewGrid(
                     <div class="cal-overview-val">${cycleCount}</div>
                     <div class="cal-overview-label">${tBi('Cycles', '周期')}</div>
                 </div>
+                ${gmCalls > 0 ? `
                 <div class="cal-overview-item">
-                    <div class="cal-overview-val">${reasoning}</div>
-                    <div class="cal-overview-label">${tBi('Reasoning', '推理')}</div>
-                </div>
-                <div class="cal-overview-item">
-                    <div class="cal-overview-val">${toolCalls}</div>
-                    <div class="cal-overview-label">${tBi('Tools', '工具')}</div>
-                </div>
+                    <div class="cal-overview-val">${gmCalls}</div>
+                    <div class="cal-overview-label">${tBi('GM Calls', 'GM 调用')}</div>
+                </div>` : ''}
                 ${gmTokens > 0 ? `
                 <div class="cal-overview-item">
                     <div class="cal-overview-val">${formatTokensK(gmTokens)}</div>

@@ -8,6 +8,55 @@
 
 ---
 
+## [1.15.13] - 2026-04-21
+
+### 🗑 Removed / 移除
+
+- **Step API 不可信数据全面清除 / Step API Unreliable Data Purge**:
+  从 Activity 面板和日历面板中彻底移除所有基于 Step API 的不精确统计数据。Step API 的步骤详情受 ~500 步窗口限制，长对话中早期数据会丢失，导致工具排行和模型分布等统计不准确。
+  Removed all Step API-based imprecise statistics from both the Activity panel and Calendar panel. Step API step details are limited to a ~500-step window, causing data loss in long conversations.
+
+  **Activity 面板移除项 / Activity Panel**:
+  - `buildToolRanking()` — 基于 `globalToolStats` 的工具排行榜（函数 + 10 色 CSS 全删）
+  - `buildDistribution()` — 基于 `modelStats` 的模型分布甜甜圈图（函数 + SVG 全删）
+  - Summary Bar：推理、工具、错误、检查点、推算 共 5 个卡片
+  - 模型卡片：推理回复、工具、检查点、错误、推算步数、平均思考、总推理耗时、总工具耗时 共 8 行
+  - 模型卡片 footer：`toolBreakdown` 工具标签
+
+  **日历面板移除项 / Calendar Panel (`webview-calendar-tab.ts`)**:
+  - 日详情：推理、工具、错误 → 改为 GM 调用（置顶）
+  - 概览 Grid：推理、工具 → 改为 GM 调用
+  - 周期卡片：推理、工具、错误 → 改为 GM 调用
+  - 周期模型明细：`buildPerModelRows()` 调用（只保留 GM 明细）
+  - 日详情模型汇总：`mergedModelHtml`（只保留 GM 汇总）
+
+### ✨ Added / 新增
+
+- **GM 重试统计 / GM Retry Stats**:
+  Summary Bar 新增红色重试卡片，显示 `gm.totalRetryCount`（GM 徽章），tooltip 内联浪费 token 数（`gm.totalRetryTokens`）。合并了原来分开的卡片，减少布局溢出。
+  New red retry stat card showing `gm.totalRetryCount` with GM badge. Tooltip includes wasted token count.
+
+### 🎨 Styles / 样式
+
+- **Dashboard Grid 布局 / Dashboard Grid Layout**:
+  Summary Bar 从 `flex-wrap` 松散卡片升级为 CSS Grid (`auto-fill, minmax(85px, 1fr)`) 统一面板：1px 间隙网格分隔线，`outline` 实现圆角容器（避免 `overflow: hidden` 裁剪 tooltip），hover 时背景柔和高亮。
+  Summary Bar upgraded from loose flex-wrap cards to CSS Grid unified panel with 1px gap grid lines and outline-based rounded corners.
+
+- **Tooltip 边缘适配 / Tooltip Edge Anchoring**:
+  方向改为向下弹出避免顶部裁剪；支持换行 (`max-width: 220px`)；`:first-child` 靠左、`:last-child` 靠右，防止溢出 webview 边界。
+
+- **模型卡片头部 / Model Card Headers**:
+  步骤统计从 Step API `actualSteps+estSteps` 改为 GM `callCount`，GM 不可用时降级。
+
+### 📊 Stats / 统计
+
+- **Files changed**: 3 (`src/activity-panel.ts`, `src/webview-calendar-tab.ts`, `docs/project_structure.md`)
+- **Net change**: +57, −194 (net −137)
+- **TypeScript compile**: Zero errors
+- **Key decision**: 所有面向用户的统计数据完全源自 GM 精确数据，Step API 仅用于时间线事件降级补充
+
+---
+
 ## [1.15.11] - 2026-04-21
 
 ### ✨ Added / 新增

@@ -114,17 +114,7 @@ export function buildGMDataTabContent(
         parts.push(buildCheckpointViewer(gmSummary));
     }
 
-    // ── Tool Ranking + Model Distribution (activity)
-    if (summary) {
-        const distHtml = buildDistribution(summary);
-        const toolsHtml = buildToolRanking(summary);
-        if (distHtml || toolsHtml) {
-            parts.push(`<div class="act-two-col">
-                ${toolsHtml ? `<div class="act-col">${toolsHtml}</div>` : ''}
-                ${distHtml ? `<div class="act-col">${distHtml}</div>` : ''}
-            </div>`);
-        }
-    }
+
 
     // ── Performance + Cache Efficiency (GM)
     if (gmSummary && gmSummary.totalCalls > 0) {
@@ -458,37 +448,44 @@ export function getGMDataTabStyles(): string {
 
     /* ─── Activity Tab: Summary Bar ─── */
     .act-summary-bar {
-        display: flex;
-        flex-wrap: wrap;
-        gap: var(--space-2);
-        padding: var(--space-2);
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(85px, 1fr));
+        gap: 1px;
+        background: var(--color-border);
+        border-radius: var(--radius-lg);
+        outline: 1px solid var(--color-border);
+        outline-offset: -1px;
         margin-bottom: var(--space-4);
-        justify-content: center;
     }
+    /* Round corners on first-row and last-row cells */
+    .act-summary-bar > .act-stat:first-child { border-top-left-radius: var(--radius-lg); }
+    .act-summary-bar > .act-stat:last-child { border-bottom-right-radius: var(--radius-lg); }
     .act-stat {
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
         gap: 2px;
-        padding: var(--space-2) var(--space-3);
+        padding: var(--space-2) var(--space-1);
         background: var(--color-surface);
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-md);
-        transition: border-color 0.2s cubic-bezier(.4,0,.2,1), box-shadow 0.2s cubic-bezier(.4,0,.2,1);
+        transition: background 0.15s cubic-bezier(.4,0,.2,1);
         position: relative;
         cursor: default;
-        min-width: 70px;
+    }
+    .act-stat-warn {
+        background: rgba(248, 113, 113, 0.06);
     }
     @media (hover: hover) {
         .act-stat:hover {
-            border-color: rgba(96,165,250,0.5);
-            box-shadow: 0 0 8px rgba(96,165,250,0.15);
+            background: rgba(96, 165, 250, 0.08);
+        }
+        .act-stat-warn:hover {
+            background: rgba(248, 113, 113, 0.12);
         }
         .act-stat[data-tooltip]:hover::after {
             content: attr(data-tooltip);
             position: absolute;
-            bottom: calc(100% + 6px);
+            top: calc(100% + 6px);
             left: 50%;
             transform: translateX(-50%);
             padding: var(--space-1) var(--space-2);
@@ -500,17 +497,34 @@ export function getGMDataTabStyles(): string {
             font-weight: 400;
             text-transform: none;
             letter-spacing: 0;
-            white-space: nowrap;
+            white-space: normal;
+            max-width: 220px;
+            width: max-content;
+            text-align: center;
             z-index: var(--z-tooltip, 500);
             pointer-events: none;
             box-shadow: 0 2px 8px rgba(0,0,0,0.25);
         }
+        /* Left-edge cells: anchor tooltip to left to prevent overflow */
+        .act-summary-bar > .act-stat:first-child[data-tooltip]:hover::after {
+            left: 0;
+            right: auto;
+            transform: none;
+            text-align: left;
+        }
+        /* Right-edge cells: anchor tooltip to right to prevent overflow */
+        .act-summary-bar > .act-stat:last-child[data-tooltip]:hover::after {
+            left: auto;
+            right: 0;
+            transform: none;
+            text-align: left;
+        }
     }
     .act-stat-icon svg { display: block; }
     .act-icon { width: 1.1em; height: 1.1em; display: inline-block; vertical-align: -0.2em; margin-right: 0.3em; color: var(--color-text-dim); }
-    .act-stat-val { font-weight: 700; font-size: 1.15em; line-height: 1.2; }
+    .act-stat-val { font-weight: 700; font-size: 1.05em; line-height: 1.2; }
     .act-est { font-weight: 400; font-size: 0.85em; opacity: 0.6; font-style: italic; }
-    .act-stat-label { color: var(--color-text-dim); font-size: 0.72em; text-transform: uppercase; letter-spacing: 0.5px; }
+    .act-stat-label { color: var(--color-text-dim); font-size: 0.68em; text-transform: uppercase; letter-spacing: 0.5px; }
 
     /* ─── Activity Tab: Layout Grids ─── */
     .act-two-col {
@@ -1117,50 +1131,6 @@ export function getGMDataTabStyles(): string {
     }
     .act-compress-note { color: #f87171; margin-left: var(--space-2); font-size: 0.85em; }
 
-    /* ─── Activity Tab: Tool Ranking ─── */
-    .act-rank-list { padding: 0; margin: 0 0 var(--space-4) 0; list-style: none; }
-    .act-rank-item {
-        display: flex;
-        align-items: center;
-        gap: var(--space-2);
-        padding: 3px 0;
-        font-size: 0.85em;
-    }
-    .act-rank-name {
-        flex-shrink: 0;
-        min-width: 100px;
-        max-width: 160px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        color: var(--color-text);
-    }
-    .act-rank-bar-bg {
-        flex: 1;
-        height: 14px;
-        background: rgba(255,255,255,0.06);
-        border-radius: var(--radius-sm);
-        overflow: hidden;
-    }
-    .act-rank-bar {
-        display: block;
-        height: 100%;
-        border-radius: var(--radius-sm);
-        transition: width 0.3s cubic-bezier(.4,0,.2,1);
-    }
-    .act-rank-count { flex-shrink: 0; min-width: 36px; text-align: right; font-weight: 600; font-size: 0.85em; }
-
-    /* Tool ranking color classes */
-    .act-rank-c0 .act-rank-bar { background: #60a5fa; } .act-rank-c0 .act-rank-count { color: #60a5fa; }
-    .act-rank-c1 .act-rank-bar { background: #34d399; } .act-rank-c1 .act-rank-count { color: #34d399; }
-    .act-rank-c2 .act-rank-bar { background: #fbbf24; } .act-rank-c2 .act-rank-count { color: #fbbf24; }
-    .act-rank-c3 .act-rank-bar { background: #f87171; } .act-rank-c3 .act-rank-count { color: #f87171; }
-    .act-rank-c4 .act-rank-bar { background: #2dd4bf; } .act-rank-c4 .act-rank-count { color: #2dd4bf; }
-    .act-rank-c5 .act-rank-bar { background: #fb923c; } .act-rank-c5 .act-rank-count { color: #fb923c; }
-    .act-rank-c6 .act-rank-bar { background: #2dd4bf; } .act-rank-c6 .act-rank-count { color: #2dd4bf; }
-    .act-rank-c7 .act-rank-bar { background: #e879f9; } .act-rank-c7 .act-rank-count { color: #e879f9; }
-    .act-rank-c8 .act-rank-bar { background: #38bdf8; } .act-rank-c8 .act-rank-count { color: #38bdf8; }
-    .act-rank-c9 .act-rank-bar { background: #4ade80; } .act-rank-c9 .act-rank-count { color: #4ade80; }
 
     /* ─── Activity Tab: Conversation Breakdown ─── */
     .act-conv-list {
@@ -1581,41 +1551,14 @@ function buildSummaryBar(s: ActivitySummary | null, gm: GMSummary | null): strin
         ${gmStatCards}
         ${durText ? `<div class="act-stat" data-tooltip="${tBi('Total time since extension activation', '从插件激活起累计的会话时长')}"><span class="act-stat-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span><span class="act-stat-val">${durText}</span><span class="act-stat-label">${tBi('Session', '会话')}</span></div>` : ''}
         <div class="act-stat" data-tooltip="${tBi('Total user messages sent', '用户发送的消息总数')}"><span class="act-stat-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><span class="act-stat-val">${s.totalUserInputs}</span><span class="act-stat-label">${tBi('Msgs', '消息')}</span></div>
-        <div class="act-stat" data-tooltip="${tBi('AI reasoning/reply steps', 'AI 推理回复步数')}"><span class="act-stat-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 0 1 7 7c0 2.5-1.3 4.7-3.2 6H8.2C6.3 13.7 5 11.5 5 9a7 7 0 0 1 7-7z"/><path d="M9 17h6M10 21h4"/></svg></span><span class="act-stat-val">${s.totalReasoning}</span><span class="act-stat-label">${tBi('Think', '推理')}</span></div>
-        <div class="act-stat" data-tooltip="${tBi('Tool invocations (view_file, grep, etc.)', '工具调用次数（如 view_file、grep 等）')}"><span class="act-stat-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span><span class="act-stat-val">${s.totalToolCalls}</span><span class="act-stat-label">${tBi('Tools', '工具')}</span></div>
-        <div class="act-stat" data-tooltip="${tBi('Error responses from AI', 'AI 返回的错误数')}"><span class="act-stat-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></span><span class="act-stat-val">${s.totalErrors}</span><span class="act-stat-label">${tBi('Err', '错误')}</span></div>
-        ${s.totalCheckpoints > 0 ? `<div class="act-stat" data-tooltip="${tBi('Checkpoint snapshots saved by AI', 'AI 保存的检查点快照数')}"><span class="act-stat-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2z"/><path d="M9 21V9h6v12"/></svg></span><span class="act-stat-val">${s.totalCheckpoints}</span><span class="act-stat-label">${tBi('CP', '检查点')}</span></div>` : ''}
-        ${s.estSteps > 0 ? `<div class="act-stat" data-tooltip="${tBi('Estimated steps beyond API window', '超出 API 窗口范围的推算步数')}"><span class="act-stat-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg></span><span class="act-stat-val"><span class="act-est">+${s.estSteps}</span></span><span class="act-stat-label">${tBi('Est.', '推算')}</span></div>` : ''}
         <div class="act-stat" data-tooltip="${inTooltip}"><span class="act-stat-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M5 10l7 7 7-7"/></svg></span><span class="act-stat-val">${fmt(inTokens)}${gmTag}</span><span class="act-stat-label">${tBi('In', '输入')}</span></div>
         <div class="act-stat" data-tooltip="${outTooltip}"><span class="act-stat-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21V9M5 14l7-7 7 7"/></svg></span><span class="act-stat-val">${fmt(outTokens)}${gmTag}</span><span class="act-stat-label">${tBi('Out', '输出')}</span></div>
         ${s.totalToolReturnTokens > 0 ? `<div class="act-stat" data-tooltip="${tBi('Tokens returned by tool calls', '工具调用返回的 token 数')}"><span class="act-stat-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 14l-4-4 4-4"/><path d="M5 10h11a4 4 0 0 1 0 8h-1"/></svg></span><span class="act-stat-val">${fmt(s.totalToolReturnTokens)}</span><span class="act-stat-label">${tBi('Tool Output', '工具输出')}</span></div>` : ''}
         ${cacheCard}
         ${creditsCard}
-        ${gm && gm.totalRetryTokens > 0 ? `<div class="act-stat act-stat-warn" data-tooltip="${tBi('Tokens wasted on retries (input + output)', '重试浪费的 token（输入+输出）')}"><span class="act-stat-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></span><span class="act-stat-val">${fmt(gm.totalRetryTokens)}</span><span class="act-stat-label">${tBi('Retry', '重试')}</span></div>` : ''}
+        ${gm && gm.totalRetryCount > 0 ? `<div class="act-stat act-stat-warn" data-tooltip="${tBi(`${gm.totalRetryCount} retries (${fmt(gm.totalRetryTokens)} tokens wasted)`, `${gm.totalRetryCount} 次重试（浪费 ${fmt(gm.totalRetryTokens)} token）`)}"><span class="act-stat-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></span><span class="act-stat-val">${gm.totalRetryCount} <span class="gm-badge-real">GM</span></span><span class="act-stat-label">${tBi('Retries', '重试')}</span></div>` : ''}
     </div>`;
 }
-
-
-function buildToolRanking(s: ActivitySummary): string {
-    const entries = Object.entries(s.globalToolStats).sort((a, b) => b[1] - a[1]).slice(0, 10);
-    if (entries.length === 0) { return ''; }
-
-    const max = entries[0][1];
-    let html = `<h2 class="act-section-title"><svg class="act-icon" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>${tBi('Tool Usage', '工具排行')}</h2><ul class="act-rank-list">`;
-    for (let i = 0; i < entries.length; i++) {
-        const [name, count] = entries[i];
-        const pct = Math.round((count / max) * 100);
-        const ci = i % 10;
-        html += `<li class="act-rank-item act-rank-c${ci}">
-            <span class="act-rank-name">${esc(name)}</span>
-            <span class="act-rank-bar-bg"><span class="act-rank-bar" style="width:${pct}%"></span></span>
-            <span class="act-rank-count">${count}</span>
-        </li>`;
-    }
-    html += `</ul>`;
-    return html;
-}
-
 
 
 
@@ -1701,15 +1644,11 @@ function buildModelCards(s: ActivitySummary | null, gm: GMSummary | null): strin
     for (const [name, ms] of entries) {
         const isCheckpointOnly = ms.reasoning === 0 && ms.toolCalls === 0 && ms.checkpoints > 0 && ms.estSteps === 0;
         const avgThink = ms.reasoning > 0 ? fmtMs(Math.round(ms.thinkingTimeMs / ms.reasoning)) : '-';
-        const toolList = Object.entries(ms.toolBreakdown)
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 6)
-            .map(([t, n]) => `<span class="act-tool-tag">${t}×${n}</span>`)
-            .join('');
-
         const actualSteps = ms.reasoning + ms.toolCalls + ms.errors + ms.checkpoints;
-        const totalLabel = ms.estSteps > 0
-            ? tBi(`${actualSteps}+${ms.estSteps} steps`, `${actualSteps}+${ms.estSteps} 步`)
+        // Use GM callCount for header label when available, fall back to step-based count
+        const gmStatsForLabel = gmBreak?.[name];
+        const totalLabel = gmStatsForLabel && gmStatsForLabel.callCount > 0
+            ? tBi(`${gmStatsForLabel.callCount} calls`, `${gmStatsForLabel.callCount} 调用`)
             : tBi(`${actualSteps} steps`, `共 ${actualSteps} 步`);
 
         // GM per-model precision data (prefer full GMModelStats when available)
@@ -1742,19 +1681,9 @@ function buildModelCards(s: ActivitySummary | null, gm: GMSummary | null): strin
         <div class="act-model-card${isCheckpointOnly ? ' act-checkpoint-model' : ''}">
             <div class="act-card-header">${esc(name)}${isCheckpointOnly ? ` <span class="act-badge">${ICONS.save}</span>` : ''} <span class="act-badge act-badge-total">${totalLabel}</span></div>
             <div class="act-card-body">
-                ${ms.reasoning > 0 ? `<div class="act-card-row"><span>${ICONS.think} <span>${tBi('Reasoning', '推理回复')}</span></span><span class="val">${ms.reasoning}</span></div>` : ''}
-                ${ms.toolCalls > 0 ? `<div class="act-card-row"><span>${ICONS.tool} <span>${tBi('Tools', '工具')}</span></span><span class="val">${ms.toolCalls}</span></div>` : ''}
-                ${ms.checkpoints > 0 ? `<div class="act-card-row"><span>${ICONS.save} <span>${tBi('Checkpoints', '检查点')}</span></span><span class="val">${ms.checkpoints}</span></div>` : ''}
-                ${ms.errors > 0 ? `<div class="act-card-row"><span>${ICONS.error} <span>${tBi('Errors', '错误')}</span></span><span class="val">${ms.errors}</span></div>` : ''}
-                ${ms.estSteps > 0 ? `<div class="act-card-row"><span>${ICONS.bar} <span>${tBi('Est. Steps', '推算步数')}</span></span><span class="val act-est">+${ms.estSteps}</span></div>` : ''}
-                ${ms.reasoning > 0 ? `
-                <div class="act-card-row"><span>${ICONS.clock} <span>${tBi('Avg Think', '平均思考')}</span></span><span class="val">${avgThink}</span></div>
-                <div class="act-card-row"><span>${ICONS.sum} <span>${tBi('Think', '推理')}</span></span><span class="val">${fmtMs(ms.thinkingTimeMs)}</span></div>
-                ` : ''}
-                ${ms.toolCalls > 0 ? `<div class="act-card-row"><span>${ICONS.sum} <span>${tBi('Tool', '工具')}</span></span><span class="val">${fmtMs(ms.toolTimeMs)}</span></div>` : ''}
                 ${gmSection}
             </div>
-            ${(toolList || gmFooterTags || buildAccountTags(name)) ? `<div class="act-card-footer">${buildAccountTags(name)}${gmFooterTags}${toolList}</div>` : ''}
+            ${(gmFooterTags || buildAccountTags(name)) ? `<div class="act-card-footer">${buildAccountTags(name)}${gmFooterTags}</div>` : ''}
         </div>`;
     }
     // GM-only models: models in GM data but not in Activity modelStats
@@ -2099,48 +2028,6 @@ function buildTimeline(s: ActivitySummary, currentUsage?: ContextUsage | null): 
     return html;
 }
 
-function buildDistribution(s: ActivitySummary): string {
-    // Use actual reasoning + toolCalls + errors + estSteps for total AI usage
-    const getUsage = (ms: ModelActivityStats) =>
-        ms.reasoning + ms.toolCalls + ms.errors + ms.estSteps;
-    const entries = Object.entries(s.modelStats).filter(([, ms]) => getUsage(ms) > 0);
-    if (entries.length === 0) { return ''; }
-
-    const total = entries.reduce((a, [, ms]) => a + getUsage(ms), 0);
-    const colors = ['#60a5fa', '#4ade80', '#facc15', '#f87171', '#2dd4bf', '#fb923c'];
-
-    let html = `<h2 class="act-section-title"><svg class="act-icon" viewBox="0 0 24 24" fill="none" stroke="#f472b6" stroke-width="2"><path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/><path d="M9 12a3 3 0 1 0 6 0 3 3 0 0 0-6 0"/></svg>${tBi('Model Distribution', '模型分布')}</h2><div class="act-dist-container">`;
-
-    const size = 140;
-    const r = 55;
-    const cx = size / 2;
-    const cy = size / 2;
-    const circumference = 2 * Math.PI * r;
-    let offset = 0;
-
-    html += `<svg class="act-donut-chart" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}">`;
-    for (let i = 0; i < entries.length; i++) {
-        const [, ms] = entries[i];
-        const pct = getUsage(ms) / total;
-        const len = pct * circumference;
-        html += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${colors[i % colors.length]}" stroke-width="16" stroke-dasharray="${len} ${circumference - len}" stroke-dashoffset="${-offset}" transform="rotate(-90 ${cx} ${cy})"/>`;
-        offset += len;
-    }
-    html += `<text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central" fill="var(--color-text)" font-size="18" font-weight="600">${total}</text>`;
-    html += `</svg>`;
-
-    html += `<div class="act-dist-legend">`;
-    for (let i = 0; i < entries.length; i++) {
-        const [name, ms] = entries[i];
-        const usage = getUsage(ms);
-        const pct = ((usage / total) * 100).toFixed(1);
-        html += `<div class="act-legend-item"><span class="act-legend-dot" style="background:${colors[i % colors.length]}"></span>${esc(name)} <span class="act-legend-pct">${pct}% (${usage})</span></div>`;
-    }
-    html += `</div>`;
-
-    html += `</div>`;
-    return html;
-}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 // esc() and formatTime() are now imported from webview-helpers.ts

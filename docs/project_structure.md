@@ -282,17 +282,22 @@ Fetches per-LLM-call data via `GetCascadeTrajectoryGeneratorMetadata`.
 
 ### 📊 activity-panel.ts — GM Data 统一面板渲染
 
-合并原 Activity 面板和 GM Data 面板为统一的「GM 数据」标签页。
+合并原 Activity 面板和 GM Data 面板为统一的「GM 数据」标签页。所有统计数据均来自 GM 精确源，已完全移除 Step API 不可信数据（推理、工具、错误、推算等）。
 
-Unified "GM Data" tab merging Activity and GM precise data.
+Unified "GM Data" tab merging Activity and GM precise data. All stats are GM-sourced; Step API unreliable metrics (reasoning, tools, errors, est. steps) have been fully removed.
 
 | 特性 / Feature | 说明 / Description |
 |---|---|
+| Dashboard Grid 概览 / Dashboard Grid | `buildSummaryBar()` 使用 CSS Grid (`auto-fill, minmax(85px, 1fr)`) 统一面板布局，1px 间隙网格分隔线，取代旧的 flex-wrap 松散卡片。仅显示 GM 精确数据：调用、步骤、模型、会话、消息、输入/输出 token、缓存、重试 |
+| GM 重试统计 / Retry Stats | 当 `gm.totalRetryCount > 0` 时显示红色重试卡片（计数 + GM 徽章），tooltip 展示浪费的 token 数。合并了原来分开的重试次数和浪费 token 两张卡片 |
+| Tooltip 边缘适配 / Tooltip Edge Anchoring | 向下弹出（`top`）避免顶部裁剪；`:first-child` 靠左对齐、`:last-child` 靠右对齐，防止左右溢出 webview 边界 |
 | 检查点查看器 / Checkpoint Viewer | `buildCheckpointViewer()` 渲染当前活跃对话（通过最新 `createdAt` 定位）的 `{{ CHECKPOINT N }}` 压缩摘要全文，琥珀色可折叠卡片 + 限高滚动容器 |
 | 多账号状态面板 / Account Status Panel | `buildAccountStatusPanel()` 在 GM Data 顶部渲染多账号状态卡片：`AccountSnapshot[]` → 按 email 分行，显示在线/缓存状态、Plan 徽章、按模型池独立倒计时（`ResetPool[]` 含 `hasUsage` 检测），到期显示红色「已就绪」，未消耗额度池显示灰色「未使用」；缓存账号卡片右侧有删除按钮（X），在线账号卡片有等宽占位符保持对齐 |
 | 待归档面板 / Pending Archive Panel | `buildPendingArchivePanel()` 在账号面板下方渲染黄色主题的待归档区域，显示基线化周期的调用数/token/credits 统计和 per-model 分布芯片；额度重置前不可见 |
 | 增量刷新保护 / Refresh preservation | `<details>` 展开状态通过 `restoreDetailsState()` 自动保护；`.cp-viewer` / `.cp-card-body` 滚动位置通过 `scrollableSelectors` 保留 |
 | 账号分布标签 / Account breakdown tags | 模型卡片 footer 区域垂直排列紫色药丸标签，按 `accountEmail` 分组显示各账号的调用次数，支持完整邮箱前缀展示 |
+| 已移除 / Removed | `buildToolRanking()`（Step API 工具排行）、`buildDistribution()`（Step API 模型分布甜甜圈图）、Summary Bar 中的推理/工具/错误/检查点/推算卡片、模型卡片中的 Step API 行和工具标签 |
+
 
 ---
 
