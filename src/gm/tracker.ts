@@ -3,7 +3,7 @@
 
 import { LSInfo } from '../discovery';
 import { rpcCall } from '../rpc-client';
-import { normalizeModelDisplayName, getQuotaPoolKey, type ModelConfig } from '../models';
+import { normalizeModelDisplayName, getQuotaPoolKey, resolveModelId, type ModelConfig } from '../models';
 import type { QuotaSession } from '../quota-tracker';
 import type {
     GMCallEntry,
@@ -219,31 +219,17 @@ export class GMTracker {
             const sliced = baseline > 0 ? conv.calls.slice(baseline) : conv.calls;
             // Filter out calls already archived by per-pool resets
             const hasCallFilter = this._archivedCallIds.size > 0;
-            const hasModelFilter = this._archivedModelCutoffs.size > 0;
             const hasAccountModelFilter = this._archivedAccountModelCutoffs.size > 0;
-            const activeCalls = (hasCallFilter || hasModelFilter || hasAccountModelFilter)
+            const activeCalls = (hasCallFilter || hasAccountModelFilter)
                 ? sliced.filter(c => {
                     // Per-account+model cutoff (pool-scoped archival)
+                    // Key uses model ID (e.g. MODEL_PLACEHOLDER_M26) — language-independent
                     if (hasAccountModelFilter && c.accountEmail) {
-                        const modelName = normalizeModelDisplayName(c.modelDisplay || c.model)
-                            || c.modelDisplay || c.model;
-                        const amKey = `${c.accountEmail}|${modelName}`;
+                        const amKey = `${c.accountEmail}|${c.model}`;
                         const amCutoff = this._archivedAccountModelCutoffs.get(amKey);
                         if (amCutoff) {
                             const callMs = Date.parse(c.createdAt || '');
                             const cutoffMs = Date.parse(amCutoff);
-                            if (isNaN(callMs) || callMs <= cutoffMs) {
-                                return false;
-                            }
-                        }
-                    }
-                    if (hasModelFilter) {
-                        const cutoff = this._archivedModelCutoffs.get(c.model)
-                            || (c.responseModel ? this._archivedModelCutoffs.get(c.responseModel) : undefined);
-                        if (cutoff) {
-                            const callMs = Date.parse(c.createdAt || '');
-                            const cutoffMs = Date.parse(cutoff);
-                            // If createdAt is missing or unparseable, assume old call -> filter it out
                             if (isNaN(callMs) || callMs <= cutoffMs) {
                                 return false;
                             }
@@ -460,43 +446,35 @@ export class GMTracker {
         const email = targetEmail || this._currentAccountEmail;
         const now = new Date().toISOString();
 
-        // Build a normalized set of pool model names for matching
-        const poolSet = poolModelFilter && poolModelFilter.length > 0
-            ? new Set(poolModelFilter.flatMap(m => {
-                const norm = normalizeModelDisplayName(m);
-                return norm ? [m, norm] : [m];
-            }))
+        // Build a set of model IDs for pool matching.
+        // poolModelFilter can contain model IDs ("MODEL_PLACEHOLDER_M26")
+        // or display labels ("Claude Opus 4.6 (Thinking)" / "Claude Opus 4.6 (思考)").
+        // Resolve everything to model IDs for stable, language-independent matching.
+        const poolModelIds = poolModelFilter && poolModelFilter.length > 0
+            ? new Set(poolModelFilter.map(m => resolveModelId(m) || m))
             : null; // null = all models
 
-        // Helper: check if a call belongs to the target pool
+        // Helper: check if a call belongs to the target pool (by model ID)
         const callMatchesPool = (call: GMCallEntry): boolean => {
-            if (!poolSet) { return true; }
-            const candidates = [
-                call.model,
-                call.modelDisplay,
-                call.responseModel,
-                normalizeModelDisplayName(call.modelDisplay || call.model),
-                normalizeModelDisplayName(call.responseModel),
-            ].filter(Boolean) as string[];
-            return candidates.some(c => poolSet.has(c));
+            if (!poolModelIds) { return true; }
+            return poolModelIds.has(call.model)
+                || (call.responseModel ? poolModelIds.has(call.responseModel) : false);
         };
 
         // ── Step 1: Compute accurate stats from _lastSummary (full picture) ──
-        // The summary has already been built by fetchAll() and includes all loaded calls.
-        // Using it ensures we don't undercount due to partial cache loading.
         const summary = this._lastSummary;
         let summaryCount = 0;
         let summaryInputTokens = 0;
         let summaryOutputTokens = 0;
         let summaryCredits = 0;
         const summaryModelCalls = new Map<string, number>();
-        const archivedModelNames = new Set<string>();
+        const archivedModelIds = new Set<string>();
 
         if (summary) {
             for (const conv of summary.conversations) {
                 for (const call of conv.calls) {
                     if (email && call.accountEmail && call.accountEmail !== email) { continue; }
-                    if (!call.accountEmail && email) { continue; } // skip untagged when filtering by email
+                    if (!call.accountEmail && email) { continue; }
                     if (!callMatchesPool(call)) { continue; }
                     summaryCount++;
                     summaryInputTokens += call.inputTokens;
@@ -506,24 +484,21 @@ export class GMTracker {
                         call.modelDisplay || call.model,
                     ) || call.responseModel || call.model;
                     summaryModelCalls.set(modelKey, (summaryModelCalls.get(modelKey) || 0) + 1);
-                    archivedModelNames.add(modelKey);
+                    archivedModelIds.add(call.model); // model ID, not display name
                 }
             }
         }
 
         // ── Step 2: Set per-account+model cutoffs to NOW ──
-        // This guarantees ALL existing calls for this account+model combo
-        // are excluded in future _buildSummary() calls, even if _cache
-        // wasn't fully loaded when this method ran.
-        for (const modelName of archivedModelNames) {
-            const amKey = `${email}|${modelName}`;
+        // Key = "email|MODEL_ID" (language-independent, stable)
+        for (const modelId of archivedModelIds) {
+            const amKey = `${email}|${modelId}`;
             this._archivedAccountModelCutoffs.set(amKey, now);
         }
-        // Also set cutoffs for pool model names (belt and suspenders)
-        if (poolSet && email) {
-            for (const m of poolSet) {
-                const norm = normalizeModelDisplayName(m) || m;
-                const amKey = `${email}|${norm}`;
+        // Also set cutoffs for all pool model IDs (belt and suspenders)
+        if (poolModelIds && email) {
+            for (const mid of poolModelIds) {
+                const amKey = `${email}|${mid}`;
                 if (!this._archivedAccountModelCutoffs.has(amKey)) {
                     this._archivedAccountModelCutoffs.set(amKey, now);
                 }
@@ -555,6 +530,7 @@ export class GMTracker {
                     call.modelDisplay || call.model,
                 ) || call.responseModel || call.model;
                 cacheModelCalls.set(modelKey, (cacheModelCalls.get(modelKey) || 0) + 1);
+                archivedModelIds.add(call.model); // also capture from cache path
             }
         }
 
@@ -831,14 +807,20 @@ export class GMTracker {
                 tracker._archivedCallIds.add(id);
             }
         }
-        // Restore model-level cutoff timestamps (added v1.14.0)
-        if (data.archivedModelCutoffs && typeof data.archivedModelCutoffs === 'object') {
-            for (const [id, cutoff] of Object.entries(data.archivedModelCutoffs)) {
-                if (typeof cutoff === 'string') {
-                    tracker._archivedModelCutoffs.set(id, cutoff);
+        // Restore model-level cutoff timestamps (legacy v1.14.0 – v1.15.x)
+        // MIGRATION: skip if the new per-account-model cutoffs are present.
+        // The old global cutoffs were NOT account-scoped and caused cross-account
+        // contamination — one account's baseline would hide other accounts' calls.
+        if (!data.archivedAccountModelCutoffs) {
+            if (data.archivedModelCutoffs && typeof data.archivedModelCutoffs === 'object') {
+                for (const [id, cutoff] of Object.entries(data.archivedModelCutoffs)) {
+                    if (typeof cutoff === 'string') {
+                        tracker._archivedModelCutoffs.set(id, cutoff);
+                    }
                 }
             }
         }
+        // else: archivedAccountModelCutoffs supersedes archivedModelCutoffs — don't load legacy data
 
         // Restore current account email
         if (typeof (data as any).currentAccountEmail === 'string') {
