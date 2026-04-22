@@ -406,12 +406,23 @@ function getAccountSnapshotArray(): AccountSnapshot[] {
 
 /**
  * Detect account switch for GM call attribution.
- * No longer resets QuotaTracker — daily archival is not triggered by quota cycles.
+ * Also checks expired quota pools for BOTH the outgoing and incoming accounts,
+ * since checkCachedAccountResets() only covers inactive accounts and would miss
+ * the incoming account once it becomes active.
  */
 function handleAccountSwitchIfNeeded(newEmail: string): boolean {
     if (!newEmail) { return false; }
     if (currentAccountEmail && currentAccountEmail !== newEmail) {
         log(`Account switch detected: ${currentAccountEmail} → ${newEmail}`);
+
+        // Before switching, check both accounts for expired pools that need archival.
+        // The OLD account (currentAccountEmail) is about to become "cached" (inactive),
+        // and the NEW account (newEmail) is about to become "active".
+        // checkCachedAccountResets() only checks isActive===false, so the new account
+        // would be skipped once it becomes active. We must handle it HERE.
+        baselineExpiredPoolsForAccount(currentAccountEmail);
+        baselineExpiredPoolsForAccount(newEmail);
+
         currentAccountEmail = newEmail;
         gmTracker.setCurrentAccount(newEmail);
         return true;
@@ -419,8 +430,102 @@ function handleAccountSwitchIfNeeded(newEmail: string): boolean {
     if (!currentAccountEmail) {
         currentAccountEmail = newEmail;
         gmTracker.setCurrentAccount(newEmail);
+        // On first connection after extension restart, the account may already
+        // have expired pools from a previous session. Baseline them now before
+        // updateAccountSnapshot() refreshes the snapshot with a new resetTime.
+        baselineExpiredPoolsForAccount(newEmail);
     }
     return false;
+}
+
+/**
+ * Check a specific account's snapshot for expired quota pools and baseline them.
+ * This is the same logic as checkCachedAccountResets() but operates on a single
+ * account regardless of its isActive state. Used during account switching to
+ * ensure expired pools are archived before the account's active state changes.
+ */
+function baselineExpiredPoolsForAccount(email: string): void {
+    const snap = accountSnapshots.get(email);
+    if (!snap) { return; }
+
+    const nowMs = Date.now();
+    const pools = snap.resetPools || [];
+    for (const pool of pools) {
+        if (!pool.resetTime) { continue; }
+        const resetDate = new Date(pool.resetTime);
+        if (isNaN(resetDate.getTime())) { continue; }
+
+        const diffMs = resetDate.getTime() - nowMs;
+        if (diffMs > 0) { continue; } // Not yet expired
+
+        // Skip pools with no confirmed usage — matches UI "Ready" logic
+        if (pool.hasUsage === false) { continue; }
+
+        // Skip if already notified/archived
+        const key = `${email}:${pool.resetTime}`;
+        if (notifiedAccountResets.has(key)) { continue; }
+
+        // Skip if already archived in persisted state
+        if (gmTracker.isPoolArchived(email, pool.modelLabels)) {
+            notifiedAccountResets.add(key);
+            log(`Account switch baseline: ${email} pool [${pool.modelLabels.slice(0, 3).join(', ')}] already archived — skipped`);
+            continue;
+        }
+
+        notifiedAccountResets.add(key);
+
+        // ── Step 1: Snapshot to DailyStore BEFORE baselining ──
+        const preBaselineSummary = gmTracker.getFullSummary();
+        if (preBaselineSummary && preBaselineSummary.totalCalls > 0 && dailyStore) {
+            const todayKey = toLocalDateKey();
+            let costTotal: number | undefined;
+            let costPerModel: Record<string, number> | undefined;
+            if (pricingStore) {
+                const result = pricingStore.calculateCosts(preBaselineSummary);
+                if (result.grandTotal > 0) { costTotal = result.grandTotal; }
+                costPerModel = {};
+                for (const row of result.rows) {
+                    if (row.totalCost > 0) { costPerModel[row.name] = row.totalCost; }
+                }
+            }
+            dailyStore.addDailySnapshot(
+                todayKey,
+                activityTracker.getSummary(),
+                preBaselineSummary,
+                costTotal,
+                costPerModel,
+                true, // append
+            );
+            log(`Account switch baseline: ${email} pre-baseline snapshot appended to DailyStore`);
+        }
+
+        // ── Step 2: Baseline GM calls for the expired pool ──
+        const baselinedCount = gmTracker.baselineForQuotaReset(email, pool.modelLabels);
+        if (baselinedCount > 0) {
+            log(`Account switch baseline: ${email} — ${baselinedCount} GM calls baselined for pool [${pool.modelLabels.slice(0, 3).join(', ')}]`);
+            lastGMSummary = gmTracker.getDetailedSummary() || gmTracker.getCachedSummary();
+            durableGlobalState.update('gmTrackerState', gmTracker.serialize());
+            persistGMSummaryToFile(lastGMSummary);
+        }
+
+        // ── Step 3: Show notification ──
+        const modelNames = pool.modelLabels.slice(0, 3).join(', ');
+        const extra = pool.modelLabels.length > 3 ? ` +${pool.modelLabels.length - 3}` : '';
+        const displayName = snap.name || snap.email;
+        const openMonitorLabel = tBi('Open Monitor', '打开监控');
+        vscode.window.showInformationMessage(
+            tBi(
+                `✅ ${displayName}: ${modelNames}${extra} quota has reset. You can switch to this account now.`,
+                `✅ ${displayName}: ${modelNames}${extra} 额度已重置，可以切换到该账号了。`,
+            ),
+            openMonitorLabel,
+        ).then(choice => {
+            if (choice === openMonitorLabel) {
+                vscode.commands.executeCommand('antigravity-context-monitor.showDetails');
+            }
+        });
+        log(`Account switch reset notification: ${displayName} — ${modelNames}${extra}`);
+    }
 }
 
 /** Extract local date key — re-exported from daily-archival for backward compat. */
@@ -1232,6 +1337,13 @@ async function pollContextUsage(): Promise<void> {
         lsInfo = null;
         cachedLsInfo = null;
     } finally {
+        // Always run cached-account reset check — independent of polling success/failure.
+        // Wrapped in its own try/catch so errors are logged, never silently swallowed.
+        try {
+            checkCachedAccountResets();
+        } catch (resetErr) {
+            log(`[ResetCheck] ERROR: ${resetErr}`);
+        }
         isPolling = false;
     }
 }
@@ -1366,10 +1478,8 @@ function checkQuotaNotification(configs: import('./models').ModelConfig[]): void
 function checkCachedAccountResets(): void {
     const nowMs = Date.now();
     for (const snap of accountSnapshots.values()) {
-        // Only notify for cached/inactive accounts
         if (snap.isActive) { continue; }
 
-        // Check each pool's reset time
         const pools = snap.resetPools || [];
         for (const pool of pools) {
             if (!pool.resetTime) { continue; }
@@ -1377,29 +1487,29 @@ function checkCachedAccountResets(): void {
             if (isNaN(resetDate.getTime())) { continue; }
 
             const diffMs = resetDate.getTime() - nowMs;
-            if (diffMs > 0) { continue; } // Not yet expired
+            if (diffMs > 0) { continue; }
 
-            // Only notify if not already notified for this exact resetTime
+            // Skip pools with no confirmed usage — matches UI "Ready" logic
+            if (pool.hasUsage === false) { continue; }
+
+            const modelNames = pool.modelLabels.slice(0, 3).join(', ');
             const key = `${snap.email}:${pool.resetTime}`;
             if (notifiedAccountResets.has(key)) { continue; }
+
+            // ── Guard: skip if this pool was already archived (persisted state) ──
+            if (gmTracker.isPoolArchived(snap.email, pool.modelLabels)) {
+                notifiedAccountResets.add(key);
+                log(`[ResetCheck] ${snap.email} [${modelNames}]: already-archived — skipped`);
+                continue;
+            }
+
+            // ── WILL TRIGGER ──
+            log(`[ResetCheck]   [${modelNames}] >>> TRIGGERING archival for ${snap.email}`);
             notifiedAccountResets.add(key);
 
-            // Build notification message
-            const modelNames = pool.modelLabels.slice(0, 3).join(', ');
             const extra = pool.modelLabels.length > 3 ? ` +${pool.modelLabels.length - 3}` : '';
             const displayName = snap.name || snap.email;
             const openMonitorLabel = tBi('Open Monitor', '打开监控');
-
-
-            // ── Guard: skip if this pool was already archived (persisted state) ──
-            // On extension restart/reinstall, notifiedAccountResets (in-memory) is
-            // empty but _archivedAccountModelCutoffs (persisted) remembers. Without
-            // this check, pre-baseline snapshots would duplicate data in DailyStore.
-            if (gmTracker.isPoolArchived(snap.email, pool.modelLabels)) {
-                notifiedAccountResets.add(key);
-                log(`Cached account ${snap.email}: pool [${modelNames}] already archived — skipped`);
-                continue;
-            }
 
             // ── Step 1: Snapshot to DailyStore BEFORE baselining ──
             // Use getFullSummary() to include ALL accounts' calls.
@@ -1424,16 +1534,18 @@ function checkCachedAccountResets(): void {
                     costPerModel,
                     true, // append — preserve intra-day quota-reset cycles
                 );
-                log(`Cached account ${snap.email}: pre-baseline snapshot appended to DailyStore`);
+                log(`[ResetCheck]   pre-baseline snapshot appended to DailyStore`);
             }
 
             // ── Step 2: Baseline this cached account's GM calls for the expired pool only ──
             const baselinedCount = gmTracker.baselineForQuotaReset(snap.email, pool.modelLabels);
             if (baselinedCount > 0) {
-                log(`Cached account ${snap.email}: ${baselinedCount} GM calls baselined on quota expiry`);
+                log(`[ResetCheck]   ${baselinedCount} GM calls baselined`);
                 lastGMSummary = gmTracker.getDetailedSummary() || gmTracker.getCachedSummary();
                 durableGlobalState.update('gmTrackerState', gmTracker.serialize());
                 persistGMSummaryToFile(lastGMSummary);
+            } else {
+                log(`[ResetCheck]   baselineForQuotaReset returned 0 — no calls to archive`);
             }
 
             vscode.window.showInformationMessage(
@@ -1447,7 +1559,7 @@ function checkCachedAccountResets(): void {
                     vscode.commands.executeCommand('antigravity-context-monitor.showDetails');
                 }
             });
-            log(`Account reset notification: ${displayName} — ${modelNames}${extra}`);
+            log(`[ResetCheck]   Notification sent: ${displayName} — ${modelNames}${extra}`);
         }
     }
 }

@@ -683,11 +683,13 @@ export class GMTracker {
         }
 
         // ── Step 5: Clear persisted error data for the archived account ──
-        // Without this, the max-wins merge in _buildSummary() would restore
-        // the pre-archival error counts, defeating the quota-reset clear.
-        const accountKey = email || '__global__';
-        delete this._persistedRetryErrorCodesByAccount[accountKey];
-        delete this._persistedRecentErrorsByAccount[accountKey];
+        // Clear ALL persisted error baselines — after archiving calls, the max-wins
+        // merge must recalculate from actual remaining calls instead of restoring
+        // stale totals that included now-archived data.
+        this._persistedRetryErrorCodesByAccount = {};
+        this._persistedRecentErrorsByAccount = {};
+        this._persistedRetryErrorCodes = {};
+        this._persistedRecentErrors = [];
 
         // Invalidate cached summary so next access rebuilds
         this._lastSummary = null;
@@ -701,17 +703,38 @@ export class GMTracker {
 
     /**
      * Check if a pool has already been archived for a given account.
-     * Uses persisted _archivedAccountModelCutoffs to survive restarts.
-     * @param email  Account email
-     * @param modelLabels  Pool model labels (display names or model IDs)
-     * @returns true if ANY model in the pool has a cutoff entry
+     * Returns true ONLY if cutoff entries exist AND there are NO un-archived
+     * calls for this account+pool. This prevents stale cutoffs from a
+     * previous quota cycle from blocking new archival.
      */
     isPoolArchived(email: string, modelLabels: string[]): boolean {
         if (this._archivedAccountModelCutoffs.size === 0) { return false; }
-        return modelLabels.some(label => {
-            const modelId = resolveModelId(label) || label;
-            return this._archivedAccountModelCutoffs.has(`${email}|${modelId}`);
-        });
+
+        // Must have at least one cutoff entry for this pool
+        const poolModelIds = new Set(modelLabels.map(l => resolveModelId(l) || l));
+        const hasCutoff = [...poolModelIds].some(mid =>
+            this._archivedAccountModelCutoffs.has(`${email}|${mid}`)
+        );
+        if (!hasCutoff) { return false; }
+
+        // Check if there are any un-archived calls for this account+pool
+        for (const [, conv] of this._cache) {
+            const baseline = this._callBaselines.get(conv.cascadeId) || 0;
+            const activeCalls = baseline > 0 ? conv.calls.slice(baseline) : conv.calls;
+            for (const call of activeCalls) {
+                if (call.accountEmail && call.accountEmail !== email) { continue; }
+                if (!call.accountEmail && email) { continue; }
+                // Check if call belongs to this pool
+                if (!poolModelIds.has(call.model) &&
+                    !(call.responseModel && poolModelIds.has(call.responseModel))) { continue; }
+                // Check if this call is already archived
+                const archKey = buildGMArchiveKey(call);
+                if (!this._archivedCallIds.has(call.executionId) && !this._archivedCallIds.has(archKey)) {
+                    return false; // Found an un-archived call → pool NOT fully archived
+                }
+            }
+        }
+        return true; // All calls are archived (or no calls exist)
     }
 
     reset(): void {

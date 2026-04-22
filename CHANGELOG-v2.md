@@ -8,6 +8,67 @@
 
 ---
 
+## [1.17.5] - 2026-04-22
+
+### 修复 / Fixed
+
+- **缓存账号额度重置归档失效 / Cached Account Quota Reset Archival Failure**:
+  `checkCachedAccountResets()` 之前被放置在 3 个 `try { ... } catch { /* Silent */ }` 块内部，当网络请求异常或函数本身抛错时被静默吞掉，导致归档逻辑从未执行。修复：移至 `pollContextUsage()` 的 `finally` 块中独立执行，包裹在自己的 try/catch 中记录异常。
+
+  `checkCachedAccountResets()` was placed inside 3 silent `try/catch` blocks. Any exception (network failure or internal error) silently skipped it. Fix: moved to `finally` block with its own error-logging try/catch.
+
+- **`isPoolArchived()` 旧周期残留阻止新归档 / Stale Cutoff Blocking New Archival**:
+  旧逻辑仅检查 `_archivedAccountModelCutoffs` 中是否存在 key。上一额度周期的 cutoff entry 永久存在，导致新周期的归档被错误跳过。修复：改为扫描 `_cache` 中是否存在未归档的调用，只有所有调用都已归档才返回 `true`。
+
+  Old logic only checked if a cutoff key existed. Stale entries from previous quota cycles permanently blocked new archival. Fix: now scans `_cache` for un-archived calls; returns `true` only when all calls are archived.
+
+- **归档后错误计数膨胀 / Error Count Inflation After Archival**:
+  `baselineForQuotaReset()` 归档调用后，`_persistedRetryErrorCodesByAccount` 仍保留旧的高值。`_buildSummary()` 的 max-wins 合并将已归档调用的错误恢复到活跃统计中。修复：归档时清空所有持久化错误基线，让后续 `_buildSummary()` 从实际剩余调用重新计算。
+
+  `baselineForQuotaReset()` did not clear all persisted error baselines. The max-wins merge in `_buildSummary()` restored archived error counts. Fix: clear all persisted error data on archival, forcing recalculation from actual remaining calls.
+
+- **`hasUsage` 检查缺失 / Missing hasUsage Guard**:
+  `checkCachedAccountResets()` 未检查 `pool.hasUsage === false`，导致未使用的池（UI 无"已就绪"标记）也触发归档。修复：与 UI `hasAccountReadyPool()` 逻辑对齐。
+
+  Added `hasUsage` check to prevent archiving unused pools, aligning with UI "Ready" indicator logic.
+
+### 新增 / Added
+
+- **`baselineExpiredPoolsForAccount()` 账号切换归档 / Account Switch Archival**:
+  新增函数，在 `handleAccountSwitchIfNeeded()` 中为切出和切入账号检查过期池并执行归档。解决切换后 `updateAccountSnapshot()` 用新 resetTime 覆盖旧过期时间导致归档窗口错过的问题。首次连接时也检查当前账号的过期池。
+
+  New function called during account switches to baseline expired pools for both outgoing and incoming accounts, preventing missed archival windows.
+
+### 重构 / Refactored
+
+- **Summary Bar 芯片化布局 / Summary Bar Chip Layout**:
+  从 CSS Grid 统一面板（`grid-template-columns: auto-fill`）重构为居中 flex-wrap 芯片条（`justify-content: center`）。每个指标项从纵向堆叠改为横向 `icon + value + label` 紧凑排列。
+
+  | 维度 | 改前 | 改后 |
+  |------|------|------|
+  | 布局 | CSS Grid 等宽网格 | flex-wrap 居中芯片 |
+  | 单项 | 纵向 icon → value → label | 横向 icon + value + label |
+  | 边框 | outline + 1px gap 分隔线 | 独立 border + border-radius |
+  | SVG 图标 | 内联重复 | 提取为共享变量 |
+  | 报错卡片 | 内联 IIFE 匿名函数 | 提取为 `buildErrorChip()` 复用 |
+
+### 移除 / Removed
+
+- **"数据范围"折叠说明 / Data Scope Explanation**: 移除 GM Data 标签页顶部的 `gmScopeNote` details 折叠面板
+- **"Step API 精度"注释 / Step API Accuracy Note**: 移除模型统计底部的 `act-dist-note` 估算步骤说明（已无估算数据源）
+- **Distribution 图表 CSS / Distribution Chart CSS**: 移除 `act-dist-container`、`act-donut-chart`、`act-dist-legend`、`act-legend-item`、`act-legend-pct` 等已无引用的样式（保留 `act-legend-dot` 供 X-ray 使用）
+- **冗余 Summary Bar 指标 / Redundant Summary Metrics**: 移除会话时长、消息数、模型数、步骤覆盖数（信息密度低或已在其他位置显示）
+- **测试重置检测按钮 / Test Reset Detection Button**: 移除临时调试用的 `#acctTestResetBtn`（HTML、CSS、前端事件、后端消息处理、getter 导出）
+
+### 统计 / Stats
+
+- **Files changed**: 5 (`src/extension.ts`, `src/gm/tracker.ts`, `src/activity-panel.ts`, `src/webview-script.ts`, `src/webview-panel.ts`)
+- **Docs updated**: 2 (`docs/project_structure.md`, `CHANGELOG-v2.md`)
+- **TypeScript compile**: Zero errors
+- **Root cause chain**: `checkCachedAccountResets` 从未执行（死代码 → silent catch 吞掉 → isPoolArchived 旧残留阻止）→ 移到 finally 块 + 重写 isPoolArchived + 清理错误基线
+
+---
+
 ## [1.17.4] - 2026-04-22
 
 ### 修复 / Fixed

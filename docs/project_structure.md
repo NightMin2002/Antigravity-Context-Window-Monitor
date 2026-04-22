@@ -105,9 +105,9 @@ Extension lifecycle management hub.
 | 会话选择 / Session selection | 按 RUNNING → 当前 tracked cascade 的 stepCount 变化 → 新会话 → 最近修改 的优先级选当前对话，已建立的当前会话会尽量保持稳定不被其他对话抢占 |
 | 每日归档 / Daily archival | 通过 `daily-archival.ts` 核心逻辑委托；`extension.ts` 构造 `DailyArchivalContext` 注入所有运行时状态 |
 | 持久化协调 / Persistence orchestration | 协调 `durable-state.ts`、`monitor-store.ts`、`activity-tracker.ts`、`gm-tracker.ts`、`daily-store.ts`、`model-dna-store.ts` 的恢复与写回 |
-| 多账号快照 / Multi-account snapshots | `updateAccountSnapshot()` 在每次 `fetchFullUserStatus` 后提取 email + resetPools（含 `hasUsage` 额度消耗检测），按 email 维护 `AccountSnapshot` Map 并持久化至文件；`checkCachedAccountResets()` 在轮询中检查缓存账号额度重置、自动基线化 GM 调用并弹出一次性通知；`removeAccountSnapshot()` 支持 UI 端删除缓存账号 |
-| 额度重置归档 / Quota-reset archival | `onQuotaReset` 回调先预快照当前数据到 DailyStore（append 模式），再调用 `baselineForQuotaReset(email, poolModelFilter)` 仅标记**已重置池**的调用为已归档（不连带其他池），确保数据不因额度周期切换而丢失。缓存账号重置路径 (`checkCachedAccountResets`) 也同样执行 pre-baseline DailyStore 快照 |
-| 跨账号隔离 / Cross-account isolation | `handleAccountSwitchIfNeeded()` 在每次状态拉取前检测账号切换，重置 `quotaTracker` 追踪状态防止旧 resetTime 触发误归档 |
+| 多账号快照 / Multi-account snapshots | `updateAccountSnapshot()` 在每次 `fetchFullUserStatus` 后提取 email + resetPools（含 `hasUsage` 额度消耗检测），按 email 维护 `AccountSnapshot` Map 并持久化至文件；`checkCachedAccountResets()` 在轮询 `finally` 块中独立执行（不依赖网络请求成功），检查缓存账号额度重置、自动基线化 GM 调用并弹出一次性通知；`removeAccountSnapshot()` 支持 UI 端删除缓存账号 |
+| 额度重置归档 / Quota-reset archival | `onQuotaReset` 回调先预快照当前数据到 DailyStore（append 模式），再调用 `baselineForQuotaReset(email, poolModelFilter)` 仅标记**已重置池**的调用为已归档（不连带其他池），同时清空所有持久化错误基线防止 max-wins 合并恢复已归档数据的错误计数。`isPoolArchived()` 通过实际扫描未归档调用判断（而非仅检查 cutoff key 存在性），防止旧周期残留阻止新周期归档 |
+| 跨账号隔离 / Cross-account isolation | `handleAccountSwitchIfNeeded()` 在每次状态拉取前检测账号切换，调用 `baselineExpiredPoolsForAccount()` 为切出和切入账号检查过期池并执行归档，防止切换后 `updateAccountSnapshot()` 用新 resetTime 覆盖旧的过期时间而错过归档窗口 |
 | 开发命令 / Dev commands | `devSimulateReset`（模拟每日归档）、`devClearGM`、`devPersistActivity` |
 
 ---

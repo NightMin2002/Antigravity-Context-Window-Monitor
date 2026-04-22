@@ -68,23 +68,6 @@ export function buildGMDataTabContent(
 
     const parts: string[] = [];
 
-    // ── Data scope explanation
-    parts.push(`<details class="act-tl-legend gm-scope-note" id="gmScopeNote">
-        <summary>${tBi('ℹ Data Scope', 'ℹ 数据范围')}</summary>
-        <div class="act-tl-legend-body">
-            <div class="act-tl-legend-note act-tl-legend-note-info">
-                <svg class="act-tl-legend-note-icon" viewBox="0 0 16 16"><path fill="currentColor" d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/><path fill="currentColor" d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"/></svg>
-                <div>
-                    <b>${tBi('Counting cycle = Quota cycle, not per-session or per-day.', '统计周期 = 额度周期，而非单个会话或单日。')}</b><br/>
-                    ${tBi(
-        'All metrics (calls, tokens, credits) below accumulate within the <b>current quota cycle</b>. When a model pool\'s quota resets, only that pool\'s data is archived — other pools continue counting. For example, Claude + OSS models share one reset cycle, while Gemini Pro has its own independent cycle.',
-        '以下所有指标（调用次数、token、credits）均在<b>当前额度周期</b>内累计。当某个模型池的额度重置时，仅归档该池的数据——其他模型池的统计继续。例如 Claude + OSS 共用一个重置周期，而 Gemini Pro 拥有独立的周期。',
-    )}
-                </div>
-            </div>
-        </div>
-    </details>`);
-
     // ── Summary Bar (merged activity + GM)
     parts.push(buildSummaryBar(summary, gmSummary, currentUsage?.cascadeId));
 
@@ -430,41 +413,40 @@ export function getGMDataTabStyles(): string {
         font-style: italic;
     }
 
-    /* ─── Activity Tab: Summary Bar ─── */
+    /* ─── Activity Tab: Summary Bar (chip strip layout) ─── */
     .act-summary-bar {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(85px, 1fr));
-        gap: 1px;
-        background: var(--color-border);
-        border-radius: var(--radius-lg);
-        outline: 1px solid var(--color-border);
-        outline-offset: -1px;
-        margin-bottom: var(--space-4);
-    }
-    /* Round corners on first-row and last-row cells */
-    .act-summary-bar > .act-stat:first-child { border-top-left-radius: var(--radius-lg); }
-    .act-summary-bar > .act-stat:last-child { border-bottom-right-radius: var(--radius-lg); }
-    .act-stat {
         display: flex;
-        flex-direction: column;
-        align-items: center;
+        flex-wrap: wrap;
         justify-content: center;
-        gap: 2px;
-        padding: var(--space-2) var(--space-1);
+        gap: 6px;
+        margin-bottom: var(--space-4);
+        padding: var(--space-2) 0;
+    }
+    .act-stat {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 10px;
         background: var(--color-surface);
-        transition: background 0.15s cubic-bezier(.4,0,.2,1);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-md);
+        transition: background 0.15s cubic-bezier(.4,0,.2,1), border-color 0.15s cubic-bezier(.4,0,.2,1);
         position: relative;
         cursor: default;
+        white-space: nowrap;
     }
     .act-stat-warn {
         background: rgba(248, 113, 113, 0.06);
+        border-color: rgba(248, 113, 113, 0.2);
     }
     @media (hover: hover) {
         .act-stat:hover {
             background: rgba(96, 165, 250, 0.08);
+            border-color: rgba(96, 165, 250, 0.25);
         }
         .act-stat-warn:hover {
             background: rgba(248, 113, 113, 0.12);
+            border-color: rgba(248, 113, 113, 0.35);
         }
         .act-stat[data-tooltip]:hover::after {
             content: attr(data-tooltip);
@@ -489,26 +471,20 @@ export function getGMDataTabStyles(): string {
             pointer-events: none;
             box-shadow: 0 2px 8px rgba(0,0,0,0.25);
         }
-        /* Left-edge cells: anchor tooltip to left to prevent overflow */
+        /* Edge tooltip anchoring */
         .act-summary-bar > .act-stat:first-child[data-tooltip]:hover::after {
-            left: 0;
-            right: auto;
-            transform: none;
-            text-align: left;
+            left: 0; right: auto; transform: none; text-align: left;
         }
-        /* Right-edge cells: anchor tooltip to right to prevent overflow */
         .act-summary-bar > .act-stat:last-child[data-tooltip]:hover::after {
-            left: auto;
-            right: 0;
-            transform: none;
-            text-align: left;
+            left: auto; right: 0; transform: none; text-align: left;
         }
     }
+    .act-stat-icon { display: flex; align-items: center; color: var(--color-text-dim); }
     .act-stat-icon svg { display: block; }
     .act-icon { width: 1.1em; height: 1.1em; display: inline-block; vertical-align: -0.2em; margin-right: 0.3em; color: var(--color-text-dim); }
-    .act-stat-val { font-weight: 700; font-size: 1.05em; line-height: 1.2; }
+    .act-stat-val { font-weight: 700; font-size: 0.88em; line-height: 1; }
     .act-est { font-weight: 400; font-size: 0.85em; opacity: 0.6; font-style: italic; }
-    .act-stat-label { color: var(--color-text-dim); font-size: 0.68em; text-transform: uppercase; letter-spacing: 0.5px; }
+    .act-stat-label { color: var(--color-text-dim); font-size: 0.72em; letter-spacing: 0.3px; }
 
     /* ─── Activity Tab: Layout Grids ─── */
     .act-two-col {
@@ -1048,44 +1024,15 @@ export function getGMDataTabStyles(): string {
         font-size: 0.88em;
         color: var(--color-text-dim);
     }
-    /* keep act-dist-note for other usages */
-    .act-dist-note {
-        font-size: 0.8em;
-        color: var(--color-warn);
-        opacity: 0.7;
-        margin-top: var(--space-2);
-        padding: var(--space-1) var(--space-2);
-        border-left: 2px solid var(--color-warn);
-        line-height: 1.4;
-    }
 
-    /* ─── Activity Tab: Distribution ─── */
-    .act-dist-container {
-        display: flex;
-        align-items: center;
-        gap: var(--space-6);
-        padding: var(--space-3);
-        background: var(--color-surface);
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-md);
-        margin-bottom: var(--space-4);
-    }
-    .act-donut-chart { flex-shrink: 0; }
-    .act-dist-legend { flex: 1; }
-    .act-legend-item {
-        display: flex;
-        align-items: center;
-        gap: var(--space-2);
-        padding: 2px 0;
-        font-size: 0.85em;
-    }
+
+    /* ─── Shared Legend Styles (used by X-ray) ─── */
     .act-legend-dot {
         width: 10px;
         height: 10px;
         border-radius: 50%;
         flex-shrink: 0;
     }
-    .act-legend-pct { color: var(--color-text-dim); margin-left: auto; }
 
     /* ─── Activity Tab: Context Trend Chart ─── */
     .act-trend-container {
@@ -1798,43 +1745,48 @@ export function getGMDataTabStyles(): string {
 function buildSummaryBar(s: ActivitySummary | null, gm: GMSummary | null, currentCascadeId?: string): string {
     const fmt = (n: number) => n >= 1_000_000 ? (n / 1_000_000).toFixed(2) + 'M' : n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n);
 
+    // ── SVG icons (shared) ──
+    const iconCalls = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`;
+    const iconIn = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M5 10l7 7 7-7"/></svg>`;
+    const iconOut = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21V9M5 14l7-7 7 7"/></svg>`;
+    const iconCache = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12H2"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>`;
+    const iconCredits = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>`;
+    const iconErr = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
+
+    // ── Helper: build error chip from GM data ──
+    const buildErrorChip = (gm2: GMSummary): string => {
+        const errTotal = Object.values(gm2.retryErrorCodes || {}).reduce((a, b) => a + b, 0);
+        if (errTotal <= 0 && gm2.totalRetryCount <= 0) { return ''; }
+        const byConv = gm2.retryErrorCodesByConv || {};
+        const convCount = Object.keys(byConv).length;
+        const currentConvErrs: Record<string, number> = (currentCascadeId && convCount > 1) ? (byConv[currentCascadeId] || {}) : {};
+        const convDelta = Object.values(currentConvErrs).reduce((a, b) => a + b, 0);
+        const errCodes = Object.entries(gm2.retryErrorCodes || {}).sort((a, b) => b[1] - a[1]).map(([c, n]) => { const d = currentConvErrs[c] || 0; return d > 0 ? `${c} ×${n} (+${d})` : `${c} ×${n}`; }).join(', ');
+        const wasteInfo = gm2.totalRetryTokens > 0 ? ` | ${fmt(gm2.totalRetryTokens)} ${tBi('tokens wasted', 'token 浪费')}` : '';
+        const tipText = errCodes ? `${errCodes}${wasteInfo}` : `${gm2.totalRetryCount} ${tBi('retries', '重试')}${wasteInfo}`;
+        const deltaHtml = convDelta > 0 ? ` <span style="color:#f87171;font-size:0.75em;font-weight:600">+${convDelta}</span>` : '';
+        return `<div class="act-stat act-stat-warn" data-tooltip="${esc(tipText)}"><span class="act-stat-icon">${iconErr}</span><span class="act-stat-val">${errTotal > 0 ? errTotal : gm2.totalRetryCount}${deltaHtml}</span><span class="act-stat-label">${tBi('Errors', '报错')}</span></div>`;
+    };
+
     // When no activity data, show GM-only summary
     if (!s && gm) {
-        const models = Object.keys(gm.modelBreakdown).length;
         return `<div class="act-summary-bar">
-            <div class="act-stat"><span class="act-stat-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span><span class="act-stat-val">${gm.totalCalls}</span><span class="act-stat-label">${tBi('Calls', '调用')}</span></div>
-            <div class="act-stat"><span class="act-stat-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></span><span class="act-stat-val">${models}</span><span class="act-stat-label">${tBi('Models', '模型')}</span></div>
-            <div class="act-stat"><span class="act-stat-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M5 10l7 7 7-7"/></svg></span><span class="act-stat-val">${fmt(gm.totalInputTokens)}</span><span class="act-stat-label">${tBi('In', '输入')}</span></div>
-            <div class="act-stat"><span class="act-stat-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21V9M5 14l7-7 7 7"/></svg></span><span class="act-stat-val">${fmt(gm.totalOutputTokens)}</span><span class="act-stat-label">${tBi('Out', '输出')}</span></div>
-            <div class="act-stat"><span class="act-stat-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12H2"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg></span><span class="act-stat-val">${fmt(gm.totalCacheRead)}</span><span class="act-stat-label">${tBi('Cache', '缓存')}</span></div>
-            ${gm.totalCredits > 0 ? `<div class="act-stat"><span class="act-stat-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></span><span class="act-stat-val">${gm.totalCredits}</span><span class="act-stat-label">Credits</span></div>` : ''}
-            ${gm.totalRetryTokens > 0 || Object.keys(gm.retryErrorCodes || {}).length > 0 ? (() => { const errTotal = Object.values(gm.retryErrorCodes || {}).reduce((a, b) => a + b, 0); const byConv = gm.retryErrorCodesByConv || {}; const convCount = Object.keys(byConv).length; const currentConvErrs: Record<string, number> = (currentCascadeId && convCount > 1) ? (byConv[currentCascadeId] || {}) : {}; const convDelta = Object.values(currentConvErrs).reduce((a, b) => a + b, 0); const errCodes = Object.entries(gm.retryErrorCodes || {}).sort((a, b) => b[1] - a[1]).map(([c, n]) => { const d = currentConvErrs[c] || 0; return d > 0 ? `${c} ×${n} (+${d})` : `${c} ×${n}`; }).join(', '); const deltaHtml = convDelta > 0 ? ` <span style="color:#f87171;font-size:0.75em;font-weight:600">+${convDelta}</span>` : ''; const tip = errCodes ? `${errTotal} ${tBi('errors', '报错')} (${errCodes})` : `${fmt(gm.totalRetryTokens)} ${tBi('tokens wasted', 'token 浪费')}`; return `<div class="act-stat act-stat-warn" data-tooltip="${esc(tip)}"><span class="act-stat-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></span><span class="act-stat-val">${errTotal > 0 ? errTotal : fmt(gm.totalRetryTokens)}${deltaHtml}</span><span class="act-stat-label">${tBi('Errors', '报错')}</span></div>`; })() : ''}
+            <div class="act-stat"><span class="act-stat-icon">${iconCalls}</span><span class="act-stat-val">${gm.totalCalls}</span><span class="act-stat-label">${tBi('Calls', '调用')}</span></div>
+            <div class="act-stat"><span class="act-stat-icon">${iconIn}</span><span class="act-stat-val">${fmt(gm.totalInputTokens)}</span><span class="act-stat-label">${tBi('In', '输入')}</span></div>
+            <div class="act-stat"><span class="act-stat-icon">${iconOut}</span><span class="act-stat-val">${fmt(gm.totalOutputTokens)}</span><span class="act-stat-label">${tBi('Out', '输出')}</span></div>
+            ${gm.totalCacheRead > 0 ? `<div class="act-stat"><span class="act-stat-icon">${iconCache}</span><span class="act-stat-val">${fmt(gm.totalCacheRead)}</span><span class="act-stat-label">${tBi('Cache', '缓存')}</span></div>` : ''}
+            ${gm.totalCredits > 0 ? `<div class="act-stat"><span class="act-stat-icon">${iconCredits}</span><span class="act-stat-val">${gm.totalCredits.toFixed(1)}</span><span class="act-stat-label">Credits</span></div>` : ''}
+            ${buildErrorChip(gm)}
         </div>`;
     }
 
     if (!s) { return ''; }
 
-    // GM-specific stats to prepend (total calls, steps covered, models count)
-    let gmStatCards = '';
+    // GM-specific: calls chip
+    let gmCallsChip = '';
     if (gm && gm.totalCalls > 0) {
-        const models = Object.keys(gm.modelBreakdown).length;
-        gmStatCards = `
-        <div class="act-stat" data-tooltip="${tBi('Total LLM API calls (GM precise)', 'LLM API 调用总次数（GM）')}"><span class="act-stat-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span><span class="act-stat-val">${gm.totalCalls} <span class="gm-badge-real">GM</span></span><span class="act-stat-label">${tBi('Calls', '调用')}</span></div>
-        <div class="act-stat" data-tooltip="${tBi('Steps precisely attributed to models', '精确归属到模型的步骤数')}"><span class="act-stat-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span><span class="act-stat-val">${gm.totalStepsCovered}</span><span class="act-stat-label">${tBi('Steps', '步骤')}</span></div>
-        <div class="act-stat" data-tooltip="${tBi('Number of distinct models used', '使用的不同模型数')}"><span class="act-stat-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></span><span class="act-stat-val">${models}</span><span class="act-stat-label">${tBi('Models', '模型')}</span></div>
-        `;
+        gmCallsChip = `<div class="act-stat" data-tooltip="${tBi('Total LLM API calls (GM precise)', 'LLM API 调用总次数（GM）')}"><span class="act-stat-icon">${iconCalls}</span><span class="act-stat-val">${gm.totalCalls} <span class="gm-badge-real">GM</span></span><span class="act-stat-label">${tBi('Calls', '调用')}</span></div>`;
     }
-
-    // Session duration
-    let durText = '';
-    try {
-        const ms = Date.now() - new Date(s.sessionStartTime).getTime();
-        if (ms > 0) {
-            const mins = Math.floor(ms / 60000);
-            const hrs = Math.floor(mins / 60);
-            durText = hrs > 0 ? `${hrs}h${mins % 60}m` : `${mins}m`;
-        }
-    } catch { durText = '-'; }
 
     // GM vs CHECKPOINT token selection
     const hasGM = (s.gmTotalInputTokens || 0) > 0;
@@ -1848,25 +1800,26 @@ function buildSummaryBar(s: ActivitySummary | null, gm: GMSummary | null, curren
         : tBi('Cumulative output tokens generated', '累计生成的输出 token 数');
     const gmTag = hasGM ? ' <span class="act-badge" style="color:var(--color-ok)">GM</span>' : '';
 
-    // Cache card (only when GM data available)
+    // Cache chip
     const cacheTokens = s.gmTotalCacheRead || 0;
-    const cacheCard = cacheTokens > 0 ? `<div class="act-stat" data-tooltip="${tBi('GM cache read tokens', 'GM 缓存读取 token')}"><span class="act-stat-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12H2"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg></span><span class="act-stat-val">${fmt(cacheTokens)}${gmTag}</span><span class="act-stat-label">${tBi('Cache', '缓存')}</span></div>` : '';
+    const cacheChip = cacheTokens > 0 ? `<div class="act-stat" data-tooltip="${tBi('GM cache read tokens', 'GM 缓存读取 token')}"><span class="act-stat-icon">${iconCache}</span><span class="act-stat-val">${fmt(cacheTokens)}${gmTag}</span><span class="act-stat-label">${tBi('Cache', '缓存')}</span></div>` : '';
 
-    // Credits card (only when GM data available)
+    // Credits chip
     const credits = s.gmTotalCredits || 0;
-    const creditsCard = credits > 0 ? `<div class="act-stat" data-tooltip="${tBi('GM credits consumed', 'GM 消耗的 credits')}"><span class="act-stat-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></span><span class="act-stat-val">${credits.toFixed(1)}${gmTag}</span><span class="act-stat-label">Credits</span></div>` : '';
+    const creditsChip = credits > 0 ? `<div class="act-stat" data-tooltip="${tBi('GM credits consumed', 'GM 消耗的 credits')}"><span class="act-stat-icon">${iconCredits}</span><span class="act-stat-val">${credits.toFixed(1)}${gmTag}</span><span class="act-stat-label">Credits</span></div>` : '';
+
+    // Tool output chip
+    const toolOutChip = s.totalToolReturnTokens > 0 ? `<div class="act-stat" data-tooltip="${tBi('Tokens returned by tool calls', '工具调用返回的 token 数')}"><span class="act-stat-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 14l-4-4 4-4"/><path d="M5 10h11a4 4 0 0 1 0 8h-1"/></svg></span><span class="act-stat-val">${fmt(s.totalToolReturnTokens)}</span><span class="act-stat-label">${tBi('Tool Out', '工具输出')}</span></div>` : '';
 
     return `
     <div class="act-summary-bar">
-        ${gmStatCards}
-        ${durText ? `<div class="act-stat" data-tooltip="${tBi('Total time since extension activation', '从插件激活起累计的会话时长')}"><span class="act-stat-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span><span class="act-stat-val">${durText}</span><span class="act-stat-label">${tBi('Session', '会话')}</span></div>` : ''}
-        <div class="act-stat" data-tooltip="${tBi('Total user messages sent', '用户发送的消息总数')}"><span class="act-stat-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><span class="act-stat-val">${s.totalUserInputs}</span><span class="act-stat-label">${tBi('Msgs', '消息')}</span></div>
-        <div class="act-stat" data-tooltip="${inTooltip}"><span class="act-stat-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M5 10l7 7 7-7"/></svg></span><span class="act-stat-val">${fmt(inTokens)}${gmTag}</span><span class="act-stat-label">${tBi('In', '输入')}</span></div>
-        <div class="act-stat" data-tooltip="${outTooltip}"><span class="act-stat-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21V9M5 14l7-7 7 7"/></svg></span><span class="act-stat-val">${fmt(outTokens)}${gmTag}</span><span class="act-stat-label">${tBi('Out', '输出')}</span></div>
-        ${s.totalToolReturnTokens > 0 ? `<div class="act-stat" data-tooltip="${tBi('Tokens returned by tool calls', '工具调用返回的 token 数')}"><span class="act-stat-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 14l-4-4 4-4"/><path d="M5 10h11a4 4 0 0 1 0 8h-1"/></svg></span><span class="act-stat-val">${fmt(s.totalToolReturnTokens)}</span><span class="act-stat-label">${tBi('Tool Output', '工具输出')}</span></div>` : ''}
-        ${cacheCard}
-        ${creditsCard}
-        ${(() => { if (!gm) return ''; const errTotal = Object.values(gm.retryErrorCodes || {}).reduce((a, b) => a + b, 0); if (errTotal <= 0 && gm.totalRetryCount <= 0) return ''; const byConv = gm.retryErrorCodesByConv || {}; const convCount = Object.keys(byConv).length; const currentConvErrs: Record<string, number> = (currentCascadeId && convCount > 1) ? (byConv[currentCascadeId] || {}) : {}; const convDelta = Object.values(currentConvErrs).reduce((a, b) => a + b, 0); const errCodes = Object.entries(gm.retryErrorCodes || {}).sort((a, b) => b[1] - a[1]).map(([c, n]) => { const d = currentConvErrs[c] || 0; return d > 0 ? `${c} ×${n} (+${d})` : `${c} ×${n}`; }).join(', '); const wasteInfo = gm.totalRetryTokens > 0 ? ` | ${fmt(gm.totalRetryTokens)} ${tBi('tokens wasted', 'token 浪费')}` : ''; const tipText = errCodes ? `${errCodes}${wasteInfo}` : `${gm.totalRetryCount} ${tBi('retries', '重试')}${wasteInfo}`; const deltaHtml = convDelta > 0 ? ` <span style="color:#f87171;font-size:0.75em;font-weight:600">+${convDelta}</span>` : ''; return `<div class="act-stat act-stat-warn" data-tooltip="${esc(tipText)}"><span class="act-stat-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></span><span class="act-stat-val">${errTotal > 0 ? errTotal : gm.totalRetryCount}${deltaHtml} <span class="gm-badge-real">GM</span></span><span class="act-stat-label">${tBi('Errors', '报错')}</span></div>`; })()}
+        ${gmCallsChip}
+        <div class="act-stat" data-tooltip="${inTooltip}"><span class="act-stat-icon">${iconIn}</span><span class="act-stat-val">${fmt(inTokens)}${gmTag}</span><span class="act-stat-label">${tBi('In', '输入')}</span></div>
+        <div class="act-stat" data-tooltip="${outTooltip}"><span class="act-stat-icon">${iconOut}</span><span class="act-stat-val">${fmt(outTokens)}${gmTag}</span><span class="act-stat-label">${tBi('Out', '输出')}</span></div>
+        ${toolOutChip}
+        ${cacheChip}
+        ${creditsChip}
+        ${gm ? buildErrorChip(gm) : ''}
     </div>`;
 }
 
@@ -1993,15 +1946,7 @@ function buildModelCards(s: ActivitySummary | null, gm: GMSummary | null, active
         : '';
     let html = `<h2 class="act-section-title"><svg class="act-icon" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>${tBi('Model Stats', '模型统计')}${errToggleBtn}</h2>`;
 
-    // Accuracy note: shown when estimated steps exist
-    const totalEst = entries.reduce((a, [, ms]) => a + ms.estSteps, 0);
-    if (totalEst > 0) {
-        const estSvg = `<svg class="act-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>`;
-        html += `<div class="act-dist-note">${tBi(
-            `Reasoning, tool calls, and error counts are precisely recorded. ${totalEst} steps beyond API window are estimated — see ${estSvg} Est. above.`,
-            `推理回复、工具调用、错误等数据为精准记录；其中 ${totalEst} 步超出 API 窗口范围，为估算值（详见上方 ${estSvg} 推算）。`
-        )}</div>`;
-    }
+
 
     html += `<div class="act-cards-grid">`;
     const gmBreak = gmBreakEarly;
