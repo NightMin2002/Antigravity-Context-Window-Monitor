@@ -6,6 +6,7 @@ import { tBi, getLanguage } from './i18n';
 import { DailyStore, DailyRecord, DailyCycleEntry, MonthCellSummary, ModelCycleStats, GMModelCycleStats } from './daily-store';
 import { ICON } from './webview-icons';
 import { esc, formatShortTime, formatDuration } from './webview-helpers';
+import { normalizeModelDisplayName } from './models';
 
 // ─── SVG Icons ───────────────────────────────────────────────────────────────
 
@@ -832,7 +833,8 @@ function buildDayDetail(record: DailyRecord, dateStr: string): string {
         totalGMCredits += c.gmTotalCredits || 0;
 
         if (c.modelStats) {
-            for (const [name, ms] of Object.entries(c.modelStats)) {
+            for (const [rawName, ms] of Object.entries(c.modelStats)) {
+                const name = normalizeModelDisplayName(rawName) || rawName;
                 const m = mergedModel[name] || (mergedModel[name] = { reasoning: 0, toolCalls: 0, errors: 0, estSteps: 0, inputTokens: 0, outputTokens: 0 });
                 m.reasoning += ms.reasoning;
                 m.toolCalls += ms.toolCalls;
@@ -844,7 +846,8 @@ function buildDayDetail(record: DailyRecord, dateStr: string): string {
         }
 
         if (c.gmModelStats) {
-            for (const [name, gm] of Object.entries(c.gmModelStats)) {
+            for (const [rawName, gm] of Object.entries(c.gmModelStats)) {
+                const name = normalizeModelDisplayName(rawName) || rawName;
                 const g = mergedGM[name] || (mergedGM[name] = { calls: 0, credits: 0, inputTokens: 0, outputTokens: 0, thinkingTokens: 0, ttftSum: 0, ttftWeight: 0, cacheSum: 0, cacheWeight: 0, cost: 0 });
                 g.calls += gm.calls;
                 g.credits += gm.credits;
@@ -968,7 +971,7 @@ function buildCycleCard(cycle: DailyCycleEntry, index: number): string {
     );
 
     const modelChips = cycle.modelNames
-        .map(m => `<span class="cal-model-chip">${esc(m)}</span>`)
+        .map(m => `<span class="cal-model-chip">${esc(normalizeModelDisplayName(m) || m)}</span>`)
         .join('');
 
     const stats: string[] = [];
@@ -1012,7 +1015,8 @@ function buildPerModelRows(modelStats?: Record<string, ModelCycleStats>): string
     if (!modelStats || Object.keys(modelStats).length === 0) { return ''; }
 
     let html = '<div class="cal-model-rows">';
-    for (const [name, ms] of Object.entries(modelStats)) {
+    for (const [rawName, ms] of Object.entries(modelStats)) {
+        const name = normalizeModelDisplayName(rawName) || rawName;
         const chips: string[] = [];
         if (ms.reasoning > 0) {
             chips.push(`<span class="cal-chip cal-chip-reasoning">${CAL_ICON.brain} ${ms.reasoning}</span>`);
@@ -1047,7 +1051,8 @@ function buildGMModelRows(gmModelStats?: Record<string, GMModelCycleStats>): str
     let html = '<div class="cal-model-rows">';
     html += `<div class="cal-gm-section-label">GM ${tBi('Breakdown', '明细')}</div>`;
 
-    for (const [name, ms] of Object.entries(gmModelStats)) {
+    for (const [rawName, ms] of Object.entries(gmModelStats)) {
+        const name = normalizeModelDisplayName(rawName) || rawName;
         const chips: string[] = [];
         if (ms.calls > 0) {
             chips.push(`<span class="cal-chip cal-chip-tools">${CAL_ICON.calls} ${ms.calls} ${tBi('calls', '调用')}</span>`);

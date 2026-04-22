@@ -5,6 +5,7 @@
 
 import type { ActivityArchive, ActivitySummary } from './activity-tracker';
 import type { GMSummary, GMModelStats } from './gm-tracker';
+import { normalizeModelDisplayName } from './models';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -362,7 +363,8 @@ export class DailyStore {
 
                 // Aggregate per-model from gmModelStats
                 if (cycle.gmModelStats) {
-                    for (const [name, gms] of Object.entries(cycle.gmModelStats)) {
+                    for (const [rawName, gms] of Object.entries(cycle.gmModelStats)) {
+                        const name = normalizeModelDisplayName(rawName) || rawName;
                         let entry = models.get(name);
                         if (!entry) {
                             entry = { name, totalCost: 0, calls: 0, inputTokens: 0, outputTokens: 0, thinkingTokens: 0, credits: 0 };

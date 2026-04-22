@@ -740,7 +740,8 @@ export function buildModelDNACards(
     for (const entry of entries) {
         const current = entry.current?.[1];
         const persistedEntry = entry.persisted;
-        const name = entry.current?.[0] || persistedEntry?.displayName || entry.key;
+        const rawName = entry.current?.[0] || persistedEntry?.displayName || entry.key;
+        const name = normalizeModelDisplayName(rawName) || rawName;
         const config = configByLabel.get(normalizeModelDisplayName(name) || name);
         const provider = current?.apiProvider || persistedEntry?.apiProvider || '';
         const providerShort = provider.replace('API_PROVIDER_', '').replace(/_/g, ' ');
@@ -869,37 +870,37 @@ function buildCostSummary(rows: import('./pricing-store').ModelCostRow[], grandT
             </div>
             <div class="prc-cost-card-body">
                 <div class="prc-cost-item" data-tooltip="${tBi(
-                    `${fmt(r.inputTokens)} tok × $${r.pricing.input}/M`,
-                    `${fmt(r.inputTokens)} 令牌 × $${r.pricing.input}/百万`,
-                )}">
+            `${fmt(r.inputTokens)} tok × $${r.pricing.input}/M`,
+            `${fmt(r.inputTokens)} 令牌 × $${r.pricing.input}/百万`,
+        )}">
                     <span class="prc-cost-item-label"><span class="prc-cost-item-dot" style="background:#60a5fa"></span>${tBi('Input', '输入')}</span>
                     <span class="prc-cost-item-val">${fmtUsd(r.inputCost)}</span>
                 </div>
                 <div class="prc-cost-item" data-tooltip="${tBi(
-                    `${fmt(r.outputTokens)} tok × $${r.pricing.output}/M`,
-                    `${fmt(r.outputTokens)} 令牌 × $${r.pricing.output}/百万`,
-                )}">
+            `${fmt(r.outputTokens)} tok × $${r.pricing.output}/M`,
+            `${fmt(r.outputTokens)} 令牌 × $${r.pricing.output}/百万`,
+        )}">
                     <span class="prc-cost-item-label"><span class="prc-cost-item-dot" style="background:#2dd4bf"></span>${tBi('Output', '输出')}</span>
                     <span class="prc-cost-item-val">${fmtUsd(r.outputCost)}</span>
                 </div>
                 <div class="prc-cost-item" data-tooltip="${tBi(
-                    `${fmt(r.cacheTokens)} tok × $${r.pricing.cacheRead}/M`,
-                    `${fmt(r.cacheTokens)} 令牌 × $${r.pricing.cacheRead}/百万`,
-                )}">
+            `${fmt(r.cacheTokens)} tok × $${r.pricing.cacheRead}/M`,
+            `${fmt(r.cacheTokens)} 令牌 × $${r.pricing.cacheRead}/百万`,
+        )}">
                     <span class="prc-cost-item-label"><span class="prc-cost-item-dot" style="background:#22d3ee"></span>${tBi('Cache Read', '缓存读取')}</span>
                     <span class="prc-cost-item-val">${fmtUsd(r.cacheCost)}</span>
                 </div>
                 <div class="prc-cost-item" data-tooltip="${tBi(
-                    `${fmt(r.cacheWriteTokens)} tok × $${r.pricing.cacheWrite}/M`,
-                    `${fmt(r.cacheWriteTokens)} 令牌 × $${r.pricing.cacheWrite}/百万`,
-                )}">
+            `${fmt(r.cacheWriteTokens)} tok × $${r.pricing.cacheWrite}/M`,
+            `${fmt(r.cacheWriteTokens)} 令牌 × $${r.pricing.cacheWrite}/百万`,
+        )}">
                     <span class="prc-cost-item-label"><span class="prc-cost-item-dot" style="background:#22d3ee"></span>${tBi('Cache Write', '缓存写入')}</span>
                     <span class="prc-cost-item-val">${fmtUsd(r.cacheWriteCost)}</span>
                 </div>
                 ${r.thinkingTokens > 0 ? `<div class="prc-cost-item" data-tooltip="${tBi(
-                    `${fmt(r.thinkingTokens)} tok × $${r.pricing.thinking}/M`,
-                    `${fmt(r.thinkingTokens)} 令牌 × $${r.pricing.thinking}/百万`,
-                )}">
+            `${fmt(r.thinkingTokens)} tok × $${r.pricing.thinking}/M`,
+            `${fmt(r.thinkingTokens)} 令牌 × $${r.pricing.thinking}/百万`,
+        )}">
                     <span class="prc-cost-item-label"><span class="prc-cost-item-dot" style="background:#fb923c"></span>${tBi('Thinking', '思考')}</span>
                     <span class="prc-cost-item-val">${fmtUsd(r.thinkingCost)}</span>
                 </div>` : ''}
@@ -918,11 +919,11 @@ function buildCostSummary(rows: import('./pricing-store').ModelCostRow[], grandT
 // ─── Editable Pricing (Card-based) ───────────────────────────────────────────
 
 const FIELD_LABELS: Record<string, [string, string]> = {
-    input:      ['Input',       '输入'],
-    output:     ['Output',      '输出'],
-    cacheRead:  ['Cache Read',  '缓存读取'],
+    input: ['Input', '输入'],
+    output: ['Output', '输出'],
+    cacheRead: ['Cache Read', '缓存读取'],
     cacheWrite: ['Cache Write', '缓存写入'],
-    thinking:   ['Thinking',    '思考'],
+    thinking: ['Thinking', '思考'],
 };
 
 function buildEditablePricingTable(
@@ -1022,8 +1023,8 @@ function buildDefaultPricingTable(
 
 // ─── Monthly Cost Summary Builder ────────────────────────────────────────────
 
-const MONTH_NAMES_EN = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-const MONTH_NAMES_ZH = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+const MONTH_NAMES_EN = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const MONTH_NAMES_ZH = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
 
 const CALENDAR_LINK_ICON = '<svg viewBox="0 0 16 16" width="12" height="12"><path fill="currentColor" d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5M1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4z"/></svg>';
 const DOLLAR_ICON = '<svg viewBox="0 0 16 16" width="14" height="14"><path fill="currentColor" d="M4 10.781c.148 1.667 1.513 2.85 3.591 3.003V15h1.043v-1.216c2.27-.179 3.678-1.438 3.678-3.3 0-1.59-.947-2.51-2.956-3.028l-.722-.187V3.467c1.122.11 1.879.714 2.07 1.616h1.47c-.166-1.6-1.54-2.748-3.54-2.875V1H7.591v1.233c-1.939.23-3.27 1.472-3.27 3.156 0 1.454.966 2.483 2.661 2.917l.61.162v4.031c-1.149-.17-1.94-.8-2.131-1.718zm3.391-3.836c-1.043-.263-1.6-.825-1.6-1.616 0-.944.704-1.641 1.8-1.828v3.495zM8.634 8.1C9.858 8.418 10.44 9 10.44 9.89c0 1.12-.789 1.816-2.007 1.931V8.1z"/></svg>';
@@ -1057,8 +1058,9 @@ function buildMonthlyCostSummary(
 
     // 1. Archived cycles from DailyStore
     for (const m of breakdown.models) {
-        mergedModels.set(m.name, {
-            name: m.name,
+        const cleanName = normalizeModelDisplayName(m.name) || m.name;
+        mergedModels.set(cleanName, {
+            name: cleanName,
             totalCost: m.totalCost,
             calls: m.calls,
             inputTokens: m.inputTokens,
@@ -1070,7 +1072,7 @@ function buildMonthlyCostSummary(
     // 2. Current live cycle (not yet archived)
     if (isCurrentMonth && currentCycleRows.length > 0) {
         for (const row of currentCycleRows) {
-            const key = row.name;
+            const key = normalizeModelDisplayName(row.name) || row.name;
             const existing = mergedModels.get(key);
             if (existing) {
                 existing.totalCost += row.totalCost;

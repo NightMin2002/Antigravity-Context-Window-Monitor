@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { GMSummary, GMTrackerState } from '../src/gm-tracker';
 import { filterGMSummaryByModels, GMTracker, pickPromptSnippet } from '../src/gm-tracker';
-import type { ModelConfig } from '../src/models';
+import { updateModelDisplayNames, type ModelConfig } from '../src/models';
 import type { QuotaSession } from '../src/quota-tracker';
 import { initI18nFromState } from '../src/i18n';
 
@@ -14,6 +14,15 @@ function setLanguage(lang: 'zh' | 'en' | 'both') {
 describe('filterGMSummaryByModels', () => {
     beforeEach(() => {
         setLanguage('both');
+        // Seed dynamic model display names (API-driven, no hardcoded fallback)
+        updateModelDisplayNames([
+            { model: 'MODEL_PLACEHOLDER_M37', label: 'Gemini 3.1 Pro (High)', supportsImages: false, allowedTiers: [], mimeTypeCount: 0, isRecommended: false, supportedMimeTypes: [] },
+            { model: 'MODEL_PLACEHOLDER_M36', label: 'Gemini 3.1 Pro (Low)', supportsImages: false, allowedTiers: [], mimeTypeCount: 0, isRecommended: false, supportedMimeTypes: [] },
+            { model: 'MODEL_PLACEHOLDER_M47', label: 'Gemini 3 Flash', supportsImages: false, allowedTiers: [], mimeTypeCount: 0, isRecommended: false, supportedMimeTypes: [] },
+            { model: 'MODEL_PLACEHOLDER_M35', label: 'Claude Sonnet 4.6 (Thinking)', supportsImages: false, allowedTiers: [], mimeTypeCount: 0, isRecommended: false, supportedMimeTypes: [] },
+            { model: 'MODEL_PLACEHOLDER_M26', label: 'Claude Opus 4.6 (Thinking)', supportsImages: false, allowedTiers: [], mimeTypeCount: 0, isRecommended: false, supportedMimeTypes: [] },
+            { model: 'MODEL_OPENAI_GPT_OSS_120B_MEDIUM', label: 'GPT-OSS 120B (Medium)', supportsImages: false, allowedTiers: [], mimeTypeCount: 0, isRecommended: false, supportedMimeTypes: [] },
+        ]);
     });
 
     it('starts fresh instances in baseline mode so first install does not count historical GM calls', () => {
@@ -176,198 +185,9 @@ describe('filterGMSummaryByModels', () => {
         expect(filtered?.modelBreakdown['Claude Sonnet']?.placeholderOnlyCalls).toBe(0);
     });
 
-    it('normalizes restored GM summaries so legacy English and Chinese keys collapse into the current language', () => {
-        setLanguage('zh');
 
-        const state: GMTrackerState = {
-            version: 1,
-            baselines: { 'conv-locale': 2 },
-            callBaselines: {},
-            summary: {
-                conversations: [
-                    {
-                        cascadeId: 'conv-locale',
-                        title: 'Gemini locale test',
-                        totalSteps: 2,
-                        coveredSteps: 2,
-                        coverageRate: 1,
-                        lifetimeCalls: 2,
-                        calls: [
-                            {
-                                stepIndices: [1],
-                                executionId: 'a',
-                                model: 'MODEL_PLACEHOLDER_M37',
-                                modelDisplay: 'Gemini 3.1 Pro (High)',
-                                responseModel: 'gemini-3.1-pro-high',
-                                modelAccuracy: 'exact',
-                                inputTokens: 100,
-                                outputTokens: 50,
-                                thinkingTokens: 10,
-                                responseTokens: 40,
-                                cacheReadTokens: 5,
-                                cacheCreationTokens: 0,
-                                apiProvider: 'API_PROVIDER_GOOGLE_GEMINI',
-                                ttftSeconds: 1,
-                                streamingSeconds: 2,
-                                credits: 3,
-                                creditType: 'prompt',
-                                hasError: false,
-                                errorMessage: '',
-                                contextTokensUsed: 150,
-                                completionConfig: null,
-                                systemPromptSnippet: '',
-                                toolCount: 0,
-                                toolNames: [],
-                                promptSectionTitles: [],
-                                promptSnippet: '',
-                                promptSource: 'none',
-                                messagePromptCount: 0,
-                                messageMetadataKeys: [],
-                                responseHeaderKeys: [],
-                                userMessageAnchors: [],
-                                retries: 0,
-                                stopReason: 'STOP_REASON_END_TURN',
-                                retryTokensIn: 0,
-                                retryTokensOut: 0,
-                                retryCredits: 0,
-                                retryErrors: [],
-                                timeSinceLastInvocation: 0,
-                                tokenBreakdownGroups: [],
-                                createdAt: '',
-                                latestStableMessageIndex: 0,
-                                startStepIndex: 0,
-                                checkpointIndex: 0,
-                            },
-                            {
-                                stepIndices: [2],
-                                executionId: 'b',
-                                model: 'MODEL_PLACEHOLDER_M37',
-                                modelDisplay: 'Gemini 3.1 Pro (强)',
-                                responseModel: 'gemini-3.1-pro-high',
-                                modelAccuracy: 'exact',
-                                inputTokens: 200,
-                                outputTokens: 80,
-                                thinkingTokens: 20,
-                                responseTokens: 60,
-                                cacheReadTokens: 0,
-                                cacheCreationTokens: 0,
-                                apiProvider: 'API_PROVIDER_GOOGLE_GEMINI',
-                                ttftSeconds: 2,
-                                streamingSeconds: 3,
-                                credits: 4,
-                                creditType: 'prompt',
-                                hasError: false,
-                                errorMessage: '',
-                                contextTokensUsed: 280,
-                                completionConfig: null,
-                                systemPromptSnippet: '',
-                                toolCount: 0,
-                                toolNames: [],
-                                promptSectionTitles: [],
-                                promptSnippet: '',
-                                promptSource: 'none',
-                                messagePromptCount: 0,
-                                messageMetadataKeys: [],
-                                responseHeaderKeys: [],
-                                userMessageAnchors: [],
-                                retries: 0,
-                                stopReason: 'STOP_REASON_END_TURN',
-                                retryTokensIn: 0,
-                                retryTokensOut: 0,
-                                retryCredits: 0,
-                                retryErrors: [],
-                                timeSinceLastInvocation: 0,
-                                tokenBreakdownGroups: [],
-                                createdAt: '',
-                                latestStableMessageIndex: 0,
-                                startStepIndex: 0,
-                                checkpointIndex: 0,
-                            },
-                        ],
-                    },
-                ],
-                modelBreakdown: {
-                    'Gemini 3.1 Pro (High)': {
-                        callCount: 1,
-                        stepsCovered: 1,
-                        totalInputTokens: 100,
-                        totalOutputTokens: 50,
-                        totalThinkingTokens: 10,
-                        totalCacheRead: 5,
-                        totalCacheCreation: 0,
-                        totalCredits: 3,
-                        avgTTFT: 1,
-                        minTTFT: 1,
-                        maxTTFT: 1,
-                        avgStreaming: 2,
-                        cacheHitRate: 1,
-                        responseModel: 'gemini-3.1-pro-high',
-                        apiProvider: 'API_PROVIDER_GOOGLE_GEMINI',
-                        completionConfig: null,
-                        hasSystemPrompt: false,
-                        toolCount: 0,
-                        promptSectionTitles: [],
-                        totalRetries: 0,
-                        errorCount: 0,
-                        exactCallCount: 1,
-                        placeholderOnlyCalls: 0,
-                    },
-                    'Gemini 3.1 Pro (强)': {
-                        callCount: 1,
-                        stepsCovered: 1,
-                        totalInputTokens: 200,
-                        totalOutputTokens: 80,
-                        totalThinkingTokens: 20,
-                        totalCacheRead: 0,
-                        totalCacheCreation: 0,
-                        totalCredits: 4,
-                        avgTTFT: 2,
-                        minTTFT: 2,
-                        maxTTFT: 2,
-                        avgStreaming: 3,
-                        cacheHitRate: 0,
-                        responseModel: 'gemini-3.1-pro-high',
-                        apiProvider: 'API_PROVIDER_GOOGLE_GEMINI',
-                        completionConfig: null,
-                        hasSystemPrompt: false,
-                        toolCount: 0,
-                        promptSectionTitles: [],
-                        totalRetries: 0,
-                        errorCount: 0,
-                        exactCallCount: 1,
-                        placeholderOnlyCalls: 0,
-                    },
-                },
-                totalCalls: 2,
-                totalStepsCovered: 2,
-                totalCredits: 7,
-                totalInputTokens: 300,
-                totalOutputTokens: 130,
-                totalCacheRead: 5,
-                totalCacheCreation: 0,
-                totalThinkingTokens: 30,
-                contextGrowth: [],
-                fetchedAt: '2026-03-26T06:00:00.000Z',
-                totalRetryTokens: 0,
-                totalRetryCredits: 0,
-                totalRetryCount: 0,
-                latestTokenBreakdown: [],
-                stopReasonCounts: {},
-            },
-        };
-
-        const tracker = GMTracker.restore(state);
-        const summary = tracker.getCachedSummary();
-        const zhName = 'Gemini 3.1 Pro (强)';
-
-        expect(summary).not.toBeNull();
-        expect(Object.keys(summary?.modelBreakdown || {})).toEqual([zhName]);
-        expect(summary?.modelBreakdown[zhName]?.callCount).toBe(2);
-        expect(summary?.conversations[0].calls.every(call => call.modelDisplay === zhName)).toBe(true);
-    });
 
     it('repairs detailed summaries by pruning calls that belong to already-archived quota cycles', () => {
-        setLanguage('zh');
 
         const tracker = new GMTracker();
         const configs: ModelConfig[] = [
@@ -558,7 +378,7 @@ describe('filterGMSummaryByModels', () => {
         expect(repaired?.totalCalls).toBe(1);
         expect(repaired?.conversations[0].calls).toHaveLength(1);
         expect(repaired?.conversations[0].calls[0].executionId).toBe('new-call');
-        expect(repaired?.modelBreakdown['Gemini 3.1 Pro (强)']?.callCount).toBe(1);
+        expect(repaired?.modelBreakdown['Gemini 3.1 Pro (High)']?.callCount).toBe(1);
         expect(state.archivedCallIds).toContain('old-call');
     });
 

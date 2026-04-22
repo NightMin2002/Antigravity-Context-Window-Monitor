@@ -8,6 +8,63 @@
 
 ---
 
+## [1.17.8] - 2026-04-22
+
+### 重构 / Refactored
+
+- **模型标识系统现代化 / Model Identity System Modernization**:
+  从硬编码 i18n 显示名映射（`en`/`zh` 双语键）迁移为纯 API 驱动的动态命名架构。LS API `GetUserStatus` 返回的 `label` 字段成为唯一命名来源，`updateModelDisplayNames()` 在每次 API 轮询时动态填充 `modelDisplayNames` Record。
+
+  Migrated from hardcoded i18n display name mappings (`en`/`zh` keys) to a purely API-driven dynamic naming architecture. The LS API `GetUserStatus` `label` field is now the single source of truth, dynamically populated via `updateModelDisplayNames()` on each API poll.
+
+  **关键变更 / Key Changes**:
+  | 维度 | 改前 | 改后 |
+  |------|------|------|
+  | 数据源 | 静态 `modelDisplayNames` 对象（`en`/`zh` 双键） | 动态 `Record<string, string>`，API 轮询时填充 |
+  | i18n 依赖 | `tBi` + `getLanguage()` 选择语言 | 无 i18n 依赖，直接使用 API label |
+  | 旧数据兼容 | 无 | `LEGACY_ZH_MODEL_NAMES` 映射表，自动清洗持久化中文名 |
+
+- **持久化数据运行时清洗 / Runtime Data Normalization**:
+  所有从 DailyStore / Model DNA / PricingStore 读取持久化数据的 UI 路径均集成 `normalizeModelDisplayName()` 运行时清洗，无需破坏性迁移已存储的 JSON 数据。
+
+  All UI paths reading persisted data from DailyStore / Model DNA / PricingStore now apply `normalizeModelDisplayName()` at render time, avoiding destructive migration of stored JSON data.
+
+  **覆盖路径 / Normalized Paths**:
+  - `webview-calendar-tab.ts` — `buildPerModelRows` / `buildGMModelRows` / `buildMergedModelRows` / `buildMergedGMRows` / model chip
+  - `daily-store.ts` — `getMonthCostBreakdown()` 聚合
+  - `pricing-panel.ts` — `buildMonthlyCostSummary()` 合并 + `buildModelDNACards()` 卡片名
+  - `model-dna-store.ts` — `clonePersistedEntry()` / `buildPersistedEntry()` / `restoreModelDNAState()`
+
+### 新增 / Added
+
+- **`LEGACY_ZH_MODEL_NAMES` 遗留映射 / Legacy Chinese Name Mapping**:
+  `models.ts` 新增静态映射表，将 5 个已知中文模型名（如 `Gemini 3.1 Pro (强)` → `MODEL_PLACEHOLDER_M37`）解析回 canonical model ID。`resolveModelId()` 在动态 map 查找失败后回退至此表，确保历史数据无缝归一化。
+
+  New static mapping resolving 5 known Chinese model display names back to canonical model IDs. Used as fallback in `resolveModelId()` when dynamic map lookup fails.
+
+### 移除 / Removed
+
+- **i18n 模型名依赖 / i18n Model Name Dependencies**:
+  - `models.ts` 中移除 `tBi` 导入和所有 `zh` 字段映射
+  - 测试文件移除 `setLanguage('zh')` 调用和跨语言合并测试
+  - `extension.ts` 注释中的中文模型名示例替换为英文
+
+### 清理 / Cleanup
+
+- **测试用例更新 / Test Suite Updates**:
+  - `model-dna-store.test.ts` — 改用 `updateModelDisplayNames()` 注入动态名称
+  - `gm-tracker.test.ts` — 移除跨语言 GM 恢复测试，`beforeEach` 注入英文名
+  - `activity-tracker.test.ts` — 移除跨语言模型桶合并测试
+
+### 统计 / Stats
+
+- **Files changed**: 7 (`src/models.ts`, `src/daily-store.ts`, `src/pricing-panel.ts`, `src/extension.ts`, `src/webview-calendar-tab.ts`, `tests/model-dna-store.test.ts`, `tests/gm-tracker.test.ts`, `tests/activity-tracker.test.ts`)
+- **TypeScript compile**: Zero errors
+- **Tests**: 15/15 passed (model-dna-store, gm-tracker, activity-tracker)
+- **Key design**: 持久化数据不做破坏性迁移，渲染层运行时清洗；`LEGACY_ZH_MODEL_NAMES` 作为有限回退表兜底历史数据
+
+---
+
 ## [1.17.7] - 2026-04-22
 
 ### 重构 / Refactored

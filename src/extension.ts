@@ -321,7 +321,7 @@ function updateAccountSnapshot(
     // If any model in a pool has been called by THIS account, the pool is "used".
     //
     // Match by model ID (language-independent), NOT display name.
-    // e.g. pool has "Gemini 3.1 Pro (High)" but call.modelDisplay is "Gemini 3.1 Pro (强)"
+    // e.g. pool has "Gemini 3.1 Pro (High)" but call.modelDisplay may differ
     //      both share model ID "MODEL_PLACEHOLDER_M37" — this always matches.
     const usedModelIds = buildUsedModelIds(email);
     if (usedModelIds.size > 0) {

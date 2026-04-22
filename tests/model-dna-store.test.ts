@@ -1,22 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import type { GMSummary } from '../src/gm-tracker';
 import { mergeModelDNAState, restoreModelDNAState, serializeModelDNAState } from '../src/model-dna-store';
-import { initI18nFromState } from '../src/i18n';
-
-function setLanguage(lang: 'zh' | 'en' | 'both') {
-    initI18nFromState({
-        get: () => lang,
-    } as never);
-}
+import { updateModelDisplayNames } from '../src/models';
 
 describe('model-dna-store', () => {
     it('persists static model DNA even when the current cycle summary becomes empty', () => {
-        setLanguage('zh');
+        // Seed dynamic model display names (API-driven)
+        updateModelDisplayNames([
+            { model: 'MODEL_PLACEHOLDER_M37', label: 'Gemini 3.1 Pro (High)', supportsImages: false, allowedTiers: [], mimeTypeCount: 0, isRecommended: false, supportedMimeTypes: [] },
+        ]);
 
         const summary: GMSummary = {
             conversations: [],
             modelBreakdown: {
-                'Gemini 3.1 Pro (强)': {
+                'Gemini 3.1 Pro (High)': {
                     callCount: 3,
                     stepsCovered: 5,
                     totalInputTokens: 1200,
