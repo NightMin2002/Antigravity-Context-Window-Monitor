@@ -386,32 +386,8 @@ export class ActivityTracker {
                     }
                     this._tailRefreshQueue.delete(id);
 
-                    // Any steps beyond API window → delta estimation (fallback)
-                    const beyondApi = currSteps - Math.max(fetchedSteps.length, entry.stepCount);
-                    const estimatedModel = entry.requestedModel || entry.generatorModel || entry.dominantModel;
-                    const estimatedBasis = entry.requestedModel
-                        ? 'summary'
-                        : entry.generatorModel
-                            ? 'generator'
-                            : 'dominant';
-                    if (beyondApi > 0 && estimatedModel) {
-                        const estStart = Math.max(fetchedSteps.length, entry.stepCount);
-                        this._pushEvent({
-                            timestamp: new Date().toISOString(),
-                            icon: '📊',
-                            category: 'reasoning',
-                            model: estimatedModel,
-                            detail: `+${beyondApi} steps (estimated)`,
-                            durationMs: 0,
-                            stepIndex: estStart,
-                            cascadeId: id,
-                            source: 'estimated',
-                            modelBasis: estimatedBasis,
-                            estimatedCount: beyondApi,
-                            estimatedResolved: false,
-                        });
-                        hasChanges = true;
-                    }
+                    // Beyond-API-window steps are now handled purely by GM virtual events.
+                    // No estimated events created — GM is the single source of truth.
                 }
 
                 entry.stepCount = currSteps;
@@ -1150,24 +1126,20 @@ export class ActivityTracker {
         }
         if (!gmSummary) { return false; }
 
-        // Rebuild virtual GM events on every inject to avoid duplicate timeline rows.
-        this._recentSteps = this._recentSteps.filter(ev => ev.source !== 'gm_virtual' && ev.source !== 'gm_user');
+        // ── GM-only Timeline: replace ALL step/estimated events with gm_virtual + gm_user ──
+        // GM data is the single source of truth for the timeline.
+        // This eliminates reliance on processedIndex and fixes the rewind-data-loss bug.
 
-        // Build cascadeId+stepIndex → GMCallEntry lookup from all conversations
-        const gmByStep = new Map<string, GMCallEntry>();
         const virtualEvents: StepEvent[] = [];
         const userAnchorEvents: StepEvent[] = [];
         const seenVirtualKeys = new Set<string>();
         const seenUserAnchors = new Set<string>();
+
         for (const conv of gmSummary.conversations) {
-            for (const call of conv.calls) {
-                for (const idx of call.stepIndices) {
-                    gmByStep.set(buildGMEventKey(conv.cascadeId, idx), call);
-                }
-            }
             const trajEntry = this._trajectories.get(conv.cascadeId);
             const visibleStepCount = trajEntry?.processedIndex || 0;
-            // All GM calls (for unified virtual events)
+
+            // All GM calls with valid step indices → virtual events
             const allCallsForVirtual = conv.calls.filter(call =>
                 call.stepIndices.length > 0
             );
@@ -1191,15 +1163,10 @@ export class ActivityTracker {
                 if (!categoriesByModel[mn]) {
                     categoriesByModel[mn] = { reasoning: 0, toolCalls: 0, errors: 0, userInputs: 0 };
                 }
-                // Skip interrupted calls for category counting
                 if (call.inputTokens === 0 && call.outputTokens === 0) { continue; }
-                // Each non-interrupted GM call = 1 reasoning step (1 LLM invocation)
                 categoriesByModel[mn].reasoning++;
-                // Tool calls = remaining steps in this call (stepIndices minus the PLANNER_RESPONSE itself)
                 categoriesByModel[mn].toolCalls += Math.max(0, call.stepIndices.length - 1);
-                // Errors
                 if (call.hasError) { categoriesByModel[mn].errors++; }
-                // User inputs from anchors
                 for (const anchor of call.userMessageAnchors) {
                     if (anchor.stepIndex < visibleStepCount) { continue; }
                     const uKey = `${conv.cascadeId}:${anchor.stepIndex}`;
@@ -1212,48 +1179,74 @@ export class ActivityTracker {
                 this._reconcileWindowOutsideAttribution(conv.cascadeId, 'gm_recovered', recoveredStepsByModel, categoriesByModel);
             }
 
-            for (const call of sortedOutsideCalls) {
+            // Collect ALL user anchors from ALL GM calls (not just outside-window)
+            for (const call of allCallsForVirtual) {
                 for (const anchor of call.userMessageAnchors) {
-                    if (anchor.stepIndex < visibleStepCount) { continue; }
-                    // Filter out EPHEMERAL/system messages that GM captures as user anchors
                     const anchorText = (anchor.text || '').trim();
+                    // EPHEMERAL messages are system noise — always skip
                     if (anchorText.startsWith('The following is an <EPHEMERAL_MESSAGE>')) { continue; }
-                    if (anchorText.startsWith('Step Id:') && /CHECKPOINT/.test(anchorText)) { continue; }
+
                     const anchorKey = `${conv.cascadeId}:${anchor.stepIndex}`;
                     if (seenUserAnchors.has(anchorKey)) { continue; }
                     seenUserAnchors.add(anchorKey);
-                    // Deduplicate by trimmed text — same user message can appear as
-                    // anchors across multiple GM calls with different stepIndex offsets.
-                    const anchorTextKey = `${conv.cascadeId}:${(anchor.text || '').trim().slice(0, 120)}`;
+                    const anchorTextKey = `${conv.cascadeId}:${anchorText.slice(0, 120)}`;
                     if (seenUserAnchors.has(anchorTextKey)) { continue; }
                     seenUserAnchors.add(anchorTextKey);
-                    const nextCall = sortedOutsideCalls.find(candidate =>
+
+                    const nextCall = allCallsForVirtual.find(candidate =>
                         candidate.stepIndices.length > 0
                         && Math.min(...candidate.stepIndices) > anchor.stepIndex
                     );
                     const anchorTimestamp = nextCall?.createdAt || call.createdAt || '';
-                    userAnchorEvents.push({
-                        timestamp: anchorTimestamp,
-                        icon: '💬',
-                        category: 'user',
-                        model: '',
-                        detail: '',
-                        durationMs: 0,
-                        cascadeId: conv.cascadeId,
-                        source: 'gm_user',
-                        modelBasis: 'gm_exact',
-                        stepIndex: anchor.stepIndex,
-                        userInput: truncate(anchor.text.replace(/\s*\n\s*/g, ' '), 40),
-                        fullUserInput: anchor.text || undefined,
-                    });
+
+                    // Classify system-injected messages vs real user input
+                    const isCheckpoint = anchorText.startsWith('Step Id:') && /CHECKPOINT/.test(anchorText);
+                    const isConvHistory = anchorText.startsWith('# Conversation History');
+                    const isSystemAnchor = isCheckpoint || isConvHistory;
+
+                    if (isSystemAnchor) {
+                        // System injection — show as inline system event (doesn't break segments)
+                        let systemLabel = '';
+                        if (isCheckpoint) {
+                            const cpMatch = anchorText.match(/CHECKPOINT\s*(\d+)/);
+                            systemLabel = cpMatch ? `Checkpoint ${cpMatch[1]}` : 'Checkpoint';
+                        } else if (isConvHistory) {
+                            systemLabel = tBi('Context Injection', '上下文注入');
+                        }
+                        userAnchorEvents.push({
+                            timestamp: anchorTimestamp,
+                            icon: '📋',
+                            category: 'system',
+                            model: '',
+                            detail: systemLabel,
+                            durationMs: 0,
+                            cascadeId: conv.cascadeId,
+                            source: 'gm_user',
+                            modelBasis: 'gm_exact',
+                            stepIndex: anchor.stepIndex,
+                        });
+                    } else {
+                        // Real user message
+                        userAnchorEvents.push({
+                            timestamp: anchorTimestamp,
+                            icon: '💬',
+                            category: 'user',
+                            model: '',
+                            detail: '',
+                            durationMs: 0,
+                            cascadeId: conv.cascadeId,
+                            source: 'gm_user',
+                            modelBasis: 'gm_exact',
+                            stepIndex: anchor.stepIndex,
+                            userInput: truncate(anchor.text.replace(/\s*\n\s*/g, ' '), 40),
+                            fullUserInput: anchor.text || undefined,
+                        });
+                    }
                 }
             }
 
             for (const call of allCallsForVirtual) {
                 const firstIdx = Math.min(...call.stepIndices);
-                // IMPORTANT: one execution round may contain multiple distinct LLM calls.
-                // Deduplicating by executionId collapses real recent activity into a single row.
-                // Use per-call step span as the identity so every GM call can surface.
                 const virtualKey = `${conv.cascadeId}:${call.stepIndices.join(',')}:${call.responseModel || call.model}`;
                 if (seenVirtualKeys.has(virtualKey)) { continue; }
                 seenVirtualKeys.add(virtualKey);
@@ -1293,149 +1286,54 @@ export class ActivityTracker {
             }
         }
 
-        if (gmByStep.size === 0) { return timelineChanged; }
-
-        // Annotate existing StepEvents
-        for (const ev of this._recentSteps) {
-            if (ev.category === 'user') {
-                if (this._sanitizeUserTimelineEvent(ev)) {
-                    timelineChanged = true;
-                }
-                continue;
-            }
-            if (ev.source === 'step' && ev.category !== 'reasoning') {
-                continue;
-            }
-            if (ev.stepIndex === undefined || !ev.cascadeId) { continue; }
-            let gm = gmByStep.get(buildGMEventKey(ev.cascadeId, ev.stepIndex));
-            // Fallback: some PLANNER_RESPONSE steps share an LLM call with adjacent steps
-            // but their stepIndex isn't in GM's stepIndices. Try ±1..3 neighbors.
-            if (!gm && ev.category === 'reasoning') {
-                for (let d = 1; d <= 3 && !gm; d++) {
-                    gm = gmByStep.get(buildGMEventKey(ev.cascadeId, ev.stepIndex + d))
-                        || gmByStep.get(buildGMEventKey(ev.cascadeId, ev.stepIndex - d));
+        // ── GM-only timeline replacement ──
+        // Remove ALL step-source and estimated-source events for conversations that have GM data.
+        // Keep step-source user events ONLY if no gm_user duplicate exists.
+        // Build max GM step per conversation — step events BEYOND this are kept
+        // because GM hasn't captured those calls yet (Steps API is faster than GM API).
+        const maxGMStepByConv = new Map<string, number>();
+        for (const conv of gmSummary.conversations) {
+            let maxStep = -1;
+            for (const call of conv.calls) {
+                for (const idx of call.stepIndices) {
+                    if (idx > maxStep) { maxStep = idx; }
                 }
             }
-            if (!gm) { continue; }
-            // Detect first-time GM annotation → triggers panel refresh
-            if (ev.gmInputTokens === undefined && gm.inputTokens !== undefined) {
-                timelineChanged = true;
-            }
-            ev.gmInputTokens = gm.inputTokens;
-            ev.gmOutputTokens = gm.outputTokens;
-            ev.gmThinkingTokens = gm.thinkingTokens;
-            ev.gmCacheReadTokens = gm.cacheReadTokens;
-            ev.gmCredits = gm.credits;
-            ev.gmTTFT = gm.ttftSeconds;
-            ev.gmStreamingDuration = gm.streamingSeconds;
-            ev.gmRetries = gm.retries;
-            ev.gmRetryHas429 = gm.retryErrors.some(e => e.includes('429') || e.includes('RESOURCE_EXHAUSTED'));
-            ev.gmModel = gm.responseModel || gm.model;
-            ev.gmModelAccuracy = gm.modelAccuracy;
-            ev.gmPromptSnippet = gm.promptSnippet || undefined;
-            ev.gmPromptSource = gm.promptSource;
-            ev.gmExecutionId = gm.executionId || undefined;
-            ev.gmLatestStableMessageIndex = gm.latestStableMessageIndex || undefined;
-            ev.gmStartStepIndex = gm.startStepIndex || undefined;
-            ev.gmContextTokensUsed = gm.contextTokensUsed || undefined;
-            // When GM proves the real model for an estimated/virtual row, the row title
-            // must follow the GM result as well. Otherwise users see "Opus" on the left
-            // but "exact sonnet" in GM tags on the right, which is misleading.
-            if (gm.modelDisplay && (ev.source === 'estimated' || ev.source === 'gm_virtual' || gm.modelAccuracy === 'exact')) {
-                ev.model = normalizeModelDisplayName(gm.modelDisplay || gm.model) || gm.modelDisplay || gm.model;
-            }
-            if (gm.modelAccuracy === 'exact') {
-                ev.modelBasis = 'gm_exact';
-            } else if (ev.source !== 'estimated') {
-                ev.modelBasis = 'gm_placeholder';
-            }
-            if (ev.source === 'estimated' && gm.modelDisplay) {
-                ev.model = normalizeModelDisplayName(gm.modelDisplay || gm.model) || gm.modelDisplay || gm.model;
+            if (maxStep >= 0) {
+                maxGMStepByConv.set(conv.cascadeId, maxStep);
             }
         }
 
-        // Resolve estimated placeholders using nearby recovered GM calls from the same conversation.
-        for (const ev of this._recentSteps) {
-            if (ev.source !== 'estimated' || ev.stepIndex === undefined || !ev.cascadeId || !ev.estimatedCount) {
-                continue;
-            }
-            const conv = gmSummary.conversations.find(item => item.cascadeId === ev.cascadeId);
-            if (!conv) { continue; }
-            const rangeStart = ev.stepIndex;
-            const rangeEnd = ev.stepIndex + ev.estimatedCount + 1; // tolerate LS/GM off-by-one
-            const matchedCalls = conv.calls.filter(call => {
-                if (call.stepIndices.length === 0) { return false; }
-                const firstIdx = Math.min(...call.stepIndices);
-                return firstIdx >= rangeStart && firstIdx <= rangeEnd;
-            });
-            if (matchedCalls.length === 0) { continue; }
-
-            ev.estimatedResolved = true;
-            timelineChanged = true;
-            const modelNames = [...new Set(
-                matchedCalls
-                    .map(call => normalizeModelDisplayName(call.modelDisplay || call.model) || call.modelDisplay || call.model)
-                    .filter(Boolean)
-            )];
-            if (modelNames.length === 1) {
-                ev.model = modelNames[0];
-            }
-            const exactOnly = matchedCalls.every(call => call.modelAccuracy === 'exact');
-            const placeholderOnly = matchedCalls.every(call => call.modelAccuracy === 'placeholder');
-            if (exactOnly) {
-                ev.modelBasis = 'gm_exact';
-            } else if (placeholderOnly) {
-                ev.modelBasis = 'gm_placeholder';
-            }
-            ev.detail = `+${ev.estimatedCount} steps (${matchedCalls.length} GM)`;
-        }
-
-        // Remove resolved estimated events — gm_virtual rows now cover them with richer data.
-        this._recentSteps = this._recentSteps.filter(ev =>
-            ev.source !== 'estimated' || !ev.estimatedResolved
+        const gmConvIds = new Set(gmSummary.conversations.map(c => c.cascadeId));
+        const gmUserTextSet = new Set(
+            userAnchorEvents.map(ev => (ev.userInput || '').trim().slice(0, 120)),
         );
-
-        // Filter gm_user anchors whose text duplicates an existing step-source user event.
-        const stepUserTexts = new Set(
-            this._recentSteps
-                .filter(ev => ev.source === 'step' && ev.category === 'user' && ev.userInput)
-                .map(ev => (ev.userInput || '').trim().slice(0, 120))
-        );
-        const dedupedUserAnchors = userAnchorEvents.filter(ev =>
-            !stepUserTexts.has((ev.userInput || '').trim().slice(0, 120))
-        );
-
-        if (dedupedUserAnchors.length > 0 || virtualEvents.length > 0) {
-            timelineChanged = true;
-
-            // Suppress step-source reasoning/tool events that are now covered by
-            // richer GM virtual events. Use RANGE-based suppression: for each
-            // conversation, find the max stepIndex covered by GM, then suppress
-            // all step-source events with stepIndex <= maxGMStep. This catches
-            // gap steps (CHECKPOINT, ERROR, system) that fall between GM calls.
-            const maxGMStepByConv = new Map<string, number>();
-            for (const conv of gmSummary.conversations) {
-                let maxStep = -1;
-                for (const call of conv.calls) {
-                    for (const idx of call.stepIndices) {
-                        if (idx > maxStep) maxStep = idx;
-                    }
-                }
-                if (maxStep >= 0) {
-                    maxGMStepByConv.set(conv.cascadeId, maxStep);
-                }
+        this._recentSteps = this._recentSteps.filter(ev => {
+            // Keep events from conversations without GM data
+            if (!ev.cascadeId || !gmConvIds.has(ev.cascadeId)) { return true; }
+            // Remove old gm_virtual / gm_user (rebuilt fresh above)
+            if (ev.source === 'gm_virtual' || ev.source === 'gm_user') { return false; }
+            // Remove ALL estimated events
+            if (ev.source === 'estimated') { return false; }
+            // Step-source user events: keep only if no GM duplicate
+            if (ev.source === 'step' && ev.category === 'user') {
+                const userText = (ev.userInput || '').trim().slice(0, 120);
+                return !gmUserTextSet.has(userText);
             }
-            // Remove step-source events whose stepIndex falls within GM coverage range
-            this._recentSteps = this._recentSteps.filter(ev => {
-                if (ev.source !== 'step') return true;
-                if (ev.category === 'user') return true; // keep user events
-                if (ev.stepIndex === undefined || !ev.cascadeId) return true;
+            // Step-source reasoning/tool events: keep only if BEYOND GM coverage
+            // (GM API hasn't caught up yet — Steps API saw it first)
+            if (ev.source === 'step') {
+                if (ev.stepIndex === undefined) { return false; }
                 const maxStep = maxGMStepByConv.get(ev.cascadeId);
-                if (maxStep === undefined) return true; // no GM data for this conv
-                return ev.stepIndex > maxStep; // keep only steps beyond GM coverage
-            });
+                if (maxStep === undefined) { return true; } // GM has conv but no calls yet — keep step
+                return ev.stepIndex > maxStep;
+            }
+            return true;
+        });
 
-            this._recentSteps = [...this._recentSteps, ...dedupedUserAnchors, ...virtualEvents];
+        if (userAnchorEvents.length > 0 || virtualEvents.length > 0) {
+            timelineChanged = true;
+            this._recentSteps = [...this._recentSteps, ...userAnchorEvents, ...virtualEvents];
             this._compactRecentSteps();
         }
 

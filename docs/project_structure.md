@@ -241,9 +241,10 @@ Tracks model activity details: reasoning count, tool usage, token consumption, t
 |---|---|
 | 步骤分类 / Step classification | 22 种步骤类型 → reasoning / tool / user / system |
 | 统一轮询 / Unified poll | Activity 处理已合并至 `pollContextUsage()` 主循环（v1.13.6），复用 trajectory 缓存，消除独立 RPC 调用 |
-| GM 注入 / GM injection | 将 GM 精确 token / cache / credits 注入 Timeline |
+| GM 注入 / GM injection | **GM-only Timeline**（v1.17.7）：`injectGMData()` 作为 Timeline 唯一数据源，全量删除 `step`/`estimated` 事件后用 `gm_virtual`（reasoning）+ `gm_user`（用户锚点）重建。Coverage Boundary 保护：保留 `stepIndex > maxGMStep` 的 step 事件（GM API 延迟时暂显），GM 追上后自然替换。`extension.ts` 中无条件执行（不受 `activityChanged`/`gmChanged` 限制） |
 | 当前对话过滤 / Current-session timeline | GM Data 标签页默认只渲染当前 `cascadeId` 的最近操作，底层仍保留全量 `_recentSteps` 用于归档和恢复 |
 | 用户锚点 / GM user anchors | 从 `messagePrompts` 中提取 `<USER_REQUEST>` 恢复为 `gm_user` 事件，作为窗口外用户消息锚点 |
+| 系统事件 / System events | CHECKPOINT 和会话历史注入不再被过滤，创建为 `category: 'system'` 事件（`Checkpoint N` / `上下文注入` 标签），以橙色背景 + 剪贴板 SVG 显示。EPHEMERAL 仍跳过 |
 | 模型透明度 / Model transparency | 区分 `gm_exact` / `gm_placeholder` / `summary` / `generator` / `dominant` 等来源，避免将估算模型冒充为真实逐调用模型 |
 | GM 窗口突破 / GM window bypass | `_gmSubAgentTokens`（运行时 Map）从无窗口限制的 GM 数据提取步骤窗口外的子智能体调用，在 `getSummary()` 中与 CP 数据合并 |
 | GM 步数修正 / GM steps fix | 用 `GMConversationData.totalSteps` 修正 `_conversationBreakdown.steps`（不受 ~500 步窗口限制） |
@@ -265,7 +266,7 @@ Fetches per-LLM-call data via `GetCascadeTrajectoryGeneratorMetadata`.
 | 特性 / Feature | 说明 / Description |
 |---|---|
 | 聚合 / Aggregation | per-model `GMModelStats` + per-conversation `GMConversationData` → `GMSummary` |
-| 智能缓存 / Smart cache | `_cache` Map 按 cascadeId 缓存 IDLE 对话的 GM 数据 |
+| 智能缓存 / Smart cache | `_cache` Map 按 cascadeId 缓存 IDLE 对话的 GM 数据。`_lastRunningStatus` 跟踪 RUNNING → IDLE 转换，转换时强制一次额外 re-fetch 防止最后一个 GM 调用丢失 |
 | 模型精度 / Model accuracy | 每次调用区分 `exact`（有 `responseModel`）与 `placeholder`（仅 alias / placeholder），供 UI 透明显示 |
 | 富化 / Enrichment | 对大对话或精确模型缺失的调用，按需用 `GetCascadeTrajectory` 中的内嵌 `generatorMetadata` 补充 prompt / tools / systemPrompt / user anchors |
 | 检查点提取 / Checkpoint extraction | `extractCheckpointSummaries()` 从 `messagePrompts` 中提取 `{{ CHECKPOINT N }}` 标记后的压缩摘要（跳过系统前导，限 8000 字符），`shouldEnrichConversation()` 在 `checkpointIndex > 0` 时自动触发完整轨迹拉取 |

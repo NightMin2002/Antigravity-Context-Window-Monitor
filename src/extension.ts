@@ -694,6 +694,18 @@ export function activate(context: vscode.ExtensionContext): void {
         }
     }
 
+    // Bootstrap timeline from file-backed GM summary after reinstall.
+    // When globalState is wiped (uninstall/reinstall), activityTracker starts fresh
+    // but gmDetailedSummary survives in file storage. Use it to pre-populate the
+    // timeline so users see historical data immediately, not an empty panel.
+    if (!savedActivity && lastGMSummary && lastGMSummary.conversations.length > 0) {
+        const bootstrapped = activityTracker.injectGMData(lastGMSummary);
+        if (bootstrapped) {
+            durableGlobalState.update('activityTrackerState', activityTracker.serialize());
+            log(`Timeline bootstrapped from file-backed GM summary (${lastGMSummary.conversations.length} convs, ${lastGMSummary.totalCalls} calls)`);
+        }
+    }
+
     // Register commands
     context.subscriptions.push(
         vscode.commands.registerCommand('antigravity-context-monitor.showDetails', () => {
@@ -1298,9 +1310,10 @@ async function pollContextUsage(): Promise<void> {
                     }
                 } catch { /* GM fetch failure is non-critical */ }
 
-                // Inject GM precision data into activity timeline events
+                // Inject GM precision data into activity timeline events.
+                // GM is the SOLE source of truth for timeline — always inject when data exists.
                 let timelineChanged = false;
-                if (lastGMSummary && (activityChanged || gmChanged)) {
+                if (lastGMSummary) {
                     timelineChanged = activityTracker.injectGMData(lastGMSummary);
                 }
 

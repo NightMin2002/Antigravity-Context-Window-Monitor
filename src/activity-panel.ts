@@ -613,17 +613,12 @@ export function getGMDataTabStyles(): string {
     .act-tl-detail { color: var(--color-text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
     .act-tl-user { color: var(--color-ok); font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: default; }
     .act-tl-ai-preview { color: #fb923c; opacity: 0.8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; cursor: default; }
-    .act-tl-expandable { cursor: pointer; text-decoration-style: dotted; text-decoration-line: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
-    .act-tl-user.act-tl-expandable, .act-tl-ai-preview.act-tl-expandable { cursor: pointer; }
-    @media (hover: hover) { .act-tl-expandable:hover { opacity: 1; filter: brightness(1.3); } }
-    .act-tl-expand { display: none; padding: var(--space-2) var(--space-3); margin: var(--space-1) 0 var(--space-1) 62px; background: rgba(255,255,255,0.03); border-radius: var(--radius-sm); border-left: 2px solid var(--color-border); font-size: 0.85em; line-height: 1.6; white-space: pre-wrap; word-break: break-word; color: var(--color-text); max-height: 300px; overflow-y: auto; }
-    .act-tl-expand.act-tl-expand-open { display: block; }
-    .act-tl-expand::-webkit-scrollbar { width: 4px; }
-    .act-tl-expand::-webkit-scrollbar-track { background: transparent; }
-    .act-tl-expand::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: var(--radius-full); }
     .act-tl-meta { margin-left: auto; display: flex; align-items: center; gap: 3px; flex-shrink: 0; white-space: nowrap; }
     .act-tl-dur { color: var(--color-text-dim); flex-shrink: 0; padding: 0 3px; border-radius: var(--radius-sm); background: var(--color-surface, rgba(128,128,128,0.1)); border: 1px solid var(--color-border, rgba(128,128,128,0.15)); font-size: 0.78em; font-variant-numeric: tabular-nums; white-space: nowrap; }
     .act-tl-reasoning .act-tl-icon { color: var(--color-ok); }
+    .act-tl-system { background: rgba(251, 146, 60, 0.08); border-left: 2px solid rgba(251, 146, 60, 0.4); padding-left: 6px; }
+    .act-tl-system .act-tl-icon { color: #fb923c; }
+    .act-tl-system .act-tl-detail { color: #fb923c; font-weight: 500; }
     .act-tl-tool .act-tl-icon { color: var(--color-warn); }
     .act-tl-tool-name {
         color: var(--color-text-dim);
@@ -1510,7 +1505,6 @@ export function getGMDataTabStyles(): string {
     /* ─── Light Theme: Activity Panel ──── */
     body.vscode-light .act-card-header { background: rgba(0,0,0,0.03); }
     body.vscode-light .act-tool-tag { background: rgba(0,0,0,0.05); }
-    body.vscode-light .act-tl-expand { background: rgba(0,0,0,0.03); }
     body.vscode-light .act-tl-segment-body .act-tl-item::before { background: rgba(0,0,0,0.16); }
     body.vscode-light .act-tl-legend-row { border-bottom-color: rgba(0,0,0,0.04); }
     body.vscode-light .act-tl-item { border-bottom-color: rgba(0,0,0,0.04); }
@@ -2063,21 +2057,18 @@ function buildTimeline(s: ActivitySummary, currentUsage?: ContextUsage | null): 
             if (e.icon === '✏️') return `<svg class="act-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>`;
             return `<svg class="act-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`;
         }
+        // system events (checkpoint, context injection)
+        if (e.category === 'system') return `<svg class="act-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>`;
         // fallback system icons
         return `<svg class="act-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
     };
 
     const buildMetaTags = (e: any) => {
         const tags: string[] = [];
-        if (e.source === 'estimated') {
-            tags.push(`<span class="act-tl-tag act-tl-tag-est">${e.estimatedResolved ? tBi('Recovered', '已补回') : tBi('Est.', '推算')}</span>`);
-        }
-
-        // Removed alias/placeholder tags — GM provides exact model via responseModel
+        // GM provides exact model via responseModel
         if (e.gmModel && e.gmModelAccuracy === 'exact') {
             tags.push(`<span class="act-tl-tag act-tl-tag-model">${esc(e.gmModel)}</span>`);
         }
-        // Context tokens moved to gmTags for alignment
         return tags.length > 0 ? `<span class="act-tl-tags">${tags.join('')}</span>` : '';
     };
 
@@ -2128,15 +2119,10 @@ function buildTimeline(s: ActivitySummary, currentUsage?: ContextUsage | null): 
     const renderEventRow = (e: any, extraClass = '') => {
         const time = formatTime(e.timestamp);
         const dur = e.durationMs > 0 ? `<span class="act-tl-dur">${e.durationMs < 1000 ? e.durationMs + 'ms' : (e.durationMs / 1000).toFixed(1) + 's'}</span>` : '';
-        // Determine if this row has expandable full text that is LONGER than the preview
-        const previewText = e.userInput || e.aiResponse || '';
-        const fullText = e.fullUserInput || e.fullAiResponse || '';
-        const hasExpand = fullText && fullText.length > previewText.length;
-        const expandableClass = hasExpand ? ' act-tl-expandable' : '';
         let detail = '';
         // For detail text, strip "→ tool_names" suffix — tools are shown as right-aligned chips
         const detailText = e.detail ? e.detail.replace(/\s*→\s*.+$/, '').trim() : '';
-        if (e.userInput) { detail = `<span class="act-tl-user${expandableClass}">"${esc(e.userInput.replace(/\s*\n\s*/g, ' '))}"</span>`; }
+        if (e.userInput) { detail = `<span class="act-tl-user">"${esc(e.userInput.replace(/\s*\n\s*/g, ' '))}"</span>`; }
         else if (e.toolName && detailText) {
             detail = `<span class="act-tl-tool-name">${esc(e.toolName)}</span><span class="act-tl-detail">${esc(detailText)}</span>`;
         }
@@ -2144,7 +2130,7 @@ function buildTimeline(s: ActivitySummary, currentUsage?: ContextUsage | null): 
             detail = `<span class="act-tl-tool-name">${esc(e.toolName)}</span>`;
         }
         else if (e.aiResponse) {
-            detail = `<span class="act-tl-ai-preview${expandableClass}">${esc(e.aiResponse)}</span>`;
+            detail = `<span class="act-tl-ai-preview">${esc(e.aiResponse)}</span>`;
         }
         else if (detailText) { detail = `<span class="act-tl-detail">${esc(detailText)}</span>`; }
 
@@ -2165,8 +2151,8 @@ function buildTimeline(s: ActivitySummary, currentUsage?: ContextUsage | null): 
 
             const statusParts: string[] = [];
             // Order from right→left: duration, TTFT, tools, retry
-            // 1. Error indicator (leftmost) — skip estimated source to avoid double-counting with gm_virtual
-            if (e.gmRetries && e.gmRetries > 0 && e.source !== 'estimated') {
+            // 1. Error indicator (leftmost)
+            if (e.gmRetries && e.gmRetries > 0) {
                 statusParts.push(`<span class="act-tl-gm-tag act-tl-gm-retry">error(${e.gmRetries})</span>`);
             }
             // 2. Tools
@@ -2192,15 +2178,10 @@ function buildTimeline(s: ActivitySummary, currentUsage?: ContextUsage | null): 
             gmTags = `${statusHtml}<span class="act-tl-gm">${tokenParts.join('')}</span>`;
         }
 
-        // Expandable full text block
-        const expandId = hasExpand ? `tl-exp-${e.stepIndex ?? Math.random().toString(36).slice(2, 8)}` : '';
-        const expandBlock = hasExpand
-            ? `<div id="${expandId}" class="act-tl-expand">${esc(fullText)}</div>`
-            : '';
-        const toggleAttr = hasExpand ? ` data-expand-target="${expandId}"` : '';
+
 
         return `
-        <div class="act-tl-item act-tl-${e.category}${extraClass ? ` ${extraClass}` : ''}"${toggleAttr}>
+        <div class="act-tl-item act-tl-${e.category}${extraClass ? ` ${extraClass}` : ''}">
             <span class="act-tl-time">${time}</span>
             ${stepIdx}
             <span class="act-tl-icon">${svgIcon}</span>
@@ -2213,7 +2194,7 @@ function buildTimeline(s: ActivitySummary, currentUsage?: ContextUsage | null): 
                 ${gmTags}
                 ${!gmTags ? dur : ''}
             </span>
-        </div>${expandBlock}`;
+        </div>`;
     };
 
     const segments: Array<{ user?: any; actions: any[] }> = [];
@@ -2249,7 +2230,7 @@ function buildTimeline(s: ActivitySummary, currentUsage?: ContextUsage | null): 
                 if (a.gmThinkingTokens) { totalThinking += a.gmThinkingTokens; }
                 if (a.gmCacheReadTokens) { totalCache += a.gmCacheReadTokens; }
                 if (a.gmCredits) { totalCredits += a.gmCredits; }
-                if (a.gmRetries && a.gmRetries > 0 && a.source !== 'estimated') {
+                if (a.gmRetries && a.gmRetries > 0) {
                     retryTotal += a.gmRetries;
                 }
             }
@@ -2311,9 +2292,10 @@ function buildTimeline(s: ActivitySummary, currentUsage?: ContextUsage | null): 
         }
         const chipsHtml = chips.length > 0 ? `<span class="seg-chips">${chips.join('')}</span>` : '';
 
-        // User anchor text for the summary line
-        const userPreview = segment.user
-            ? esc((segment.user.userInput || segment.user.detail || '').replace(/\s*\n\s*/g, ' '))
+        // Turn number label for the segment header (1-indexed, chronological order)
+        const turnNumber = segments.length - si;
+        const turnLabel = segment.user
+            ? `${tBi('Turn', '第')} ${turnNumber}${tBi('', ' 轮')}`
             : tBi('AI actions (no user anchor)', 'AI 动作（缺少用户锚点）');
 
         html += `<details class="act-tl-turn" id="turn-${si}"${isLatest ? ' open' : ''}>`;
@@ -2323,7 +2305,7 @@ function buildTimeline(s: ActivitySummary, currentUsage?: ContextUsage | null): 
         } else {
             html += `<span class="act-tl-turn-icon"><svg class="act-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 0 1 7 7c0 2.5-1.3 4.7-3.2 6H8.2C6.3 13.7 5 11.5 5 9a7 7 0 0 1 7-7z"/><path d="M9 17h6M10 21h4"/></svg></span>`;
         }
-        html += `<span class="act-tl-turn-text">${userPreview}</span>`;
+        html += `<span class="act-tl-turn-text">${turnLabel}</span>`;
         html += chipsHtml;
         html += `</summary>`;
 

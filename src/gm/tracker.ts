@@ -77,6 +77,8 @@ export class GMTracker {
     private _persistedRetryErrorCodesByAccount: Record<string, Record<string, number>> = {};
     /** Per-account persisted recent error messages: email → string[]. */
     private _persistedRecentErrorsByAccount: Record<string, string[]> = {};
+    /** Tracks per-conversation RUNNING status to detect RUNNING→IDLE transition. */
+    private _lastRunningStatus = new Map<string, boolean>();
 
     /**
      * Fetch GM data for the given trajectories.
@@ -96,8 +98,16 @@ export class GMTracker {
             // Skip IDLE conversations that haven't changed AND already have calls data.
             // After restore (calls stripped for storage), cached.calls is empty —
             // must re-fetch to repopulate. Once populated, normal skip logic resumes.
+            // EXCEPTION: force one re-fetch when a conversation JUST transitioned from
+            // RUNNING → IDLE, because the last GM call may not have been captured
+            // during the final RUNNING poll (GM API lags behind Steps API).
+            const wasRunning = this._lastRunningStatus.get(t.cascadeId) === true;
+            const isRunning = t.status === 'CASCADE_RUN_STATUS_RUNNING';
+            this._lastRunningStatus.set(t.cascadeId, isRunning);
+            const justBecameIdle = wasRunning && !isRunning;
             if (cached && cached.calls.length > 0
-                && t.status !== 'CASCADE_RUN_STATUS_RUNNING'
+                && !isRunning
+                && !justBecameIdle
                 && cached.totalSteps === t.stepCount) {
                 continue;
             }

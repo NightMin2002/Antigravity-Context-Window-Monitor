@@ -892,24 +892,7 @@ export function getScript(): string {
                     return;
                 }
 
-                // ── Timeline: expand/collapse full text ──
-                var tlItem = target.closest('[data-expand-target]');
-                if (tlItem) {
-                    var expandId = tlItem.getAttribute('data-expand-target');
-                    if (expandId) {
-                        var expandEl = document.getElementById(expandId);
-                        if (expandEl) {
-                            var isOpen = expandEl.classList.toggle('act-tl-expand-open');
-                            // Persist expand state across poll refreshes
-                            var st = vscode.getState() || {};
-                            var te = st.tlExpands || {};
-                            te[expandId] = isOpen;
-                            st.tlExpands = te;
-                            vscode.setState(st);
-                        }
-                    }
-                    return;
-                }
+
 
                 // ── Date Cell Click: expand/collapse detail panel ──
                 var cell = target.closest('.cal-cell.has-data');
@@ -1089,14 +1072,7 @@ export function getScript(): string {
                     // too late → scroll stuck in wrong position ("Monitor tab jumps").
                     restoreDetailsState(vscode.getState() || {});
 
-                    // Restore timeline expand blocks
-                    var tlExpands = (vscode.getState() || {}).tlExpands || {};
-                    var expEls = document.querySelectorAll('.act-tl-expand');
-                    for (var ei = 0; ei < expEls.length; ei++) {
-                        if (tlExpands[expEls[ei].id]) {
-                            expEls[ei].classList.add('act-tl-expand-open');
-                        }
-                    }
+
 
                     // NOW restore scrollTop (details are open, heights are correct)
                     for (var rs = 0; rs < scrollableSelectors.length; rs++) {

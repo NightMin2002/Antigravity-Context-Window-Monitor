@@ -8,6 +8,70 @@
 
 ---
 
+## [1.17.7] - 2026-04-22
+
+### 重构 / Refactored
+
+- **GM-only Timeline 架构 / GM-Only Timeline Architecture**:
+  `injectGMData()` 从"GM 注解 step 事件"重构为"GM 全量替换 Timeline"。所有 `step` 和 `estimated` 源事件被删除，由 `gm_virtual`（reasoning）和 `gm_user`（用户锚点）完全替代。Timeline 不再依赖 Step API 的 `processedIndex`，免疫对话撤回导致的数据丢失。
+
+  `injectGMData()` refactored from "GM annotates step events" to "GM replaces entire Timeline". All `step`/`estimated` events are purged and replaced by `gm_virtual` + `gm_user` events. Timeline no longer depends on Step API's `processedIndex`, immune to conversation rewind data loss.
+
+- **Segment Header 轮次编号 / Turn Number Headers**:
+  段落 Header 从重复用户消息预览改为轮次编号（`第 N 轮` / `Turn N`），用户消息仅在 body 中显示一次，消除重复信息。
+
+  Segment headers changed from repeating user message preview to turn numbers (`第 N 轮` / `Turn N`). User message displayed once in the segment body only.
+
+### 修复 / Fixed
+
+- **GM 最后一条调用丢失 / Last GM Call Missing**:
+  `GMTracker.fetchAll()` 对 IDLE 对话跳过 re-fetch。当对话从 RUNNING → IDLE 转换时，最后一个 GM 调用可能还未被捕获，变 IDLE 后永远不再 re-fetch。修复：新增 `_lastRunningStatus` Map 跟踪运行状态，RUNNING → IDLE 转换时强制一次额外 re-fetch。
+
+  `GMTracker.fetchAll()` skipped IDLE conversations. The last GM call might not have been captured during the final RUNNING poll; once IDLE, it was never re-fetched. Fix: new `_lastRunningStatus` Map tracks RUNNING→IDLE transition and forces one extra re-fetch.
+
+- **Timeline 新步骤空白 / Timeline Blank on New Steps**:
+  GM-only 替换代码无条件删除所有 step 事件，但 `injectGMData()` 仅在 `activityChanged || gmChanged` 时执行。如果两者都没变化，step 事件已删但 gm_virtual 未创建 → Timeline 空白。修复：`injectGMData()` 改为无条件执行（只要 `lastGMSummary` 存在）。
+
+  GM-only replacement deleted all step events, but `injectGMData()` only ran when `activityChanged || gmChanged`. Fix: now runs unconditionally whenever `lastGMSummary` exists.
+
+- **GM Coverage Boundary 保护 / Coverage Boundary Protection**:
+  Steps API 比 GM API 更快，新 AI 回复立即创建 step 事件，但 GM 可能还没捕获。旧代码无条件删除所有 step 事件 → 空白。修复：计算每个对话的 `maxGMStep`，仅删除 `stepIndex ≤ maxGMStep` 的 step 事件，保留未覆盖的 step 作为临时占位。GM 追上后自动替换为更丰富的 gm_virtual 事件。
+
+  Steps API is faster than GM API. Fix: compute `maxGMStep` per conversation, only remove step events within GM coverage range. Beyond-coverage step events are kept as temporary placeholders until GM catches up.
+
+### 新增 / Added
+
+- **System 事件渲染 / System Event Rendering**:
+  CHECKPOINT 和会话历史注入（`# Conversation History`）不再被过滤掉，改为创建 `category: 'system'` 事件。CHECKPOINT 显示为 `Checkpoint N`，会话历史显示为 `上下文注入`。专属 CSS 样式：橙色半透明背景 + 左侧橙色边条 + 剪贴板 SVG 图标。不打断 segment 分组（作为 action 内嵌显示）。EPHEMERAL 仍跳过。
+
+  CHECKPOINT and Conversation History injections now create `category: 'system'` events with amber styling instead of being filtered out. EPHEMERAL still skipped.
+
+- **卸载重装 Timeline Bootstrap / Reinstall Timeline Bootstrap**:
+  `activate()` 启动时检测到全新安装（无 `activityTrackerState`）但有文件存储的 `gmDetailedSummary` 时，立即调用 `injectGMData()` 预填 Timeline。用户重装后立即看到历史调用结构（model、tokens、steps），文字预览在首次 poll 后补齐。
+
+  `activate()` detects fresh install (no saved activity state) but existing file-backed GM summary, bootstrapping the timeline immediately. Text previews populate after the first poll cycle.
+
+### 移除 / Removed
+
+- **展开功能 / Expand Feature**:
+  移除用户消息和 AI 响应的展开功能（`hasExpand` 硬编码 `false`）。GM 架构下 `aiSnippetsByStep` 只有短预览，`fullAiResponse` 不再设置，展开无意义。用户消息截断至 40 字符已足够。
+
+  Removed expandable full-text feature for both user messages and AI responses. Under GM-only architecture, expand has no useful content to show.
+
+- **Estimated 事件 / Estimated Events**:
+  从 `processTrajectories()` 中删除约 24 行 estimated 事件创建代码。从 `buildMetaTags()` 和 `buildSegmentStats()` 中清理所有 `estimated` 相关分支。Timeline 不再出现 "Estimated" 标签。
+
+  Removed ~24 lines of estimated event creation from `processTrajectories()`. Cleaned up `estimated` branches from `buildMetaTags()` and `buildSegmentStats()`.
+
+### 统计 / Stats
+
+- **Files changed**: 4 (`src/activity/tracker.ts`, `src/activity-panel.ts`, `src/extension.ts`, `src/gm/tracker.ts`)
+- **Docs updated**: 2 (`docs/project_structure.md`, `CHANGELOG-v2.md`)
+- **TypeScript compile**: Zero errors
+- **Root cause chain**: Step API 构建的 Timeline 被 GM 数据全量替换 → Coverage Boundary 防止 GM 延迟时空白 → RUNNING→IDLE 过渡 re-fetch 防止最后调用丢失 → 无条件注入保证每次 poll 刷新
+
+---
+
 ## [1.17.6] - 2026-04-22
 
 ### 修复 / Fixed
