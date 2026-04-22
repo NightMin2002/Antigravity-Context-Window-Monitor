@@ -8,6 +8,54 @@
 
 ---
 
+## [1.17.0] - 2026-04-22
+
+### 🏗 Refactored / 重构
+
+- **工具调用排行数据源重构 / Tool Call Ranking Data Source Overhaul**:
+  `toolCallCounts` 统计从 `accountFilteredCalls`（受账号过滤 + 额度归档过滤）迁移至 `sliced`（仅排除 baseline 之前的旧周期数据）。
+  Tool call counting migrated from `accountFilteredCalls` (account-filtered + archival-filtered) to `sliced` (post-baseline only).
+
+  **变更前 / Before**: 工具统计在 `accountFilteredCalls` 循环内计算 → 白天额度重置后归档的调用会从统计中消失，且只统计当前账号的调用。
+  **变更后 / After**: 工具统计使用独立的 `sliced` 循环 → 不受额度重置归档影响，统计范围为全账号。仅午夜 `reset()` 推进 baseline 时清零。
+
+- **`+x` 增量改用 `cascadeId` 精确匹配 / Delta Uses Stable CascadeId**:
+  `buildToolCallRanking()` 的"当前对话"识别从"遍历所有 `calls[].createdAt` 找最大时间"改为使用 `currentUsage.cascadeId` 精确匹配。`cascadeId` 是对话的唯一稳定标识，不受压缩/重命名/checkpoint 影响。
+  Current conversation identification changed from "latest createdAt timestamp scan" to exact `currentUsage.cascadeId` match — stable across compressions, renames, and checkpoints.
+
+- **`+x` 数据源预计算化 / Pre-Computed Delta Data**:
+  `+x` 增量不再从 `gm.conversations[].calls` 现场遍历 `toolCallsByStep` 计算，改为直接读取 `GMSummary.toolCallCountsByConv[cascadeId]`（在 `_buildSummary()` 中与总数同步预计算）。消除了增量和总数使用不同数据源导致的不一致风险。
+  Delta no longer computed live from `conversations[].calls`; reads pre-computed `toolCallCountsByConv` (same `sliced` source as totals).
+
+### ✨ Added / 新增
+
+- **`GMSummary.toolCallCountsByConv`**:
+  新增 `Record<cascadeId, Record<toolName, count>>` 可选字段，存储每个对话的工具调用分布。与 `toolCallCounts` 使用相同的 `sliced` 数据源，不受额度归档影响。UI 直接读取此字段渲染 `+x` 增量，无需现场计算。
+  New optional field storing per-conversation tool call breakdown, immune to quota-reset archival.
+
+- **`_persistedToolCounts` / `_persistedToolCountsByConv` 跨重启持久化**:
+  新增两个持久化字段，通过 `serialize()`/`restore()` 跨扩展重启保留。`_buildSummary()` 中使用 **max-wins** 策略合并持久化基线与新计算值（取较大者），确保重启后即使 API 尚未返回完整数据也不丢失统计。午夜 `reset()` 和 `fullReset()` 清空。
+  New persisted fields surviving restarts via serialize/restore. `_buildSummary()` merges with max-wins strategy.
+
+- **`GMTrackerState.persistedToolCallCounts` / `persistedToolCallCountsByConv`**:
+  序列化状态新增两个可选字段（v1.17.0），旧版本 state 无此字段时自动跳过（向后兼容）。
+  Two new optional fields in serialized state (backward compatible).
+
+### 🏗 Improved / 改进
+
+- **模型卡片 GM 数据过滤 / Model Card GM-Only Filter**:
+  `buildModelCards()` 现在过滤掉没有 GM 精确数据（`callCount > 0`）的模型，不再显示 Step API 遗留的 "共 XX 步" 降级标签。
+  Model cards now filter to GM-data-only entries, removing legacy "XX steps" fallback labels.
+
+### 📊 Stats / 统计
+
+- **Files changed**: 3 (`src/gm/tracker.ts`, `src/gm/types.ts`, `src/activity-panel.ts`)
+- **Docs updated**: 2 (`docs/project_structure.md`, `CHANGELOG-v2.md`)
+- **TypeScript compile**: Zero errors
+- **Key design**: `sliced`（post-baseline, pre-archival）作为工具统计唯一数据源；max-wins 合并保障跨重启数据完整；`cascadeId` 替代 `createdAt` 时间戳作为对话标识
+
+---
+
 ## [1.16.1] - 2026-04-21
 
 ### ✨ Added / 新增

@@ -197,6 +197,9 @@ export interface GMSummary {
     stopReasonCounts: Record<string, number>;
     /** Tool invocation frequency: tool name → call count (from messagePrompts SYSTEM toolCalls) */
     toolCallCounts: Record<string, number>;
+    /** Per-conversation tool call counts: cascadeId → { toolName → count }.
+     *  Immune to quota-reset archival, used for +x delta rendering in UI. */
+    toolCallCountsByConv?: Record<string, Record<string, number>>;
 }
 
 /** Lightweight snapshot of a baselined quota cycle ("pending archive"). */
@@ -237,6 +240,10 @@ export interface GMTrackerState {
     pendingArchives?: PendingArchiveEntry[];
     /** Per-account+model ISO cutoff: key="email|normalizedModel" (added v1.16.0) */
     archivedAccountModelCutoffs?: Record<string, string>;
+    /** Persisted tool call frequency across restarts (added v1.17.0) */
+    persistedToolCallCounts?: Record<string, number>;
+    /** Persisted per-conversation tool call counts across restarts (added v1.17.0) */
+    persistedToolCallCountsByConv?: Record<string, Record<string, number>>;
 }
 
 // ─── Clone Utilities ─────────────────────────────────────────────────────────

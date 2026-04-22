@@ -111,7 +111,7 @@ export function buildGMDataTabContent(
 
     // ── Tool Call Ranking (from GM messagePrompts SYSTEM toolCalls)
     if (gmSummary && Object.keys(gmSummary.toolCallCounts || {}).length > 0) {
-        parts.push(buildToolCallRanking(gmSummary));
+        parts.push(buildToolCallRanking(gmSummary, currentUsage?.cascadeId));
     }
 
     // ── Checkpoint Viewer (context compressions from GM)
@@ -1668,7 +1668,16 @@ function buildModelCards(s: ActivitySummary | null, gm: GMSummary | null): strin
         }
         gmOnlyEntries.sort((a, b) => b[1].stepsCovered - a[1].stepsCovered);
     }
-    const entries = actEntries;
+    // Prefer full GMSummary.modelBreakdown (has responseModel/provider/streaming)
+    // Fall back to ActivitySummary.gmModelBreakdown (simpler subset)
+    const gmBreakEarly: Record<string, GMModelStats> | null = gm?.modelBreakdown ?? s?.gmModelBreakdown ?? null;
+    // Filter: only show models that have GM data — Step API step counts are outdated/unreliable
+    const entries = gmBreakEarly
+        ? actEntries.filter(([name]) => {
+            const gmStats = gmBreakEarly[name];
+            return gmStats && gmStats.callCount > 0;
+        })
+        : actEntries;
     const ICONS = {
         think: `<svg class="act-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 0 1 7 7c0 2.5-1.3 4.7-3.2 6H8.2C6.3 13.7 5 11.5 5 9a7 7 0 0 1 7-7z"/><path d="M9 17h6M10 21h4"/></svg>`,
         tool: `<svg class="act-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`,
@@ -1730,19 +1739,16 @@ function buildModelCards(s: ActivitySummary | null, gm: GMSummary | null): strin
     }
 
     html += `<div class="act-cards-grid">`;
-    // Prefer full GMSummary.modelBreakdown (has responseModel/provider/streaming)
-    // Fall back to ActivitySummary.gmModelBreakdown (simpler subset)
-    const gmBreak: Record<string, GMModelStats> | null = gm?.modelBreakdown ?? s?.gmModelBreakdown ?? null;
+    const gmBreak = gmBreakEarly;
     const fmtSec = (n: number) => n <= 0 ? '-' : n < 1 ? `${(n * 1000).toFixed(0)}ms` : `${n.toFixed(2)}s`;
     for (const [name, ms] of entries) {
         const isCheckpointOnly = ms.reasoning === 0 && ms.toolCalls === 0 && ms.checkpoints > 0 && ms.estSteps === 0;
         const avgThink = ms.reasoning > 0 ? fmtMs(Math.round(ms.thinkingTimeMs / ms.reasoning)) : '-';
-        const actualSteps = ms.reasoning + ms.toolCalls + ms.errors + ms.checkpoints;
-        // Use GM callCount for header label when available, fall back to step-based count
+        // Always use GM callCount for header label (entries are pre-filtered to have GM data)
         const gmStatsForLabel = gmBreak?.[name];
-        const totalLabel = gmStatsForLabel && gmStatsForLabel.callCount > 0
+        const totalLabel = gmStatsForLabel
             ? tBi(`${gmStatsForLabel.callCount} calls`, `${gmStatsForLabel.callCount} 调用`)
-            : tBi(`${actualSteps} steps`, `共 ${actualSteps} 步`);
+            : '';
 
         // GM per-model precision data (prefer full GMModelStats when available)
         let gmSection = '';
@@ -2189,7 +2195,7 @@ function buildConversations(s: GMSummary): string {
 
 // ─── Tool Call Ranking Section ──────────────────────────────────────────────
 
-function buildToolCallRanking(gm: GMSummary): string {
+function buildToolCallRanking(gm: GMSummary, currentCascadeId?: string): string {
     const counts = gm.toolCallCounts || {};
     const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
     if (entries.length === 0) { return ''; }
@@ -2198,37 +2204,12 @@ function buildToolCallRanking(gm: GMSummary): string {
     const maxCount = entries[0][1];
     const top = entries.slice(0, 15);
 
-    // ── Compute current (most recently active) conversation's tool call contribution ──
-    const currentConvCounts: Record<string, number> = {};
-    const multiConv = gm.conversations.filter(c => c.calls.length > 0).length > 1;
-    if (multiConv) {
-        let latestConvIdx = -1;
-        let latestCallTime = '';
-        for (let ci = 0; ci < gm.conversations.length; ci++) {
-            for (const call of gm.conversations[ci].calls) {
-                if (call.createdAt && call.createdAt > latestCallTime) {
-                    latestCallTime = call.createdAt;
-                    latestConvIdx = ci;
-                }
-            }
-        }
-        if (latestConvIdx >= 0) {
-            const conv = gm.conversations[latestConvIdx];
-            const counted = new Set<number>();
-            for (const call of conv.calls) {
-                for (const stepIdx of call.stepIndices) {
-                    if (counted.has(stepIdx)) { continue; }
-                    const names = call.toolCallsByStep?.[stepIdx];
-                    if (names) {
-                        counted.add(stepIdx);
-                        for (const name of names) {
-                            currentConvCounts[name] = (currentConvCounts[name] || 0) + 1;
-                        }
-                    }
-                }
-            }
-        }
-    }
+    // ── Current conversation's tool call contribution (from pre-computed, archival-immune data) ──
+    const byConv = gm.toolCallCountsByConv || {};
+    const convCount = Object.keys(byConv).length;
+    const currentConvCounts: Record<string, number> = (currentCascadeId && convCount > 1)
+        ? (byConv[currentCascadeId] || {})
+        : {};
 
     const wrenchIcon = `<svg class="act-icon" viewBox="0 0 16 16"><path fill="currentColor" d="M12.7 3.3a1 1 0 0 1 0 1.4l-1.2 1.2 1.5 1.5a1 1 0 0 1-.7 1.7H10a1 1 0 0 1-1-1V5.8a1 1 0 0 1 1.7-.7l1.5 1.5 1.2-1.2a1 1 0 0 1 1.3-.1zM4.5 2A2.5 2.5 0 0 0 2 4.5v7A2.5 2.5 0 0 0 4.5 14h7a2.5 2.5 0 0 0 2.5-2.5V10h-1v1.5a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 3 11.5v-7A1.5 1.5 0 0 1 4.5 3H6V2H4.5z"/></svg>`;
 
@@ -2250,7 +2231,6 @@ function buildToolCallRanking(gm: GMSummary): string {
         ? `<span>${tBi(`+${entries.length - 15} more`, `+${entries.length - 15} 个更多`)}</span>`
         : '';
 
-    const convCount = gm.conversations.filter(c => c.calls.length > 0).length;
     const convNote = convCount > 1
         ? `<span>${tBi(`${convCount} conversations`, `${convCount} 个对话`)}</span>`
         : '';

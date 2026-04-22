@@ -62,6 +62,12 @@ export class GMTracker {
     private _archivedAccountModelCutoffs = new Map<string, string>();
     /** Baselined cycle snapshots waiting for midnight archival */
     private _pendingArchives: PendingArchiveEntry[] = [];
+    /** Persisted tool call counts — survives restarts via serialize/restore.
+     *  Merged with freshly computed counts (max-wins) since API re-fetch
+     *  may not return messagePrompts for all conversations. */
+    private _persistedToolCounts: Record<string, number> = {};
+    /** Persisted per-conversation tool call counts — same semantics. */
+    private _persistedToolCountsByConv: Record<string, Record<string, number>> = {};
 
     /**
      * Fetch GM data for the given trajectories.
@@ -211,6 +217,7 @@ export class GMTracker {
         let latestTokenBreakdown: TokenBreakdownGroup[] = [];
         const stopReasonCounts: Record<string, number> = {};
         const toolCallCounts: Record<string, number> = {};
+        const toolCallCountsByConv: Record<string, Record<string, number>> = {};
         const contextGrowth: { step: number; tokens: number; model: string }[] = [];
 
         for (const [, conv] of this._cache) {
@@ -265,10 +272,28 @@ export class GMTracker {
                 checkpointSummaries: conv.checkpointSummaries || deduplicateCheckpoints(activeCalls),
             });
 
-            // ── Tool call counting: use stepIdx as dedup key ──
-            // toolCallsByStep is shared/broadcast across calls in a conversation,
-            // so we use a per-conversation Set to ensure each step is counted once.
+            // ── Tool call counting (ALL accounts, immune to quota-reset archival) ──
+            // Uses `sliced` (post-baseline, pre-archival) so quota resets during
+            // the day don't cause tool counts to drop. Only midnight reset()
+            // (which advances baselines) clears the counts for a new day.
             const countedToolSteps = new Set<number>();
+            const convToolCounts: Record<string, number> = {};
+            for (const c of sliced) {
+                for (const stepIdx of c.stepIndices) {
+                    if (countedToolSteps.has(stepIdx)) { continue; }
+                    const toolNames = c.toolCallsByStep[stepIdx];
+                    if (toolNames) {
+                        countedToolSteps.add(stepIdx);
+                        for (const name of toolNames) {
+                            toolCallCounts[name] = (toolCallCounts[name] || 0) + 1;
+                            convToolCounts[name] = (convToolCounts[name] || 0) + 1;
+                        }
+                    }
+                }
+            }
+            if (Object.keys(convToolCounts).length > 0) {
+                toolCallCountsByConv[conv.cascadeId] = convToolCounts;
+            }
 
             for (const c of accountFilteredCalls) {
                 totalCalls++;
@@ -287,18 +312,6 @@ export class GMTracker {
                         tokens: c.contextTokensUsed,
                         model: normalizeModelDisplayName(c.modelDisplay || c.model) || c.modelDisplay || c.model,
                     });
-                }
-
-                // ── Tool invocation counting (from messagePrompts SYSTEM toolCalls) ──
-                for (const stepIdx of c.stepIndices) {
-                    if (countedToolSteps.has(stepIdx)) { continue; }
-                    const toolNames = c.toolCallsByStep[stepIdx];
-                    if (toolNames) {
-                        countedToolSteps.add(stepIdx);
-                        for (const name of toolNames) {
-                            toolCallCounts[name] = (toolCallCounts[name] || 0) + 1;
-                        }
-                    }
                 }
 
                 // Per-model aggregation
@@ -408,7 +421,7 @@ export class GMTracker {
             };
         }
 
-        return {
+        const result: GMSummary = {
             conversations,
             modelBreakdown,
             totalCalls,
@@ -427,7 +440,37 @@ export class GMTracker {
             latestTokenBreakdown,
             stopReasonCounts,
             toolCallCounts,
+            toolCallCountsByConv,
         };
+
+        // Merge persisted baselines with fresh data (max-wins per tool)
+        // This ensures tool counts survive restarts even if the API doesn't
+        // return messagePrompts (which contains toolCallsByStep) for all calls.
+        for (const [name, count] of Object.entries(this._persistedToolCounts)) {
+            if (!result.toolCallCounts[name] || result.toolCallCounts[name] < count) {
+                result.toolCallCounts[name] = count;
+            }
+        }
+        if (result.toolCallCountsByConv) {
+            for (const [convId, counts] of Object.entries(this._persistedToolCountsByConv)) {
+                if (!result.toolCallCountsByConv[convId]) {
+                    result.toolCallCountsByConv[convId] = { ...counts };
+                } else {
+                    for (const [name, count] of Object.entries(counts)) {
+                        const existing = result.toolCallCountsByConv[convId][name] || 0;
+                        if (count > existing) {
+                            result.toolCallCountsByConv[convId][name] = count;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Update persisted baseline to current merged state
+        this._persistedToolCounts = { ...result.toolCallCounts };
+        this._persistedToolCountsByConv = JSON.parse(JSON.stringify(result.toolCallCountsByConv || {}));
+
+        return result;
     }
 
     /**
@@ -607,6 +650,8 @@ export class GMTracker {
         this._archivedAccountModelCutoffs.clear();
         this._callAccountMap.clear();
         this._pendingArchives = [];
+        this._persistedToolCounts = {};
+        this._persistedToolCountsByConv = {};
         this._lastSummary = null;
         this._lastFetchedAt = '';
     }
@@ -624,6 +669,8 @@ export class GMTracker {
         this._archivedAccountModelCutoffs.clear();
         this._callAccountMap.clear();
         this._pendingArchives = [];
+        this._persistedToolCounts = {};
+        this._persistedToolCountsByConv = {};
         this._lastSummary = null;
         this._lastFetchedAt = '';
         this._needsBaselineInit = true;
@@ -800,6 +847,8 @@ export class GMTracker {
             callAccountMap: this._callAccountMap.size > 0 ? Object.fromEntries(this._callAccountMap) : undefined,
             pendingArchives: this._pendingArchives.length > 0 ? this._pendingArchives : undefined,
             archivedAccountModelCutoffs: this._archivedAccountModelCutoffs.size > 0 ? Object.fromEntries(this._archivedAccountModelCutoffs) : undefined,
+            persistedToolCallCounts: Object.keys(this._persistedToolCounts).length > 0 ? this._persistedToolCounts : undefined,
+            persistedToolCallCountsByConv: Object.keys(this._persistedToolCountsByConv).length > 0 ? this._persistedToolCountsByConv : undefined,
         };
     }
 
@@ -883,6 +932,13 @@ export class GMTracker {
                     tracker._archivedAccountModelCutoffs.set(key, cutoff);
                 }
             }
+        }
+        // Restore persisted tool call counts (added v1.17.0)
+        if (data.persistedToolCallCounts && typeof data.persistedToolCallCounts === 'object') {
+            tracker._persistedToolCounts = { ...data.persistedToolCallCounts };
+        }
+        if (data.persistedToolCallCountsByConv && typeof data.persistedToolCallCountsByConv === 'object') {
+            tracker._persistedToolCountsByConv = JSON.parse(JSON.stringify(data.persistedToolCallCountsByConv));
         }
 
         return tracker;
