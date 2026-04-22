@@ -47,10 +47,31 @@
 
 ### 统计 / Stats
 
-- **Files changed**: 6 (`src/gm/parser.ts`, `src/gm/types.ts`, `src/gm/summary.ts`, `src/gm/tracker.ts`, `src/activity-panel.ts`, `src/activity/types.ts`)
+- **Files changed**: 5 (`src/gm/parser.ts`, `src/gm/types.ts`, `src/gm/summary.ts`, `src/gm/tracker.ts`, `src/activity-panel.ts`)
 - **Docs updated**: 2 (`docs/project_structure.md`, `CHANGELOG-v2.md`)
 - **TypeScript compile**: Zero errors
 - **Key fix insight**: `retryInfos` 始终包含成功调用作为末尾 entry（无 error 字段），只有有 error 的 entry 才是真正的失败重试
+
+### 增强 / Enhanced
+
+- **错误详情持久化与 UI 交互 / Error Details Persistence & UI**:
+
+  **持久化**:
+  - `GMTrackerState` 新增 `persistedRecentErrors` + `persistedRetryErrorCodes` 字段
+  - 存入 `state-v1.json`（文件级），卸载重装后保留，午夜 `reset()` 清空
+  - 合并策略：errorCodes 使用 max-wins，recentErrors 在新鲜数据为空时用持久化兜底
+
+  **数据修复**:
+  - 移除错误消息 `substring(0, 120)` 截断，完整捕获原文
+  - API 返回的错误消息内部重复清洗（`"msg.: msg."` → `"msg."`）
+  - `errorMessage` 与 `retryErrors` 双重计数修复：`errorMessage` 仅在 `retryErrors` 为空时降级收集
+  - 推算步骤(estimated)排除 error 标签和 turn header 统计（防与 gm_virtual 双重计数）
+
+  **UI 交互**:
+  - 所有错误消息使用 `<details>` 可展开/收缩，CSS `text-overflow: ellipsis` 自动适配容器宽度
+  - 展开状态通过 `id="d-err-N"` + `restoreDetailsState()` 在 poll 刷新后保持
+  - 倒序排列（最新在顶部），序号 `#N` 按时间顺序编号（最大数字 = 最新）
+  - 展示上限 10 条，内部缓存上限 30 条
 
 ---
 

@@ -248,6 +248,10 @@ export interface GMTrackerState {
     persistedToolCallCounts?: Record<string, number>;
     /** Persisted per-conversation tool call counts across restarts (added v1.17.0) */
     persistedToolCallCountsByConv?: Record<string, Record<string, number>>;
+    /** Persisted recent error messages across restarts (added v1.17.1) */
+    persistedRecentErrors?: string[];
+    /** Persisted error code counts across restarts (added v1.17.1) */
+    persistedRetryErrorCodes?: Record<string, number>;
 }
 
 // ─── Clone Utilities ─────────────────────────────────────────────────────────

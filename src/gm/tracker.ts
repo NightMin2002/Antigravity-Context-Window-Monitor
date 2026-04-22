@@ -68,6 +68,10 @@ export class GMTracker {
     private _persistedToolCounts: Record<string, number> = {};
     /** Persisted per-conversation tool call counts — same semantics. */
     private _persistedToolCountsByConv: Record<string, Record<string, number>> = {};
+    /** Persisted recent error messages — survives restarts and reinstalls. */
+    private _persistedRecentErrors: string[] = [];
+    /** Persisted error code frequency — survives restarts and reinstalls. */
+    private _persistedRetryErrorCodes: Record<string, number> = {};
 
     /**
      * Fetch GM data for the given trajectories.
@@ -382,12 +386,14 @@ export class GMTracker {
                 for (const errMsg of c.retryErrors) {
                     const code = parseErrorCode(errMsg);
                     retryErrorCodes[code] = (retryErrorCodes[code] || 0) + 1;
-                    if (recentErrors.length < 20) { recentErrors.push(errMsg); }
+                    if (recentErrors.length < 30) { recentErrors.push(errMsg); }
                 }
-                if (c.hasError && c.errorMessage) {
+                // Fallback: use top-level errorMessage only when retryErrors is empty
+                // (retryInfos and gm.error often contain the same error text)
+                if (c.hasError && c.errorMessage && c.retryErrors.length === 0) {
                     const code = parseErrorCode(c.errorMessage);
                     retryErrorCodes[code] = (retryErrorCodes[code] || 0) + 1;
-                    if (recentErrors.length < 20) { recentErrors.push(c.errorMessage); }
+                    if (recentErrors.length < 30) { recentErrors.push(c.errorMessage); }
                 }
 
                 // Keep latest tokenBreakdown snapshot
@@ -484,6 +490,24 @@ export class GMTracker {
         // Update persisted baseline to current merged state
         this._persistedToolCounts = { ...result.toolCallCounts };
         this._persistedToolCountsByConv = JSON.parse(JSON.stringify(result.toolCallCountsByConv || {}));
+
+        // Merge persisted error data (max-wins for codes, union for messages)
+        for (const [code, count] of Object.entries(this._persistedRetryErrorCodes)) {
+            if (!result.retryErrorCodes[code] || result.retryErrorCodes[code] < count) {
+                result.retryErrorCodes[code] = count;
+            }
+        }
+        // Persisted recent errors: use fresh data when available, persisted as fallback
+        // (after restart, retryErrors are empty until API backfill — persisted bridges the gap)
+        if (result.recentErrors.length === 0 && this._persistedRecentErrors.length > 0) {
+            result.recentErrors = [...this._persistedRecentErrors];
+        }
+
+        // Update persisted baselines (only when we have fresh data)
+        this._persistedRetryErrorCodes = { ...result.retryErrorCodes };
+        if (result.recentErrors.length > 0) {
+            this._persistedRecentErrors = [...result.recentErrors];
+        }
 
         return result;
     }
@@ -667,6 +691,8 @@ export class GMTracker {
         this._pendingArchives = [];
         this._persistedToolCounts = {};
         this._persistedToolCountsByConv = {};
+        this._persistedRecentErrors = [];
+        this._persistedRetryErrorCodes = {};
         this._lastSummary = null;
         this._lastFetchedAt = '';
     }
@@ -686,6 +712,8 @@ export class GMTracker {
         this._pendingArchives = [];
         this._persistedToolCounts = {};
         this._persistedToolCountsByConv = {};
+        this._persistedRecentErrors = [];
+        this._persistedRetryErrorCodes = {};
         this._lastSummary = null;
         this._lastFetchedAt = '';
         this._needsBaselineInit = true;
@@ -868,6 +896,8 @@ export class GMTracker {
             archivedAccountModelCutoffs: this._archivedAccountModelCutoffs.size > 0 ? Object.fromEntries(this._archivedAccountModelCutoffs) : undefined,
             persistedToolCallCounts: Object.keys(this._persistedToolCounts).length > 0 ? this._persistedToolCounts : undefined,
             persistedToolCallCountsByConv: Object.keys(this._persistedToolCountsByConv).length > 0 ? this._persistedToolCountsByConv : undefined,
+            persistedRecentErrors: this._persistedRecentErrors.length > 0 ? this._persistedRecentErrors : undefined,
+            persistedRetryErrorCodes: Object.keys(this._persistedRetryErrorCodes).length > 0 ? this._persistedRetryErrorCodes : undefined,
         };
     }
 
@@ -958,6 +988,13 @@ export class GMTracker {
         }
         if (data.persistedToolCallCountsByConv && typeof data.persistedToolCallCountsByConv === 'object') {
             tracker._persistedToolCountsByConv = JSON.parse(JSON.stringify(data.persistedToolCallCountsByConv));
+        }
+        // Restore persisted error data (added v1.17.1)
+        if (Array.isArray(data.persistedRecentErrors)) {
+            tracker._persistedRecentErrors = [...data.persistedRecentErrors];
+        }
+        if (data.persistedRetryErrorCodes && typeof data.persistedRetryErrorCodes === 'object') {
+            tracker._persistedRetryErrorCodes = { ...data.persistedRetryErrorCodes };
         }
 
         return tracker;

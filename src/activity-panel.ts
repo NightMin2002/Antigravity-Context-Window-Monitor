@@ -1214,6 +1214,9 @@ export function getGMDataTabStyles(): string {
         margin-top: var(--space-1);
     }
     .gm-err-list {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
         margin-top: var(--space-2);
         padding-top: var(--space-2);
         border-top: 1px solid rgba(255,255,255,0.06);
@@ -1222,13 +1225,63 @@ export function getGMDataTabStyles(): string {
         font-size: 0.72em;
         font-family: var(--font-mono, monospace);
         color: #fca5a5;
-        padding: 3px var(--space-2);
-        margin-bottom: 2px;
+        padding: 4px var(--space-2);
         border-radius: var(--radius-sm);
         background: rgba(248,113,113,0.06);
+        line-height: 1.5;
+    }
+    .gm-err-idx {
+        display: inline-block;
+        min-width: 1.8em;
+        color: rgba(252,165,165,0.5);
+        font-weight: 600;
+        font-size: 0.9em;
+        user-select: none;
+    }
+    /* ── Expandable error (details/summary) ── */
+    .gm-err-expand {
+        border-radius: var(--radius-sm);
+        background: rgba(248,113,113,0.06);
+    }
+    .gm-err-msg-summary {
+        cursor: pointer;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+        list-style: none;
+        user-select: none;
+    }
+    .gm-err-msg-summary::-webkit-details-marker { display: none; }
+    .gm-err-msg-summary::before {
+        content: '\u25b6';
+        display: inline-block;
+        font-size: 0.65em;
+        margin-right: 4px;
+        transition: transform 0.15s ease;
+        color: rgba(252,165,165,0.45);
+        vertical-align: middle;
+    }
+    .gm-err-expand[open] > .gm-err-msg-summary::before {
+        transform: rotate(90deg);
+    }
+    .gm-err-expand[open] > .gm-err-msg-summary {
+        white-space: normal;
+        word-break: break-all;
+        border-bottom: 1px solid rgba(248,113,113,0.12);
+        margin-bottom: 0;
+        opacity: 0.55;
+        font-size: 0.65em;
+    }
+    .gm-err-msg-full {
+        font-size: 0.72em;
+        font-family: var(--font-mono, monospace);
+        color: #fca5a5;
+        white-space: pre-wrap;
+        word-break: break-all;
+        line-height: 1.6;
+        padding: 5px var(--space-2) 5px calc(var(--space-2) + 1.8em);
+        border-left: 2px solid rgba(248,113,113,0.3);
+        margin-left: var(--space-2);
     }
 
 
@@ -1943,8 +1996,8 @@ function buildTimeline(s: ActivitySummary, currentUsage?: ContextUsage | null): 
 
             const statusParts: string[] = [];
             // Order from right→left: duration, TTFT, tools, retry
-            // 1. Error indicator (leftmost) — broader than just retries
-            if (e.gmRetries && e.gmRetries > 0) {
+            // 1. Error indicator (leftmost) — skip estimated source to avoid double-counting with gm_virtual
+            if (e.gmRetries && e.gmRetries > 0 && e.source !== 'estimated') {
                 statusParts.push(`<span class="act-tl-gm-tag act-tl-gm-retry">error(${e.gmRetries})</span>`);
             }
             // 2. Tools
@@ -2027,7 +2080,7 @@ function buildTimeline(s: ActivitySummary, currentUsage?: ContextUsage | null): 
                 if (a.gmThinkingTokens) { totalThinking += a.gmThinkingTokens; }
                 if (a.gmCacheReadTokens) { totalCache += a.gmCacheReadTokens; }
                 if (a.gmCredits) { totalCredits += a.gmCredits; }
-                if (a.gmRetries && a.gmRetries > 0) {
+                if (a.gmRetries && a.gmRetries > 0 && a.source !== 'estimated') {
                     retryTotal += a.gmRetries;
                 }
             }
@@ -2268,10 +2321,14 @@ function buildErrorDetailsSection(s: GMSummary): string {
             return `<span class="gm-err-tag ${tagClass}">${esc(code)} ×${count}</span>`;
         }).join('');
 
-    // Recent error messages (truncated)
-    const errorList = recentErrors.slice(0, 8).map(msg =>
-        `<div class="gm-err-msg">${esc(msg)}</div>`
-    ).join('');
+    // Recent error messages — CSS-driven truncation: summary auto-truncates via ellipsis,
+    // click to expand full text. No fixed character threshold needed.
+    const reversed = [...recentErrors].reverse().slice(0, 10);
+    const total = recentErrors.length;
+    const errorList = reversed.map((msg, i) => {
+        const idx = `#${total - i}`;
+        return `<details class="gm-err-expand" id="d-err-${i}"><summary class="gm-err-msg gm-err-msg-summary"><span class="gm-err-idx">${idx}</span> ${esc(msg)}</summary><div class="gm-err-msg gm-err-msg-full">${esc(msg)}</div></details>`;
+    }).join('');
 
     // Overhead stats (token waste + credits) — shown as a compact info line
     const overheadParts: string[] = [];

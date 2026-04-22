@@ -55,8 +55,8 @@ function aggregateRetryErrors(
             recentErrors.push(errMsg);
         }
     }
-    // Also capture the call's own error (not from retries)
-    if (call.hasError && call.errorMessage) {
+    // Fallback: use top-level errorMessage only when retryErrors is empty
+    if (call.hasError && call.errorMessage && call.retryErrors.length === 0) {
         const code = parseErrorCode(call.errorMessage);
         retryErrorCodes[code] = (retryErrorCodes[code] || 0) + 1;
         if (recentErrors.length < MAX_RECENT_ERRORS) {

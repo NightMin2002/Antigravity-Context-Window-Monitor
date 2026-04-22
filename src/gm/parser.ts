@@ -522,9 +522,16 @@ export function parseGMEntry(gm: Record<string, unknown>): GMCallEntry {
     const retryInfos = cm.retryInfos as Record<string, unknown>[] | undefined;
     if (Array.isArray(retryInfos)) {
         for (const ri of retryInfos) {
-            const errMsg = ri.error as string;
+            let errMsg = ri.error as string;
             if (!errMsg) { continue; } // Skip successful attempt entry
-            retryErrors.push(errMsg.substring(0, 120));
+            // API bug cleanup: server sometimes doubles the error text as "msg.: msg."
+            const sepIdx = errMsg.indexOf('.: ');
+            if (sepIdx > 0 && sepIdx < errMsg.length - 3) {
+                const first = errMsg.substring(0, sepIdx + 1);
+                const second = errMsg.substring(sepIdx + 3);
+                if (first === second) { errMsg = first; }
+            }
+            retryErrors.push(errMsg);
             const ru = (ri.usage || {}) as Record<string, unknown>;
             retryTokensIn += parseInt0(ru.inputTokens as string);
             retryTokensOut += parseInt0(ru.outputTokens as string);
