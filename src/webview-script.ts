@@ -271,6 +271,48 @@ export function getScript(): string {
             }
             bindChipToggles();
 
+            // ─── Account Popover Toggle ───
+            var acctPopoverOpen = false;
+            function toggleAccountPopover(forceClose) {
+                var trigger = document.getElementById('acctPopoverTrigger');
+                var dropdown = document.getElementById('acctPopoverPanel');
+                if (!trigger || !dropdown) return;
+                if (forceClose === true) {
+                    acctPopoverOpen = false;
+                } else {
+                    acctPopoverOpen = !acctPopoverOpen;
+                }
+                trigger.classList.toggle('is-open', acctPopoverOpen);
+                if (acctPopoverOpen) {
+                    dropdown.hidden = false;
+                    requestAnimationFrame(function() {
+                        dropdown.classList.add('is-visible');
+                    });
+                } else {
+                    dropdown.classList.remove('is-visible');
+                    // Wait for transition to finish before hiding
+                    setTimeout(function() {
+                        if (!acctPopoverOpen) { dropdown.hidden = true; }
+                    }, 200);
+                }
+            }
+            var acctTriggerBtn = document.getElementById('acctPopoverTrigger');
+            if (acctTriggerBtn) {
+                acctTriggerBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    toggleAccountPopover();
+                });
+            }
+            // Close on click outside
+            document.addEventListener('click', function(e) {
+                if (!acctPopoverOpen) return;
+                var anchor = document.querySelector('.acct-popover-anchor');
+                var ddPanel = document.getElementById('acctPopoverPanel');
+                if (anchor && anchor.contains(e.target)) return;
+                if (ddPanel && ddPanel.contains(e.target)) return;
+                toggleAccountPopover(true);
+            });
+
             function restoreDetailsState(rootState) {
                 var ds = (rootState && rootState.detailsOpen) || {};
                 var dd = document.querySelectorAll('details[id]');
@@ -1078,6 +1120,28 @@ export function getScript(): string {
                         }
                         var privBtnEl = document.getElementById('privacyToggle');
                         if (privBtnEl) { privBtnEl.classList.add('active'); }
+                    }
+
+                    // ── Account Popover: content-only refresh, preserve open/close state ──
+                    if (typeof tabs.accountPopover === 'string') {
+                        var popBody = document.getElementById('acctPopoverBody');
+                        if (popBody && tabs.accountPopover) {
+                            popBody.innerHTML = tabs.accountPopover;
+                        }
+                    }
+                    // Red-dot sync
+                    var dotEl = document.querySelector('.acct-popover-dot');
+                    if (tabs.accountPopoverHasReady) {
+                        if (!dotEl) {
+                            var trigEl = document.getElementById('acctPopoverTrigger');
+                            if (trigEl) {
+                                var d = document.createElement('span');
+                                d.className = 'acct-popover-dot';
+                                trigEl.appendChild(d);
+                            }
+                        }
+                    } else {
+                        if (dotEl) { dotEl.remove(); }
                     }
 
                     // Recalculate tab slider position after content swap

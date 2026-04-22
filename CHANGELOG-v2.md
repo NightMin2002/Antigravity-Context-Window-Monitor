@@ -8,6 +8,73 @@
 
 ---
 
+## [1.17.3] - 2026-04-22
+
+### 重构 / Refactored
+
+- **账号面板全局化 / Account Panel Globalization**:
+  将"账号状态"面板从 GM Data 标签页内移出，迁移为全局悬浮 dropdown 面板，在所有标签页中均可访问。
+
+  **调整概要 / Changes**:
+  | 维度 | 改前 | 改后 |
+  |------|------|------|
+  | 位置 | GM Data 标签页内顶部 | topbar 标题栏旁的全局按钮 |
+  | 交互 | 始终展开，占用标签页空间 | 点击触发，向下弹出 dropdown |
+  | 刷新稳定性 | 随 tab-pane innerHTML 刷新重建 | 独立于 tab-pane，poll 刷新仅更新内容不影响开/关状态 |
+  | 关闭方式 | — | 点击面板外任意区域自动关闭 |
+
+  **触发按钮 / Trigger Button**:
+  - 药丸形状，放置在 "Antigravity 监控面板" h1 标题右侧
+  - 自定义 SVG 用户图标 + "账号面板" 文字
+  - 额度就绪时显示红色脉冲圆点指示器（`hasAccountReadyPool()` 检测）
+
+  **Dropdown 面板 / Dropdown Panel**:
+  - 从 topbar 底部向下展开，`left/right: var(--space-3)` 水平撑满
+  - 圆角卡片容器（`border-radius: 12px`），毛玻璃背景 + 阴影
+  - `scaleY + translateY` 展开/收回动画，`transform-origin: top center`
+  - `max-height: 70vh` 可滚动，内容自适应高度
+  - 深色/浅色主题完整适配
+
+  **增量刷新保护 / Incremental Refresh Protection**:
+  - `buildTabContents()` 新增 `accountPopover`（HTML string）和 `accountPopoverHasReady`（boolean）字段
+  - 客户端 `updateTabs` 消息处理中，仅更新 `acctPopoverBody.innerHTML`，不触碰 `hidden` / `is-visible` 状态
+  - 红点指示器通过动态增删 DOM 元素同步，无需重建按钮
+
+- **删除按钮内联化 / Delete Button Inline Redesign**:
+  缓存账号的删除操作从独立 X 图标按钮改为名字行内的红色"移除"文字链接（`acct-delete-link`），常驻显示，更直观。活跃账号不显示删除操作，消除占位符 spacer。
+
+### 新增 / Added
+
+- **`buildAccountStatusPanel()` 导出 / Exported Function**:
+  原 `activity-panel.ts` 内部私有函数改为 `export`，供 `webview-panel.ts` topbar 区域和增量刷新链路复用。
+
+- **`hasAccountReadyPool()` 红点检测 / Ready Pool Detection**:
+  新增导出函数，遍历所有账号的 `resetPools`，检测是否存在已过期且有使用记录的额度池（`resetTime ≤ now && hasUsage !== false`）。用于触发按钮上的红色脉冲指示器。
+
+### 清理 / Cleanup
+
+- 从 `buildGMDataTabContent()` 中移除 `buildAccountStatusPanel()` 调用和 `accountPanel` 变量
+- 移除旧的 `acct-delete-btn` X 图标按钮样式（`opacity: 0` hover 渐显）和 `acct-delete-spacer` 占位符
+- 卡片间距收紧：`gap: var(--space-3)` → `var(--space-2)`，`padding: var(--space-2)` → `6px`
+
+### 样式 / Styles
+
+- **`.acct-popover-trigger`** — 药丸按钮（渐变背景 + hover/active 态 + is-open 态）
+- **`.acct-popover-dot`** — 红色脉冲圆点（`@keyframes acctDotPulse`，减弱动画适配）
+- **`.acct-popover-dropdown`** — 绝对定位 dropdown（topbar 子元素，毛玻璃 + 12px 圆角 + 阴影）
+- **`.acct-popover-body .acct-card`** — flex-wrap 换行布局（身份信息 + 模型池分行展示）
+- **`.acct-delete-link`** — 红色内联文字按钮（hover 下划线）
+- 深色/浅色主题完整适配
+
+### 统计 / Stats
+
+- **Files changed**: 4 (`src/activity-panel.ts`, `src/webview-panel.ts`, `src/webview-styles.ts`, `src/webview-script.ts`)
+- **Docs updated**: 1 (`CHANGELOG-v2.md`)
+- **TypeScript compile**: Zero errors
+- **Key design**: dropdown 作为 `panel-topbar` 直接子元素，利用 sticky 定位的 containing block 实现相对定位；`updateTabs` 增量刷新只替换内容 HTML，不触碰浮层的开/关 DOM 状态
+
+---
+
 ## [1.17.2] - 2026-04-22
 
 ### 重构 / Refactored

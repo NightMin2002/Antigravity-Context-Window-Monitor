@@ -7,7 +7,7 @@ import { ContextUsage, TrajectorySummary } from './tracker';
 import { ModelConfig, UserStatusInfo } from './models';
 import { QuotaTracker } from './quota-tracker';
 import { ActivityTracker, ActivitySummary, ActivityArchive } from './activity-tracker';
-import { buildGMDataTabContent, getGMDataTabStyles, type AccountSnapshot } from './activity-panel';
+import { buildGMDataTabContent, getGMDataTabStyles, buildAccountStatusPanel, hasAccountReadyPool, type AccountSnapshot } from './activity-panel';
 import { removeAccountSnapshot } from './extension';
 import type { PendingArchiveEntry } from './gm-tracker';
 import { buildPricingTabContent, getPricingTabStyles } from './pricing-panel';
@@ -632,7 +632,7 @@ function buildTabContents(
     configs: ModelConfig[],
     userInfo: UserStatusInfo | null,
     tracker?: QuotaTracker,
-): Record<string, string> {
+): Record<string, string | boolean> {
     const eoc = `<div class="eoc-sentinel"><span class="eoc-sentinel-text">${tBi('— End of content —', '— 已到底 —')}</span></div>`;
     return {
         monitor: buildMonitorSections(usage, allUsages, configs, userInfo, lastGMSummary, lastGMConversations, tracker, lastPricingStore) + eoc,
@@ -649,6 +649,9 @@ function buildTabContents(
         history: buildHistoryHtml(tracker) + eoc,
         calendar: buildCalendarTabContent(lastDailyStore ?? undefined, calendarYear, calendarMonth) + eoc,
         profile: buildProfileContent(userInfo, configs) + eoc,
+        // Account popover: content-only update, does NOT affect open/close state
+        accountPopover: lastAccountSnapshots.length > 0 ? buildAccountStatusPanel(lastAccountSnapshots) : '',
+        accountPopoverHasReady: lastAccountSnapshots.length > 0 ? hasAccountReadyPool(lastAccountSnapshots) : false,
         // Settings tab excluded from incremental updates: its content is mostly static
         // and replacing innerHTML destroys event listeners on toggles, buttons, inputs.
         // Settings is only rendered via full buildHtml() (panel open, language switch, etc.).
@@ -704,10 +707,19 @@ ${getCalendarTabStyles()}
 <body data-privacy-default="true" data-zoom="${panelDurableState?.get<number>('panelZoomLevel', 100) ?? 100}" data-tab-hint-enabled="${panelHintPrefs.showTabScrollHint ? 'true' : 'false'}" data-hide-scrollbar="${panelHintPrefs.showScrollbar ? 'false' : 'true'}" data-hide-eoc="${panelHintPrefs.showEndOfContent ? 'false' : 'true'}">
     <div class="panel-topbar">
         <header class="topbar-title">
-            <h1>
-                ${ICON.chart}
-                ${tBi('Antigravity Monitor', 'Antigravity 监控面板')}
-            </h1>
+            <div class="topbar-title-left">
+                <h1>
+                    ${ICON.chart}
+                    ${tBi('Antigravity Monitor', 'Antigravity 监控面板')}
+                </h1>
+                <div class="acct-popover-anchor">
+                    <button class="acct-popover-trigger" id="acctPopoverTrigger">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M5.5 21a6.5 6.5 0 0 1 13 0"/><path d="M16.5 6.5l2 -2M18 8l2.5 -1M18.5 4.5L20 2.5" opacity="0.5"/></svg>
+                        <span>${tBi('Account Panel', '账号面板')}</span>
+                        ${hasAccountReadyPool(lastAccountSnapshots) ? '<span class="acct-popover-dot"></span>' : ''}
+                    </button>
+                </div>
+            </div>
             <div class="header-actions">
                 <div class="lang-switcher">
                     <button class="lang-btn${currentLang === 'zh' ? ' active' : ''}" data-lang="zh">中文</button>
@@ -802,6 +814,11 @@ ${getCalendarTabStyles()}
             <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path fill="currentColor" d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 1 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06"/></svg>
         </button>
     </div>
+    <div class="acct-popover-dropdown" id="acctPopoverPanel" hidden>
+        <div class="acct-popover-body" id="acctPopoverBody">
+            ${lastAccountSnapshots.length > 0 ? buildAccountStatusPanel(lastAccountSnapshots) : `<p class="empty-msg">${tBi('No account data yet.', '暂无账号数据。')}</p>`}
+        </div>
+    </div>
     </div>
     <div class="tab-pane active" id="tab-monitor">
         ${monitorHtml}
@@ -839,6 +856,7 @@ ${getCalendarTabStyles()}
         ${settingsHtml}
         <div class="eoc-sentinel"><span class="eoc-sentinel-text">${tBi('— End of content —', '— 已到底 —')}</span></div>
     </div>
+
     <script>
         ${getScript()}
     </script>

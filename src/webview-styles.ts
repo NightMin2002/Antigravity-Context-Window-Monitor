@@ -4219,6 +4219,150 @@ export function getStyles(): string {
             body.vscode-light .history-action-btn:hover { background: rgba(0,0,0,0.06); border-color: rgba(0,0,0,0.15); }
         }
 
+        /* ─── Account Popover ──────────── */
+        .topbar-title-left {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            min-width: 0;
+        }
+        .acct-popover-anchor {
+            position: relative;
+        }
+        .acct-popover-trigger {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 10px 3px 7px;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: var(--radius-full, 9999px);
+            background: linear-gradient(135deg, rgba(96,165,250,0.08), rgba(167,139,250,0.06));
+            color: var(--color-text-dim);
+            font-size: 0.72em;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(.4,0,.2,1);
+            letter-spacing: 0.2px;
+            white-space: nowrap;
+        }
+        .acct-popover-trigger svg {
+            flex-shrink: 0;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+        @media (hover: hover) {
+            .acct-popover-trigger:hover {
+                border-color: rgba(96,165,250,0.3);
+                background: linear-gradient(135deg, rgba(96,165,250,0.14), rgba(167,139,250,0.1));
+                color: var(--color-text);
+            }
+            .acct-popover-trigger:hover svg { opacity: 1; }
+        }
+        .acct-popover-trigger.is-open {
+            border-color: rgba(96,165,250,0.4);
+            background: linear-gradient(135deg, rgba(96,165,250,0.18), rgba(167,139,250,0.12));
+            color: var(--color-text);
+        }
+        .acct-popover-trigger.is-open svg { opacity: 1; }
+        .acct-popover-dot {
+            position: absolute;
+            top: 1px;
+            right: 1px;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #f87171;
+            box-shadow: 0 0 5px rgba(248,113,113,0.5);
+            animation: acctDotPulse 2s ease-in-out infinite;
+        }
+        @keyframes acctDotPulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.3); opacity: 0.7; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .acct-popover-dot { animation: none; }
+        }
+
+        .acct-popover-dropdown {
+            position: absolute;
+            top: 100%;
+            left: var(--space-3);
+            right: var(--space-3);
+            z-index: 800;
+            max-height: 70vh;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: var(--radius-lg, 12px);
+            background: linear-gradient(180deg, rgba(34,34,50,0.97), rgba(28,28,42,0.98));
+            backdrop-filter: blur(12px) saturate(1.3);
+            -webkit-backdrop-filter: blur(12px) saturate(1.3);
+            box-shadow:
+                0 8px 32px rgba(0,0,0,0.35),
+                0 2px 8px rgba(0,0,0,0.2),
+                0 0 1px rgba(255,255,255,0.04) inset;
+            transform-origin: top center;
+            transform: scaleY(0.96) translateY(-4px);
+            opacity: 0;
+            transition: transform 0.18s cubic-bezier(.2,0,.38,1), opacity 0.15s;
+            pointer-events: none;
+        }
+        .acct-popover-dropdown.is-visible {
+            transform: scaleY(1) translateY(0);
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .acct-popover-body {
+            padding: var(--space-2);
+        }
+        /* Card layout overrides for dropdown context */
+        .acct-popover-body .acct-panel {
+            margin-bottom: 0;
+        }
+        .acct-popover-body .acct-card {
+            flex-wrap: wrap;
+            gap: var(--space-2);
+        }
+        .acct-popover-body .acct-identity {
+            flex: 1 1 140px;
+            min-width: 140px;
+        }
+        .acct-popover-body .acct-pools {
+            flex: 1 1 100%;
+            min-width: 0;
+        }
+        .acct-popover-body .acct-pool-model {
+            max-width: 180px;
+        }
+
+        /* Light theme overrides for popover */
+        body.vscode-light .acct-popover-trigger {
+            background: linear-gradient(135deg, rgba(37,99,235,0.06), rgba(124,58,237,0.04));
+            border-color: rgba(0,0,0,0.08);
+            color: rgba(0,0,0,0.55);
+        }
+        @media (hover: hover) {
+            body.vscode-light .acct-popover-trigger:hover {
+                border-color: rgba(37,99,235,0.25);
+                background: linear-gradient(135deg, rgba(37,99,235,0.1), rgba(124,58,237,0.06));
+                color: rgba(0,0,0,0.8);
+            }
+        }
+        body.vscode-light .acct-popover-trigger.is-open {
+            border-color: rgba(37,99,235,0.35);
+            background: linear-gradient(135deg, rgba(37,99,235,0.14), rgba(124,58,237,0.08));
+            color: rgba(0,0,0,0.9);
+        }
+        body.vscode-light .acct-popover-dropdown {
+            background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.99));
+            border-color: rgba(0,0,0,0.1);
+            box-shadow:
+                0 8px 32px rgba(0,0,0,0.12),
+                0 2px 8px rgba(0,0,0,0.06),
+                0 0 1px rgba(0,0,0,0.06) inset;
+        }
+
         /* ─── High Contrast Overrides ──── */
         body.vscode-high-contrast {
             --color-border: rgba(255,255,255,0.25);

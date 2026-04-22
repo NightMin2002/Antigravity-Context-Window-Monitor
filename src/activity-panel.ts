@@ -59,24 +59,14 @@ export function buildGMDataTabContent(
     accountSnapshots?: AccountSnapshot[],
     pendingArchives?: PendingArchiveEntry[],
 ): string {
-    // Always render account status panel if we have snapshots
-    const accountPanel = (accountSnapshots && accountSnapshots.length > 0)
-        ? buildAccountStatusPanel(accountSnapshots)
-        : '';
-
     if (!summary && (!gmSummary || gmSummary.totalCalls === 0)) {
-        return `${accountPanel}<p class="empty-msg">${tBi(
+        return `<p class="empty-msg">${tBi(
             'Waiting for data... GM and Activity information will appear automatically.',
             '正在等待数据... GM 和活动信息将自动显示。',
         )}</p>`;
     }
 
     const parts: string[] = [];
-
-    // ── Account Status Panel (multi-account)
-    if (accountPanel) {
-        parts.push(accountPanel);
-    }
 
     // ── Pending Archive Panel (baselined cycles awaiting midnight sweep)
     if (pendingArchives && pendingArchives.length > 0) {
@@ -193,8 +183,8 @@ export function getGMDataTabStyles(): string {
     .acct-card {
         display: flex;
         align-items: center;
-        gap: var(--space-3);
-        padding: var(--space-2) var(--space-3);
+        gap: var(--space-2);
+        padding: 6px var(--space-3);
         border-bottom: 1px solid rgba(255,255,255,0.04);
         font-size: 0.85em;
         transition: background 0.15s cubic-bezier(.4,0,.2,1);
@@ -358,33 +348,21 @@ export function getGMDataTabStyles(): string {
         opacity: 0.7;
         font-style: italic;
     }
-    .acct-delete-btn {
-        flex-shrink: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 20px;
-        height: 20px;
-        border: none;
-        border-radius: var(--radius-sm);
-        background: transparent;
-        color: var(--color-text-dim);
-        opacity: 0;
-        cursor: pointer;
-        transition: opacity 0.15s, color 0.15s, background 0.15s;
-    }
-    .acct-card:hover .acct-delete-btn {
-        opacity: 0.5;
-    }
-    .acct-delete-btn:hover {
-        opacity: 1 !important;
+    .acct-delete-link {
+        font-size: 0.72em;
+        font-weight: 500;
         color: #f87171;
-        background: rgba(248,113,113,0.12);
+        cursor: pointer;
+        border: none;
+        background: none;
+        padding: 0 2px;
+        opacity: 0.7;
+        transition: opacity 0.15s;
+        white-space: nowrap;
     }
-    .acct-delete-spacer {
-        flex-shrink: 0;
-        width: 20px;
-        height: 20px;
+    .acct-delete-link:hover {
+        opacity: 1;
+        text-decoration: underline;
     }
 
     /* ─── Pending Archive Panel ─── */
@@ -2701,7 +2679,27 @@ function buildPendingArchivePanel(entries: PendingArchiveEntry[]): string {
     </div>`;
 }
 
-function buildAccountStatusPanel(snapshots: AccountSnapshot[]): string {
+/**
+ * Detect whether any account has a quota pool that is "Ready" (expired reset time with usage).
+ * Used to show a red-dot indicator on the account popover trigger button.
+ */
+export function hasAccountReadyPool(snapshots: AccountSnapshot[]): boolean {
+    const nowMs = Date.now();
+    for (const snap of snapshots) {
+        for (const pool of (snap.resetPools || [])) {
+            if (pool.hasUsage === false) { continue; }
+            const resetDate = parseResetDate(pool.resetTime);
+            if (resetDate && resetDate.getTime() - nowMs <= 0) { return true; }
+        }
+    }
+    return false;
+}
+
+/**
+ * Build the account status panel HTML for the global floating popover.
+ * This is the same visual content that was previously embedded in the GM Data tab.
+ */
+export function buildAccountStatusPanel(snapshots: AccountSnapshot[]): string {
     const nowMs = Date.now();
     // Sort: active first, then by lastSeen desc
     const sorted = [...snapshots].sort((a, b) => {
@@ -2769,22 +2767,19 @@ function buildAccountStatusPanel(snapshots: AccountSnapshot[]): string {
             ? `<span class="acct-tag-active">${tBi('active', '在线')}</span>`
             : `<span class="acct-tag-cached">${tBi('cached', '已缓存')}</span>`;
 
-        // Delete button for cached accounts, invisible spacer for active account
-        const deleteBtn = !snap.isActive
-            ? `<button class="acct-delete-btn" data-email="${esc(snap.email)}" title="${tBi('Remove cached account', '移除缓存账号')}">
-                <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor"><path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708"/></svg>
-            </button>`
-            : `<span class="acct-delete-spacer"></span>`;
+        // Delete link for cached accounts — inline red text after status tag
+        const deleteLink = !snap.isActive
+            ? `<button class="acct-delete-link acct-delete-btn" data-email="${esc(snap.email)}" title="${tBi('Remove cached account', '移除缓存账号')}">${tBi('Remove', '移除')}</button>`
+            : '';
 
         return `<div class="acct-card">
             <div class="acct-indicator ${indicatorClass}"></div>
             <div class="acct-identity">
-                <span class="acct-name">${esc(snap.name || '—')} ${statusTag}</span>
+                <span class="acct-name">${esc(snap.name || '—')} ${statusTag}${deleteLink ? ` ${deleteLink}` : ''}</span>
                 <span class="acct-email">${esc(snap.email)}</span>
             </div>
             <span class="acct-plan ${planClass}">${esc(planLabel)}</span>
             ${resetHtml}
-            ${deleteBtn}
         </div>`;
     }).join('');
 
