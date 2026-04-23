@@ -234,6 +234,8 @@ export interface GMSummary {
     retryErrorCodes: Record<string, number>;
     /** Most recent error messages (capped, newest first) for error detail display */
     recentErrors: string[];
+    /** Structured recent error entries with parsed error code + timestamp for enhanced UI */
+    recentErrorEntries?: RecentErrorEntry[];
     /** Tool invocation frequency: tool name → call count (from messagePrompts SYSTEM toolCalls) */
     toolCallCounts: Record<string, number>;
     /** Per-conversation tool call counts: cascadeId → { toolName → count }.
@@ -242,6 +244,29 @@ export interface GMSummary {
     /** Per-conversation error code counts: cascadeId → { errorCode → count }.
      *  Uses sliced calls (immune to archival), used for red +x delta rendering. */
     retryErrorCodesByConv?: Record<string, Record<string, number>>;
+    /** Deduplicated unique error types: one entry per error code, first-seen only.
+     *  Provides a "catalog" of all error kinds encountered for investigation. */
+    uniqueErrors?: UniqueErrorEntry[];
+}
+
+/** A deduplicated error entry — one per unique error code, preserving only the first occurrence. */
+export interface UniqueErrorEntry {
+    /** Parsed short error code (e.g. '429', '503', 'stream_error') */
+    code: string;
+    /** Representative full error message from the first occurrence */
+    message: string;
+    /** ISO timestamp of the first occurrence */
+    firstSeen: string;
+}
+
+/** A recent error entry with parsed metadata for enhanced UI display */
+export interface RecentErrorEntry {
+    /** Full error message */
+    message: string;
+    /** Parsed short error code (e.g. '429', '503', 'stream_error') */
+    code: string;
+    /** ISO timestamp of the call that produced this error */
+    createdAt: string;
 }
 
 /** Lightweight snapshot of a baselined quota cycle ("pending archive"). */
@@ -298,6 +323,8 @@ export interface GMTrackerState {
     persistedRetryErrorCodesByAccount?: Record<string, Record<string, number>>;
     /** Per-account persisted recent errors: email → string[] (added v1.17.2) */
     persistedRecentErrorsByAccount?: Record<string, string[]>;
+    /** Per-account deduplicated unique errors: email → { errorCode → { message, firstSeen } } (added v1.17.x) */
+    persistedUniqueErrorsByAccount?: Record<string, Record<string, { message: string; firstSeen: string }>>;
 }
 
 // ─── Clone Utilities ─────────────────────────────────────────────────────────

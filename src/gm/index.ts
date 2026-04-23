@@ -18,6 +18,8 @@ export type {
     GMSummary,
     GMTrackerState,
     PendingArchiveEntry,
+    UniqueErrorEntry,
+    RecentErrorEntry,
 } from './types';
 export { cloneTokenBreakdownGroups, cloneGMCallEntry, cloneConversationData, slimCallForPersistence, slimSummaryForPersistence, slimConversationForPersistence } from './types';
 

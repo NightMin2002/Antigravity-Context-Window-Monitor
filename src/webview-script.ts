@@ -846,6 +846,22 @@ export function getScript(): string {
                     return;
                 }
 
+                // ── Copy All Errors ──
+                if (target.closest('#copyAllErrors')) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    var ueBtn = target.closest('#copyAllErrors');
+                    var ueData = document.getElementById('ueClipboardData');
+                    if (!ueData) return;
+                    navigator.clipboard.writeText(ueData.textContent || '').then(function() {
+                        ueBtn.classList.add('copied');
+                        var origUeHtml = ueBtn.innerHTML;
+                        ueBtn.textContent = copiedText;
+                        setTimeout(function() { ueBtn.innerHTML = origUeHtml; ueBtn.classList.remove('copied'); }, 2000);
+                    });
+                    return;
+                }
+
                 // ── Pricing Save ──
                 if (target.closest('#pricingSaveBtn')) {
                     var inputs = document.querySelectorAll('.pricing-input');

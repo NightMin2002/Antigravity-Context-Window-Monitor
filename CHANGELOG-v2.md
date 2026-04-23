@@ -8,6 +8,56 @@
 
 ---
 
+## 错误种类档案 + 报错日志升级 — 2026-04-24
+
+### 新增 / Added
+
+- **唯一错误种类档案 / Unique Error Type Catalog**:
+  在「错误详情」区块新增「错误种类」可折叠子区块，按 error code（如 `429`/`503`/`stream_error`）去重，仅保留每种错误类型的首次触发记录（完整消息 + 时间戳）。方便调查"一共触发了哪几种错误"。
+
+  New collapsible "Error Types" sub-section deduplicates errors by error code, keeping only the first occurrence of each type. Useful for investigating what varieties of errors have been encountered.
+
+  - 新增 `UniqueErrorEntry` 接口（`code` / `message` / `firstSeen`）
+  - `GMSummary.uniqueErrors` 字段 + `GMTrackerState.persistedUniqueErrorsByAccount` 持久化
+  - 跨重启保留、多账号隔离、额度重置 / 午夜归档同步清零
+
+- **结构化报错日志 / Structured Error Log**:
+  普通报错从纯文本列表升级为结构化 `RecentErrorEntry[]`（`message` + `code` + `createdAt`），与错误种类使用完全一致的行格式：序号 + 颜色编码标签（限流/服务端/其他） + 时间戳 + 消息预览 → 展开查看完整内容。
+
+  Recent errors upgraded from plain string array to structured `RecentErrorEntry[]` with parsed error code and timestamp. Uses the same row format as unique error types.
+
+  - 新增 `RecentErrorEntry` 接口
+  - 「报错日志」可独立折叠（默认展开），与「错误种类」双重折叠互不影响
+
+- **一键复制全部错误 / Copy All Errors to Clipboard**:
+  「错误详情」标题旁新增复制按钮（自定义 CSS tooltip 替代原生 `title`），一键复制全部错误数据到剪贴板，格式化为可读纯文本：
+
+  ```
+  --- 错误种类 (2 种) ---
+  #1 [500] 04/24 06:29 request failed: ...
+  #2 [429] 04/24 08:10 RESOURCE_EXHAUSTED...
+
+  --- 报错日志 (4 条) ---
+  #1 [429] 04/24 08:10 RESOURCE_EXHAUSTED...
+  #2 [500] 04/24 07:45 request failed: ...
+  ...
+
+  1.2k token 浪费 | 0.5 credits 损耗
+  ```
+
+  方便直接粘贴给 AI 助手进行针对性优化。复制成功后按钮短暂闪绿反馈。
+
+  Copy button with custom CSS tooltip copies all error data (types + log + overhead) to clipboard as formatted plain text.
+
+### 统计 / Stats
+
+- **Files changed**: 6 (`src/gm/types.ts`, `src/gm/tracker.ts`, `src/gm/index.ts`, `src/gm-tracker.ts`, `src/activity-panel.ts`, `src/webview-script.ts`)
+- **Docs updated**: 2 (`docs/project_structure.md`, `CHANGELOG-v2.md`)
+- **TypeScript compile**: Zero errors
+- **Tests**: 50 passed
+- **New types**: `UniqueErrorEntry`, `RecentErrorEntry`
+- **New CSS classes**: `.gm-ue-section`, `.gm-ue-header`, `.gm-ue-row`, `.gm-ue-copy-btn`, `.gm-ue-tooltip`
+
 ## 报错统计修复 + Tooltip 跳跃修复 — 2026-04-23
 
 ### 修复 / Fixed

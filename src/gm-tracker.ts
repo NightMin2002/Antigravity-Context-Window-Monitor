@@ -18,6 +18,8 @@ export type {
     GMSummary,
     GMTrackerState,
     PendingArchiveEntry,
+    UniqueErrorEntry,
+    RecentErrorEntry,
 } from './gm';
 
 export {

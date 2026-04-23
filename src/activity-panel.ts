@@ -7,7 +7,7 @@ import { tBi } from './i18n';
 import { ActivitySummary, ActivityArchive, ModelActivityStats, CheckpointSnapshot, ConversationBreakdown } from './activity-tracker';
 import { esc, formatShortTime as formatTime } from './webview-helpers';
 import type { ContextUsage } from './tracker';
-import type { GMSummary, GMModelStats, GMConversationData, GMSystemContextItem, TokenBreakdownGroup, PendingArchiveEntry } from './gm-tracker';
+import type { GMSummary, GMModelStats, GMConversationData, GMSystemContextItem, TokenBreakdownGroup, PendingArchiveEntry, UniqueErrorEntry, RecentErrorEntry } from './gm-tracker';
 import { normalizeModelDisplayName } from './models';
 import { findPricing } from './pricing-store';
 import { formatResetCountdown, formatResetAbsolute, parseResetDate } from './reset-time';
@@ -1451,6 +1451,178 @@ export function getGMDataTabStyles(): string {
         vertical-align: middle;
     }
 
+    /* ── Unique Error Types Catalog ── */
+    .gm-ue-section {
+        margin-top: var(--space-2);
+        padding-top: var(--space-2);
+        border-top: 1px solid var(--color-divider);
+    }
+    .gm-ue-header {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        font-size: 0.8em;
+        font-weight: 600;
+        color: var(--color-danger);
+        cursor: pointer;
+        list-style: none;
+        user-select: none;
+        padding: 2px 0;
+    }
+    .gm-ue-header::-webkit-details-marker { display: none; }
+    .gm-ue-header::before {
+        content: '\u25b6';
+        display: inline-block;
+        font-size: 0.6em;
+        transition: transform 0.15s ease;
+        color: var(--color-danger);
+        flex-shrink: 0;
+    }
+    .gm-ue-section[open] > .gm-ue-header::before {
+        transform: rotate(90deg);
+    }
+    .gm-ue-header .act-icon {
+        width: 14px;
+        height: 14px;
+        flex-shrink: 0;
+        color: var(--color-danger);
+    }
+    .gm-ue-header .act-badge {
+        font-size: 0.85em;
+        font-weight: 500;
+    }
+    /* Copy button */
+    .gm-ue-copy-btn {
+        margin-left: auto;
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        background: transparent;
+        border: 1px solid var(--color-danger-border);
+        border-radius: var(--radius-sm);
+        color: var(--color-danger-light);
+        cursor: pointer;
+        padding: 2px 6px;
+        font-size: 0.85em;
+        opacity: 0.6;
+        transition: opacity 0.15s, background 0.15s, border-color 0.15s;
+    }
+    .gm-ue-copy-btn:hover {
+        opacity: 1;
+        background: var(--color-danger-bg-dim);
+        border-color: var(--color-danger);
+    }
+    .gm-ue-copy-btn.copied {
+        opacity: 1;
+        border-color: var(--color-ok);
+        color: var(--color-ok);
+    }
+    /* Custom tooltip for copy button */
+    .gm-ue-copy-btn {
+        position: relative;
+    }
+    .gm-ue-tooltip {
+        position: absolute;
+        bottom: calc(100% + 6px);
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--color-surface-raised, #2a2a2a);
+        color: var(--color-text, #e0e0e0);
+        font-size: 0.75em;
+        font-weight: 500;
+        padding: 3px 8px;
+        border-radius: var(--radius-sm);
+        white-space: nowrap;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.15s ease;
+        border: 1px solid var(--color-border);
+        z-index: 10;
+    }
+    .gm-ue-tooltip::after {
+        content: '';
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        border: 4px solid transparent;
+        border-top-color: var(--color-border);
+    }
+    .gm-ue-copy-btn:hover .gm-ue-tooltip {
+        opacity: 1;
+    }
+    .gm-ue-copy-btn.copied .gm-ue-tooltip {
+        opacity: 0;
+    }
+    .gm-ue-list {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        margin-top: var(--space-2);
+    }
+    .gm-ue-row {
+        border-left: 3px solid var(--color-danger-border);
+        transition: border-color 0.15s ease;
+    }
+    .gm-ue-row[open] {
+        border-left-color: var(--color-danger);
+    }
+    .gm-ue-summary {
+        display: flex;
+        align-items: center;
+        gap: var(--space-1);
+        min-width: 0;
+        cursor: pointer;
+        padding: 4px var(--space-2);
+        font-size: 0.75em;
+        list-style: none;
+        user-select: none;
+        overflow: hidden;
+    }
+    .gm-ue-summary::-webkit-details-marker { display: none; }
+    .gm-ue-summary::before {
+        content: '\u25b6';
+        display: inline-block;
+        font-size: 0.6em;
+        margin-right: 2px;
+        transition: transform 0.15s ease;
+        color: rgba(252,165,165,0.45);
+        flex-shrink: 0;
+    }
+    .gm-ue-row[open] > .gm-ue-summary::before {
+        transform: rotate(90deg);
+    }
+    .gm-ue-idx {
+        color: rgba(252,165,165,0.5);
+        font-weight: 600;
+        font-size: 0.9em;
+        min-width: 1.6em;
+        flex-shrink: 0;
+    }
+    .gm-ue-code {
+        flex-shrink: 0;
+    }
+    .gm-ue-time {
+        font-size: 0.85em;
+        color: var(--color-text-dim);
+        white-space: nowrap;
+        flex-shrink: 0;
+        font-family: var(--font-mono, monospace);
+    }
+    .gm-ue-msg-preview {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-family: var(--font-mono, monospace);
+        color: var(--color-danger-light);
+    }
+    .gm-ue-full {
+        margin: 0 0 2px var(--space-4);
+        border-left: 2px solid var(--color-danger-border-dim);
+        padding-left: var(--space-2);
+    }
 
     /* ─── Context X-ray Details ─── */
     .act-xray-details {
@@ -2644,8 +2816,9 @@ function buildToolCallRanking(gm: GMSummary, currentCascadeId?: string): string 
 function buildErrorDetailsSection(s: GMSummary, currentCascadeId?: string): string {
     const errorCodes = s.retryErrorCodes || {};
     const recentErrors = s.recentErrors || [];
+    const uniqueErrors = s.uniqueErrors || [];
     const errTotal = Object.values(errorCodes).reduce((a, b) => a + b, 0);
-    if (errTotal <= 0 && recentErrors.length === 0 && s.totalRetryCount <= 0) { return ''; }
+    if (errTotal <= 0 && recentErrors.length === 0 && s.totalRetryCount <= 0 && uniqueErrors.length === 0) { return ''; }
 
     const fmt = (n: number) => n >= 1_000_000 ? (n / 1_000_000).toFixed(2) + 'M' : n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n);
 
@@ -2676,15 +2849,70 @@ function buildErrorDetailsSection(s: GMSummary, currentCascadeId?: string): stri
         ? ` <span class="err-delta" style="font-size:0.8em">+${currentConvTotal} ${tBi('this session', '\u672c\u5bf9\u8bdd')}</span>`
         : '';
 
-    // Recent error messages — rendered with details/summary for expand.
-    // After mount, JS checks scrollWidth vs clientWidth; if no overflow,
-    // adds .no-overflow to disable expand arrow and pointer.
-    const reversed = [...recentErrors].reverse().slice(0, 10);
-    const total = recentErrors.length;
-    const errorList = reversed.map((msg, i) => {
-        const idx = `#${total - i}`;
-        return `<details class="gm-err-expand" id="d-err-${i}"><summary class="gm-err-msg gm-err-msg-summary"><span class="gm-err-idx">${idx}</span> ${esc(msg)}</summary><div class="gm-err-msg gm-err-msg-full"><span class="gm-err-idx">${idx}</span> ${esc(msg)}</div></details>`;
-    }).join('');
+    // -- Shared time formatter --
+    const fmtTime = (iso: string): string => {
+        if (!iso) { return ''; }
+        try {
+            const d = new Date(iso);
+            if (isNaN(d.getTime())) { return ''; }
+            const pad = (n: number) => String(n).padStart(2, '0');
+            return `${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        } catch { return ''; }
+    };
+
+    // -- Shared row builder for both unique errors and recent errors --
+    const buildErrorRow = (entry: { code: string; message: string; createdAt?: string; firstSeen?: string }, i: number, idPrefix: string): string => {
+        const isRateLimit = entry.code === '429';
+        const isServer = entry.code === '503' || entry.code === '500' || entry.code === '504';
+        const tagClass = isRateLimit ? 'gm-err-tag-ratelimit' : isServer ? 'gm-err-tag-server' : 'gm-err-tag-other';
+        const time = entry.createdAt || entry.firstSeen || '';
+        const timeStr = fmtTime(time);
+        const timeChip = timeStr ? `<span class="gm-ue-time">${timeStr}</span>` : '';
+        return `<details class="gm-err-expand gm-ue-row" id="${idPrefix}-${i}">
+            <summary class="gm-ue-summary">
+                <span class="gm-ue-idx">#${i + 1}</span>
+                <span class="gm-err-tag ${tagClass} gm-ue-code">${esc(entry.code)}</span>
+                ${timeChip}
+                <span class="gm-ue-msg-preview">${esc(entry.message)}</span>
+            </summary>
+            <div class="gm-err-msg gm-err-msg-full gm-ue-full">${esc(entry.message)}</div>
+        </details>`;
+    };
+
+    // -- Unique Error Types catalog (deduplicated by error code) --
+    let uniqueErrorCatalog = '';
+    if (uniqueErrors.length > 0) {
+        const catalogIcon = `<svg class="act-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`;
+        const rows = uniqueErrors.map((entry, i) => buildErrorRow(entry, i, 'd-ue')).join('');
+        uniqueErrorCatalog = `<details class="gm-ue-section" id="ue-catalog">
+            <summary class="gm-ue-header">
+                ${catalogIcon} ${tBi('Error Types', '\u9519\u8bef\u79cd\u7c7b')}
+                <span class="act-badge">${uniqueErrors.length} ${tBi('types', '\u79cd')}</span>
+            </summary>
+            <div class="gm-ue-list">${rows}</div>
+        </details>`;
+    }
+
+    // -- Recent error log (structured entries with code + timestamp) --
+    const recentEntries = s.recentErrorEntries || [];
+    let errorListHtml = '';
+    if (recentEntries.length > 0) {
+        const rows = recentEntries.map((entry, i) => buildErrorRow(entry, i, 'd-err')).join('');
+        const logIcon = `<svg class="act-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`;
+        errorListHtml = `<details class="gm-ue-section" id="err-log" open>
+            <summary class="gm-ue-header">
+                ${logIcon} ${tBi('Error Log', '\u62a5\u9519\u65e5\u5fd7')}
+                <span class="act-badge">${recentEntries.length} ${tBi('entries', '\u6761')}</span>
+            </summary>
+            <div class="gm-ue-list">${rows}</div>
+        </details>`;
+    } else if (recentErrors.length > 0) {
+        // Fallback: legacy string[] without metadata
+        const rows = recentErrors.slice(0, 20).map((msg, i) =>
+            buildErrorRow({ code: 'unknown', message: msg }, i, 'd-err'),
+        ).join('');
+        errorListHtml = `<div class="gm-ue-section"><div class="gm-ue-list">${rows}</div></div>`;
+    }
 
     // Overhead stats (token waste + credits) — shown as a compact info line
     const overheadParts: string[] = [];
@@ -2695,11 +2923,40 @@ function buildErrorDetailsSection(s: GMSummary, currentCascadeId?: string): stri
         ? `<div class="gm-err-overhead">${overheadParts.join(' \u00b7 ')}</div>`
         : '';
 
-    return `<h2 class="act-section-title"><svg class="act-icon" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>${tBi('Error Details', '\u9519\u8bef\u8be6\u60c5')}${convDeltaBadge}</h2>
+    // -- Build clipboard text (all errors: unique types + recent log) --
+    const clipboardParts: string[] = [];
+    if (uniqueErrors.length > 0) {
+        clipboardParts.push(`--- ${tBi('Error Types', '\u9519\u8bef\u79cd\u7c7b')} (${uniqueErrors.length} ${tBi('types', '\u79cd')}) ---`);
+        uniqueErrors.forEach((e, i) => {
+            const t = fmtTime(e.firstSeen);
+            clipboardParts.push(`#${i + 1} [${e.code}] ${t ? t + ' ' : ''}${e.message}`);
+        });
+    }
+    if (recentEntries.length > 0) {
+        clipboardParts.push('');
+        clipboardParts.push(`--- ${tBi('Error Log', '\u62a5\u9519\u65e5\u5fd7')} (${recentEntries.length} ${tBi('entries', '\u6761')}) ---`);
+        recentEntries.forEach((e, i) => {
+            const t = fmtTime(e.createdAt);
+            clipboardParts.push(`#${i + 1} [${e.code}] ${t ? t + ' ' : ''}${e.message}`);
+        });
+    }
+    if (overheadParts.length > 0) {
+        clipboardParts.push('');
+        clipboardParts.push(overheadParts.join(' | '));
+    }
+
+    const copyIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
+    const copyBtnHtml = clipboardParts.length > 0
+        ? `<button class="gm-ue-copy-btn" id="copyAllErrors"><span class="gm-ue-tooltip">${tBi('Copy all errors', '\u590d\u5236\u5168\u90e8\u9519\u8bef')}</span>${copyIcon}</button>`
+        : '';
+
+    return `<h2 class="act-section-title"><svg class="act-icon" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>${tBi('Error Details', '\u9519\u8bef\u8be6\u60c5')}${convDeltaBadge}${copyBtnHtml}</h2>
     <div class="gm-err-card">
         ${codeTags ? `<div class="gm-err-codes">${codeTags}</div>` : ''}
+        ${uniqueErrorCatalog}
         ${overheadLine}
-        ${errorList ? `<div class="gm-err-list">${errorList}</div>` : ''}
+        ${errorListHtml}
+        <pre id="ueClipboardData" style="display:none">${esc(clipboardParts.join('\n'))}</pre>
     </div>`;
 }
 

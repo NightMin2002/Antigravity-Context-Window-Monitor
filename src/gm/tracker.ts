@@ -17,6 +17,8 @@ import type {
     GMTrackerState,
     PendingArchiveEntry,
     TokenBreakdownGroup,
+    UniqueErrorEntry,
+    RecentErrorEntry,
 } from './types';
 import { cloneConversationData, cloneTokenBreakdownGroups } from './types';
 import {
@@ -94,6 +96,9 @@ export class GMTracker {
     private _persistedRetryErrorCodesByAccount: Record<string, Record<string, number>> = {};
     /** Per-account persisted recent error messages: email → string[]. */
     private _persistedRecentErrorsByAccount: Record<string, string[]> = {};
+    /** Per-account deduplicated unique errors: email → { errorCode → { message, firstSeen } }.
+     *  Only the first occurrence of each error code is kept. */
+    private _persistedUniqueErrorsByAccount: Record<string, Record<string, { message: string; firstSeen: string }>> = {};
     /** Tracks per-conversation RUNNING status to detect RUNNING→IDLE transition. */
     private _lastRunningStatus = new Map<string, boolean>();
 
@@ -541,6 +546,44 @@ export class GMTracker {
             retryErrorCodesByConv,
         };
 
+        // ── Collect unique error types (deduped by error code, first-seen wins) ──
+        // Also collect structured recentErrorEntries with parsed code + timestamp
+        const uniqueErrorMap = new Map<string, UniqueErrorEntry>();
+        const allErrorEntries: RecentErrorEntry[] = [];
+        for (const conv of conversations) {
+            for (const c of conv.calls) {
+                // Only process calls belonging to current account (same source as retryErrorCodes)
+                if (this._currentAccountEmail && !skipAccountFilter
+                    && c.accountEmail && c.accountEmail !== this._currentAccountEmail) {
+                    continue;
+                }
+                const callTime = c.createdAt || '';
+                for (const errMsg of c.retryErrors) {
+                    const code = parseErrorCode(errMsg);
+                    const existing = uniqueErrorMap.get(code);
+                    if (!existing || (callTime && callTime < existing.firstSeen)) {
+                        uniqueErrorMap.set(code, { code, message: errMsg, firstSeen: callTime });
+                    }
+                    allErrorEntries.push({ message: errMsg, code, createdAt: callTime });
+                }
+                if (c.hasError && c.errorMessage && c.retryErrors.length === 0) {
+                    const code = parseErrorCode(c.errorMessage);
+                    const existing = uniqueErrorMap.get(code);
+                    if (!existing || (callTime && callTime < existing.firstSeen)) {
+                        uniqueErrorMap.set(code, { code, message: c.errorMessage, firstSeen: callTime });
+                    }
+                    allErrorEntries.push({ message: c.errorMessage, code, createdAt: callTime });
+                }
+            }
+        }
+        result.uniqueErrors = [...uniqueErrorMap.values()].sort((a, b) =>
+            a.firstSeen.localeCompare(b.firstSeen),
+        );
+        // Recent error entries: newest first, capped at 20
+        result.recentErrorEntries = allErrorEntries
+            .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+            .slice(0, 20);
+
         // Merge persisted baselines with fresh data (max-wins per tool)
         // This ensures tool counts survive restarts even if the API doesn't
         // return messagePrompts (which contains toolCallsByStep) for all calls.
@@ -619,6 +662,26 @@ export class GMTracker {
         // Clear legacy global fields — migrated to per-account
         this._persistedRetryErrorCodes = {};
         this._persistedRecentErrors = [];
+
+        // ── Merge persisted unique errors (per-account) ──
+        const acctUniqueErrors = this._persistedUniqueErrorsByAccount[accountKey] || {};
+        if (result.uniqueErrors && result.uniqueErrors.length > 0) {
+            // Merge fresh unique errors with persisted: keep earliest firstSeen per code
+            for (const entry of result.uniqueErrors) {
+                const persisted = acctUniqueErrors[entry.code];
+                if (!persisted || (entry.firstSeen && entry.firstSeen < persisted.firstSeen)) {
+                    acctUniqueErrors[entry.code] = { message: entry.message, firstSeen: entry.firstSeen };
+                }
+            }
+        }
+        // Rebuild uniqueErrors from merged state
+        if (Object.keys(acctUniqueErrors).length > 0) {
+            result.uniqueErrors = Object.entries(acctUniqueErrors)
+                .map(([code, { message, firstSeen }]) => ({ code, message, firstSeen }))
+                .sort((a, b) => a.firstSeen.localeCompare(b.firstSeen));
+            // Persist back
+            this._persistedUniqueErrorsByAccount[accountKey] = { ...acctUniqueErrors };
+        }
 
         return result;
     }
@@ -792,6 +855,7 @@ export class GMTracker {
         // stale totals that included now-archived data.
         this._persistedRetryErrorCodesByAccount = {};
         this._persistedRecentErrorsByAccount = {};
+        this._persistedUniqueErrorsByAccount = {};
         this._persistedRetryErrorCodes = {};
         this._persistedRecentErrors = [];
 
@@ -873,6 +937,7 @@ export class GMTracker {
         this._persistedRetryErrorCodes = {};
         this._persistedRetryErrorCodesByAccount = {};
         this._persistedRecentErrorsByAccount = {};
+        this._persistedUniqueErrorsByAccount = {};
         this._lastSummary = null;
         this._lastFetchedAt = '';
     }
@@ -896,6 +961,7 @@ export class GMTracker {
         this._persistedRetryErrorCodes = {};
         this._persistedRetryErrorCodesByAccount = {};
         this._persistedRecentErrorsByAccount = {};
+        this._persistedUniqueErrorsByAccount = {};
         this._lastSummary = null;
         this._lastFetchedAt = '';
         this._needsBaselineInit = true;
@@ -1105,6 +1171,7 @@ export class GMTracker {
             persistedRetryErrorCodes: Object.keys(this._persistedRetryErrorCodes).length > 0 ? this._persistedRetryErrorCodes : undefined,
             persistedRetryErrorCodesByAccount: Object.keys(this._persistedRetryErrorCodesByAccount).length > 0 ? this._persistedRetryErrorCodesByAccount : undefined,
             persistedRecentErrorsByAccount: Object.keys(this._persistedRecentErrorsByAccount).length > 0 ? this._persistedRecentErrorsByAccount : undefined,
+            persistedUniqueErrorsByAccount: Object.keys(this._persistedUniqueErrorsByAccount).length > 0 ? this._persistedUniqueErrorsByAccount : undefined,
         };
     }
 
@@ -1222,6 +1289,10 @@ export class GMTracker {
             && tracker._persistedRecentErrors.length > 0
             && tracker._currentAccountEmail) {
             tracker._persistedRecentErrorsByAccount[tracker._currentAccountEmail] = [...tracker._persistedRecentErrors];
+        }
+        // Restore per-account unique errors (added v1.17.x)
+        if (data.persistedUniqueErrorsByAccount && typeof data.persistedUniqueErrorsByAccount === 'object') {
+            tracker._persistedUniqueErrorsByAccount = JSON.parse(JSON.stringify(data.persistedUniqueErrorsByAccount));
         }
 
         return tracker;
