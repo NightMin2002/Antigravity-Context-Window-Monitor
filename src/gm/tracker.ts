@@ -571,17 +571,32 @@ export class GMTracker {
         // Merge persisted error data — per-account scoped (v1.17.2+)
         // Each account's errors are stored independently, so switching accounts
         // doesn't lose data and returning to an account restores its errors.
+        //
+        // IMPORTANT: Unlike tool counts (which use ALL calls across accounts and
+        // legitimately need max-wins to survive API not returning messagePrompts),
+        // error counts are account-filtered — they're already accurate when
+        // accountFilteredCalls is populated. Use persisted data ONLY as a fallback
+        // when fresh data is zero (API hasn't repopulated calls yet after restart),
+        // NOT as an unconditional max-wins inflate. This prevents cross-account
+        // error contamination and ensures error totals stay in sync with actual
+        // calls — matching the behavior of totalCalls/totalCredits.
         const accountKey = this._currentAccountEmail || '__global__';
-        const acctCodes = this._persistedRetryErrorCodesByAccount[accountKey] || {};
-        for (const [code, count] of Object.entries(acctCodes)) {
-            if (!result.retryErrorCodes[code] || result.retryErrorCodes[code] < count) {
+        const freshErrorTotal = Object.values(result.retryErrorCodes).reduce((a, b) => a + b, 0);
+        if (freshErrorTotal === 0) {
+            // API hasn't repopulated — use persisted data as fallback
+            const acctCodes = this._persistedRetryErrorCodesByAccount[accountKey] || {};
+            for (const [code, count] of Object.entries(acctCodes)) {
                 result.retryErrorCodes[code] = count;
             }
-        }
-        // Also merge legacy global persisted data (migration from v1.17.1)
-        for (const [code, count] of Object.entries(this._persistedRetryErrorCodes)) {
-            if (!result.retryErrorCodes[code] || result.retryErrorCodes[code] < count) {
-                result.retryErrorCodes[code] = count;
+            // Also restore per-conv error codes from persisted retryErrorCodesByConv
+            // (not needed — retryErrorCodesByConv is only used for +x delta display,
+            //  which is meaningless when all data comes from persisted fallback)
+
+            // Legacy global persisted data fallback (migration from v1.17.1)
+            if (Object.keys(result.retryErrorCodes).length === 0) {
+                for (const [code, count] of Object.entries(this._persistedRetryErrorCodes)) {
+                    result.retryErrorCodes[code] = count;
+                }
             }
         }
         // Persisted recent errors: use fresh data when available, persisted as fallback
@@ -594,7 +609,10 @@ export class GMTracker {
         }
 
         // Update per-account persisted baselines (only when we have fresh data)
-        this._persistedRetryErrorCodesByAccount[accountKey] = { ...result.retryErrorCodes };
+        if (freshErrorTotal > 0) {
+            // Fresh data exists — persist directly (no inflation)
+            this._persistedRetryErrorCodesByAccount[accountKey] = { ...result.retryErrorCodes };
+        }
         if (result.recentErrors.length > 0) {
             this._persistedRecentErrorsByAccount[accountKey] = [...result.recentErrors];
         }

@@ -431,6 +431,46 @@ export function getGMDataTabStyles(): string {
         background: var(--color-danger-bg-dim);
         border-color: var(--color-danger-border);
     }
+    /* Override global tooltip direction: act-stat tooltips pop downward (top),
+       not upward (bottom). Must override in base state (not just :hover) so
+       the fade-out transition doesn't cause the tooltip to jump from bottom
+       to top when the mouse leaves. */
+    .act-stat[data-tooltip]::after {
+        bottom: auto;
+        top: calc(100% + 6px);
+        transform: translateX(-50%) scale(0.92);
+        padding: var(--space-1) var(--space-2);
+        background: var(--color-bg);
+        color: var(--color-text);
+        border: 1px solid var(--color-border);
+        font-size: 0.75em;
+        font-weight: 400;
+        text-transform: none;
+        letter-spacing: 0;
+        white-space: normal;
+        max-width: 220px;
+        width: max-content;
+        text-align: center;
+        z-index: var(--z-tooltip, 500);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    }
+    .act-stat[data-tooltip]:hover::after,
+    .act-stat[data-tooltip]:focus-visible::after {
+        transform: translateX(-50%) scale(1);
+    }
+    /* Edge tooltip anchoring */
+    .act-summary-bar > .act-stat:first-child[data-tooltip]::after {
+        left: 0; right: auto; transform: translateX(0) scale(0.92); text-align: left;
+    }
+    .act-summary-bar > .act-stat:first-child[data-tooltip]:hover::after {
+        transform: translateX(0) scale(1);
+    }
+    .act-summary-bar > .act-stat:last-child[data-tooltip]::after {
+        left: auto; right: 0; transform: translateX(0) scale(0.92); text-align: left;
+    }
+    .act-summary-bar > .act-stat:last-child[data-tooltip]:hover::after {
+        transform: translateX(0) scale(1);
+    }
     @media (hover: hover) {
         .act-stat:hover {
             background: rgba(96,165,250,0.08);
@@ -439,36 +479,6 @@ export function getGMDataTabStyles(): string {
         .act-stat-warn:hover {
             background: var(--color-danger-border-dim);
             border-color: var(--color-danger-border-strong);
-        }
-        .act-stat[data-tooltip]:hover::after {
-            content: attr(data-tooltip);
-            position: absolute;
-            top: calc(100% + 6px);
-            left: 50%;
-            transform: translateX(-50%);
-            padding: var(--space-1) var(--space-2);
-            background: var(--color-bg);
-            color: var(--color-text);
-            border: 1px solid var(--color-border);
-            border-radius: var(--radius-sm);
-            font-size: 0.75em;
-            font-weight: 400;
-            text-transform: none;
-            letter-spacing: 0;
-            white-space: normal;
-            max-width: 220px;
-            width: max-content;
-            text-align: center;
-            z-index: var(--z-tooltip, 500);
-            pointer-events: none;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.25);
-        }
-        /* Edge tooltip anchoring */
-        .act-summary-bar > .act-stat:first-child[data-tooltip]:hover::after {
-            left: 0; right: auto; transform: none; text-align: left;
-        }
-        .act-summary-bar > .act-stat:last-child[data-tooltip]:hover::after {
-            left: auto; right: 0; transform: none; text-align: left;
         }
     }
     .act-stat-icon { display: flex; align-items: center; color: var(--color-text-dim); }

@@ -8,6 +8,39 @@
 
 ---
 
+## 报错统计修复 + Tooltip 跳跃修复 — 2026-04-23
+
+### 修复 / Fixed
+
+- **报错统计跨账号污染 / Error Count Cross-Account Contamination**:
+  Summary Bar 顶部「报错」气泡显示的错误总数混入了其他账号的历史错误，与预期的「仅当前账号」不一致。积分和调用统计不受影响。
+
+  Root cause: `_buildSummary()` 中 `retryErrorCodes` 从 `accountFilteredCalls`（已按当前账号过滤）正确聚合后，被 `_persistedRetryErrorCodesByAccount` 以 **max-wins** 策略无条件合并（取最大值），导致：
+  1. 持久化数据只增不减：即使归档清除了实际调用，持久化的历史最大值仍保留
+  2. 旧版全局数据迁移污染：`_persistedRetryErrorCodes`（混合多账号）被迁移到当前账号桶
+
+  积分/调用不受影响是因为它们没有 max-wins 持久化机制——每次都从 `accountFilteredCalls` 实时重新计算。
+
+  **修复**: max-wins 合并改为 **fallback-only** 模式——仅当 API 尚未回填数据（`freshErrorTotal === 0`，插件重启后首几次轮询）时使用持久化数据作为降级展示。API 数据已到位后直接使用实时计算结果，与积分/调用的行为一致。
+
+  Error count mixed in other accounts' historical errors. `retryErrorCodes` was correctly aggregated from `accountFilteredCalls`, but then unconditionally inflated by max-wins merge with persisted data. Fix: persisted data now used only as fallback when fresh data is zero (API not yet repopulated after restart), matching how totalCalls/totalCredits work.
+
+- **Tooltip 鼠标离开时跳跃 / Tooltip Jump on Mouse Leave**:
+  Summary Bar 气泡元素的 tooltip 在鼠标离开时会瞬间跳到顶部再消失。
+
+  Root cause: 两套 tooltip 样式冲突——全局 `[data-tooltip]::after` 使用 `bottom`（向上弹出）+ 过渡动画，而 `.act-stat` 只在 `:hover` 时覆盖为 `top`（向下弹出）。鼠标离开时 hover 覆盖消失，tooltip 跳回全局的 `bottom` 方向后再淡出。
+
+  **修复**: 将 `.act-stat` 的 tooltip 方向覆盖从 `:hover` 提升到基础状态 `::after`（`bottom: auto; top: calc(100% + 6px)`），确保 tooltip 在 hover 和淡出时始终保持在元素下方，不再因样式层级切换而跳跃。边缘锚定同步更新。
+
+  Two tooltip styles conflicted: global used `bottom` (upward) + transition, act-stat overrode to `top` (downward) only in `:hover`. On mouse leave, the hover override disappeared, tooltip jumped from bottom to top then faded out. Fix: override direction in base `::after` state so it's always consistent.
+
+### 统计 / Stats
+
+- **Files changed**: 2 (`src/gm/tracker.ts`, `src/activity-panel.ts`)
+- **TypeScript compile**: Zero errors
+
+---
+
 ## 成本标签页 UI 重构 — 2026-04-23
 
 ### 重构 / Refactored
