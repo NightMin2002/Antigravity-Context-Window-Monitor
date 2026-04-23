@@ -646,7 +646,7 @@ function buildTabContents(
             )
             : `<p class="empty-msg">${tBi('Initializing...', '初始化中...')}</p>`) + eoc,
         models: buildModelsTabContent(userInfo, configs, lastGMSummary, lastModelDNA) + eoc,
-        history: buildHistoryHtml(tracker) + eoc,
+        history: buildHistoryHtml(tracker, lastUserInfo?.email) + eoc,
         calendar: buildCalendarTabContent(lastDailyStore ?? undefined, calendarYear, calendarMonth) + eoc,
         profile: buildProfileContent(userInfo, configs) + eoc,
         // Account popover: content-only update, does NOT affect open/close state
@@ -684,7 +684,7 @@ function buildHtml(
         )
         : `<p class="empty-msg">${tBi('Initializing...', '初始化中...')}</p>`;
     const modelsHtml = buildModelsTabContent(userInfo, configs, lastGMSummary, lastModelDNA);
-    const historyHtml = buildHistoryHtml(tracker);
+    const historyHtml = buildHistoryHtml(tracker, lastUserInfo?.email);
     const calendarHtml = buildCalendarTabContent(lastDailyStore ?? undefined, calendarYear, calendarMonth);
     const profileHtml = buildProfileContent(userInfo, configs);
     const settingsHtml = buildSettingsContent(configs, tracker, lastStorageDiagnostics, getPanelHintPreferences());

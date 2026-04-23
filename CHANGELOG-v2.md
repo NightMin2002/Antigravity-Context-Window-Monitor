@@ -8,6 +8,46 @@
 
 ---
 
+## [1.17.13] - 2026-04-23
+
+### 修复 / Fixed
+
+- **缓存账号追踪会话永不结束 / Cached Account Tracking Sessions Never Ending**:
+  `processUpdate()` 只接收当前登录账号的 API configs，缓存账号的 `ModelState` 永远无法走到 `isCycleEnded()` 检查，导致追踪会话停留在 "追踪中" 状态直到用户手动切换到该账号。
+
+  `processUpdate()` only receives API configs for the active account. Cached accounts' `ModelState` never reaches `isCycleEnded()`, leaving sessions stuck in "ACTIVE" until the user manually switches to that account.
+
+  **修复**: `QuotaTracker` 新增 `archiveExpiredSessions(email, modelLabels)` 方法。`checkCachedAccountResets()` 在检测到缓存账号额度过期时（触发 GM baseline 的同时），同步调用此方法归档对应的追踪会话。通过 `stateKey` 前缀匹配账号 + `modelLabel`/`poolModels` 匹配池范围。
+
+  Fix: New `archiveExpiredSessions()` method on `QuotaTracker`. Called by `checkCachedAccountResets()` alongside GM baselining when cached account quota expires. Matches by `stateKey` email prefix + `modelLabel`/`poolModels` pool scope.
+
+### 新增 / Added
+
+- **当前账号追踪会话置顶高亮 / Current Account Session Pin & Highlight**:
+  额度追踪标签页中，当前登录账号的活跃追踪会话自动置顶排序，并用绿色外观区分：
+
+  | 元素 | 样式 |
+  |------|------|
+  | 左边框 | 绿色（`--color-ok`），其他账号为蓝色 |
+  | 背景 | 半透明绿色 `rgba(74,222,128,0.06)` |
+  | 边框 | 绿色细边框 `rgba(74,222,128,0.18)` |
+  | 模型名 | 绿色文字 |
+
+  **接口变更 / API Changes**:
+  - `buildHistoryHtml()` 新增可选 `currentAccountEmail` 参数
+  - `buildSessionCard()` 新增 `isCurrentAccount` 参数，控制 `qt-card-current` 类
+  - 活跃会话排序：当前账号优先，然后按开始时间降序
+  - 深色/浅色主题完整适配
+
+### 统计 / Stats
+
+- **Files changed**: 4 (`src/quota-tracker.ts`, `src/extension.ts`, `src/webview-history-tab.ts`, `src/webview-panel.ts`, `src/webview-styles.ts`)
+- **Docs updated**: 2 (`docs/project_structure.md`, `CHANGELOG-v2.md`)
+- **TypeScript compile**: Zero errors
+- **Root cause**: `processUpdate()` 只处理当前账号 configs → 缓存账号 `ModelState` 永远不 cycle-end → `archiveExpiredSessions()` 作为外部触发的归档入口
+
+---
+
 ## [1.17.12] - 2026-04-23
 
 ### 重构 / Refactored

@@ -1488,8 +1488,12 @@ function checkCachedAccountResets(): void {
             // getArchivalSummary() which includes both pending-archive and
             // active calls, giving DailyStore the complete day's picture.
             const baselinedCount = gmTracker.baselineForQuotaReset(snap.email, pool.modelLabels);
-            if (baselinedCount > 0) {
-                log(`[ResetCheck]   ${baselinedCount} GM calls baselined`);
+            // Also archive any active QuotaTracker sessions for this cached account's pool.
+            // Without this, sessions stay in 'tracking' forever because processUpdate()
+            // never receives API configs for non-active accounts.
+            const archivedSessions = quotaTracker.archiveExpiredSessions(snap.email, pool.modelLabels);
+            if (baselinedCount > 0 || archivedSessions > 0) {
+                log(`[ResetCheck]   ${baselinedCount} GM calls baselined, ${archivedSessions} quota sessions archived`);
                 lastGMSummary = gmTracker.getDetailedSummary() || gmTracker.getCachedSummary();
                 durableGlobalState.update('gmTrackerState', gmTracker.serialize());
                 persistGMSummaryToFile(lastGMSummary);

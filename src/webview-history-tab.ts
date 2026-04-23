@@ -11,8 +11,9 @@ import { esc, formatShortTime, formatDuration } from './webview-helpers';
 
 // ─── Public API ──────────────────────────────────────────────────────────────
 
-/** Build the complete Quota Tracking tab HTML. */
-export function buildHistoryHtml(tracker?: QuotaTracker): string {
+/** Build the complete Quota Tracking tab HTML.
+ *  @param currentAccountEmail — the currently logged-in account, used for sorting and highlighting. */
+export function buildHistoryHtml(tracker?: QuotaTracker, currentAccountEmail?: string): string {
     if (!tracker) {
         return `
             <section class="card empty">
@@ -49,7 +50,16 @@ export function buildHistoryHtml(tracker?: QuotaTracker): string {
 
     // ── Active Tracking ──
     if (activeSessions.length > 0) {
-        const activeCards = activeSessions.map(s => buildSessionCard(s, true)).join('');
+        // Sort: current account sessions first, then by start time (newest first)
+        if (currentAccountEmail) {
+            activeSessions.sort((a, b) => {
+                const aCurrent = a.accountEmail === currentAccountEmail ? 0 : 1;
+                const bCurrent = b.accountEmail === currentAccountEmail ? 0 : 1;
+                if (aCurrent !== bCurrent) { return aCurrent - bCurrent; }
+                return new Date(b.startTime).getTime() - new Date(a.startTime).getTime();
+            });
+        }
+        const activeCards = activeSessions.map(s => buildSessionCard(s, true, s.accountEmail === currentAccountEmail)).join('');
         parts.push(`
             <section class="card">
                 <div class="card-header-row">
@@ -137,7 +147,7 @@ function buildHistorySummary(history: QuotaSession[], max: number): string {
 
 // ─── Session Card ────────────────────────────────────────────────────────────
 
-function buildSessionCard(session: QuotaSession, isActive: boolean): string {
+function buildSessionCard(session: QuotaSession, isActive: boolean, isCurrentAccount = false): string {
     const now = Date.now();
     const startMs = new Date(session.startTime).getTime();
     const elapsed = isActive ? (now - startMs) : (session.totalDurationMs ?? 0);
@@ -238,7 +248,9 @@ function buildSessionCard(session: QuotaSession, isActive: boolean): string {
         </div>` : '';
 
     // ── Card accent color based on status ──
-    const accentClass = isActive ? 'qt-card-active' : session.completed ? 'qt-card-complete' : 'qt-card-reset';
+    const accentClass = isActive
+        ? (isCurrentAccount ? 'qt-card-active qt-card-current' : 'qt-card-active')
+        : session.completed ? 'qt-card-complete' : 'qt-card-reset';
 
     return `
         <div class="timeline-card ${accentClass}">

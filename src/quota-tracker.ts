@@ -428,6 +428,48 @@ export class QuotaTracker {
         this.state.update(ENABLED_KEY, val);
     }
 
+    /** Archive active tracking sessions for a specific account whose quota has expired.
+     *  Called by checkCachedAccountResets() when a cached (non-active) account's
+     *  quota pool resets — the QuotaTracker never receives API config updates for
+     *  these accounts, so their sessions would stay in 'tracking' state forever.
+     *  @param email — account email to match against session.accountEmail
+     *  @param modelLabels — model labels in the expired pool (used to scope archival)
+     *  @returns number of sessions archived */
+    archiveExpiredSessions(email: string, modelLabels: string[]): number {
+        if (!email) { return 0; }
+        const now = new Date();
+        const nowIso = now.toISOString();
+        const labelSet = new Set(modelLabels.map(l => l.toLowerCase()));
+        let count = 0;
+
+        for (const [stateKey, ms] of this.modelStates.entries()) {
+            if (!ms.currentSession) { continue; }
+            // Match by account email prefix in stateKey (format: "email:modelId")
+            if (!stateKey.startsWith(`${email}:`)) { continue; }
+            // Match by model label (pool scope)
+            const sessionLabel = ms.currentSession.modelLabel?.toLowerCase() || '';
+            const hasPoolMatch = labelSet.has(sessionLabel)
+                || (ms.currentSession.poolModels || []).some(p => labelSet.has(p.toLowerCase()));
+            if (!hasPoolMatch && labelSet.size > 0) { continue; }
+
+            // Archive the session with resetTime as end time
+            const endTime = ms.currentSession.cycleResetTime || nowIso;
+            ms.currentSession.endTime = endTime;
+            ms.currentSession.totalDurationMs =
+                new Date(endTime).getTime() - new Date(ms.currentSession.startTime).getTime();
+            this.archiveSession(ms.currentSession);
+            ms.currentSession = null;
+            ms.state = 'idle';
+            ms.last100Time = nowIso;
+            ms.lastFraction = 1.0;
+            ms.idleSince = nowIso;
+            count++;
+        }
+
+        if (count > 0) { this.persist(); }
+        return count;
+    }
+
     // ─── Internal ─────────────────────────────────────────────────────────────
 
     /** Helper: begin a tracking session. */

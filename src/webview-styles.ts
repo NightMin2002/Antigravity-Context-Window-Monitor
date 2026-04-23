@@ -3501,6 +3501,14 @@ export function getStyles(): string {
             border-left-color: var(--color-info, #60a5fa);
             background: rgba(96,165,250,0.04);
         }
+        .timeline-card.qt-card-current {
+            border-left-color: var(--color-ok, #34d399);
+            background: rgba(74,222,128,0.06);
+            border-color: rgba(74,222,128,0.18);
+        }
+        .timeline-card.qt-card-current .timeline-model {
+            color: var(--color-ok, #34d399);
+        }
         .timeline-card.qt-card-complete {
             border-left-color: var(--color-ok, #34d399);
         }
@@ -4284,6 +4292,7 @@ export function getStyles(): string {
         body.vscode-light .mime-chip { background: rgba(0,0,0,0.04); }
         body.vscode-light .inline-details { background: rgba(0,0,0,0.01); }
         body.vscode-light .timeline-card { background: rgba(0,0,0,0.02); }
+        body.vscode-light .timeline-card.qt-card-current { background: rgba(74,222,128,0.08); border-color: rgba(74,222,128,0.25); }
 
         /* ─── Light Theme: Progress Bars ──── */
         body.vscode-light .progress-bar-wrap { background: rgba(0,0,0,0.06); }
