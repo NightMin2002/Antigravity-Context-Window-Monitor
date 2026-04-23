@@ -336,7 +336,7 @@ export function getScript(): string {
 
             function bindHistoryCatalog() {
                 var searchInput = document.getElementById('historySearchInput');
-                var filterBtns = document.querySelectorAll('.history-filter-btn');
+                var filterBtns = document.querySelectorAll('.ses-filter-btn');
                 if (!searchInput && filterBtns.length === 0) { return; }
 
                 var state = vscode.getState() || {};
@@ -365,7 +365,7 @@ export function getScript(): string {
                         row.hidden = !(matchesSearch && matchesFilter);
                     }
 
-                    var groups = document.querySelectorAll('.history-group');
+                    var groups = document.querySelectorAll('.ses-group');
                     for (var gi = 0; gi < groups.length; gi++) {
                         var visibleRows = groups[gi].querySelectorAll('[data-history-row="true"]:not([hidden])');
                         groups[gi].hidden = visibleRows.length === 0;

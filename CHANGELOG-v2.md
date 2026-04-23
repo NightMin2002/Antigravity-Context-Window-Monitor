@@ -8,6 +8,55 @@
 
 ---
 
+## [1.17.20] - 2026-04-23
+
+### 重构 / Refactored
+
+- **会话标签页 UI 全面重构 / Sessions Tab UI Overhaul**:
+  将「会话」标签页的视觉风格与「GM 数据」面板统一，CSS 命名空间从 `history-*` 迁移至 `ses-*`。
+
+  Sessions tab visual design unified with GM Data panel. CSS namespace migrated from `history-*` to `ses-*`.
+
+  | 维度 | 改前 | 改后 |
+  |------|------|------|
+  | 卡片布局 | 7 层垂直堆叠 + spotlight 子卡片 | 4 行紧凑行式卡片（标题→上下文→指标→操作） |
+  | Summary Bar | 3 列独立统计卡片 | **移除**（信息冗余） |
+  | Shortcut | 大块渐变卡片 | 紧凑水平芯片按钮（`ses-shortcut`） |
+  | 搜索/筛选 | 独立 `.card` 容器 + 双行布局 | 单行工具栏（圆角搜索框 + 内联筛选标签） |
+  | 操作按钮 | 含文字的大按钮 | 纯图标紧凑按钮（12px SVG） |
+  | 悬浮提示 | 浏览器原生 `title`（~1s 延迟） | CSS tooltip（`data-tooltip` + `::after`，即时 0.12s 淡入） |
+  | CSS 命名 | `history-*`（~740 行） | `ses-*`（~250 行） |
+
+- **会话行精简 / Session Row Simplification**:
+  移除每行的调用次数、步骤数、积分、模型名芯片（这些信息已在 GM Data 面板显示）。每行仅保留：时间范围 + 存储标签（Brain/Rec/PB）。
+
+  Removed calls, steps, credits, and model name chips from session rows (already shown in GM Data). Each row now shows: time range + storage tags only.
+
+### 新增 / Added
+
+- **CSS Tooltip 系统 / CSS Tooltip System**:
+  基于 `data-tooltip` 属性的纯 CSS tooltip，使用 `::after` 伪元素实现。hover 即时显示（0.12s 淡入 + scale 微动效），无 JS 依赖。支持 `disabled` 按钮自动隐藏、Light/Dark 主题、`focus-visible` 可访问性。
+
+  Pure CSS tooltip via `data-tooltip` attribute + `::after` pseudo-element. Instant display on hover (0.12s fade-in + scale micro-animation), no JS needed. Supports disabled state, light/dark theme, and focus-visible accessibility.
+
+### 移除 / Removed
+
+- **`history-*` 死代码清理 / Dead CSS Cleanup**:
+  - 移除 ~740 行旧 `history-*` CSS（主块 + 文件末尾 ~75 行 light theme 覆盖）
+  - 移除 `renderSummary()` 函数及其调用
+  - 移除 `ses-summary-bar` / `ses-stat*` / `ses-ctx-model` / `ses-chip-credit` 死 CSS
+  - `webview-script.ts` 更新 2 处选择器（`.history-filter-btn` → `.ses-filter-btn`，`.history-group` → `.ses-group`）
+
+### 统计 / Stats
+
+- **Files changed**: 3 (`src/webview-chat-history-tab.ts`, `src/webview-styles.ts`, `src/webview-script.ts`)
+- **Docs updated**: 2 (`docs/project_structure.md`, `CHANGELOG-v2.md`)
+- **TypeScript compile**: Zero errors
+- **CSS net**: ~-740 行旧 `history-*` + ~250 行新 `ses-*` + ~35 行 CSS tooltip = **净减 ~455 行 CSS**
+- **New CSS classes**: `ses-shortcut`, `ses-toolbar`, `ses-search-wrap`, `ses-row`, `ses-badge`, `ses-chip`, `ses-act-btn`, `[data-tooltip]`
+
+---
+
 ## [1.17.19] - 2026-04-23
 
 ### 修复 / Fixed
