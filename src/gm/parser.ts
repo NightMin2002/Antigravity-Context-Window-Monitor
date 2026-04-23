@@ -8,6 +8,8 @@ import type {
     GMCompletionConfig,
     GMModelAccuracy,
     GMPromptSource,
+    GMSystemContextItem,
+    GMSystemContextType,
     GMUserMessageAnchor,
     TokenBreakdownGroup,
 } from './types';
@@ -278,6 +280,92 @@ export function extractToolCallsByStep(messagePrompts: unknown): Record<number, 
     return result;
 }
 
+// ─── System Context Item Extraction ──────────────────────────────────────────
+
+/** Classify a USER message from messagePrompts as a system context type */
+function classifySystemContext(prompt: string): { type: GMSystemContextType; label: string } | null {
+    const trimmed = prompt.trim();
+    // Checkpoint messages
+    if (/\{\{\s*CHECKPOINT\s+\d+\s*\}\}/i.test(trimmed)) {
+        const cpMatch = trimmed.match(/CHECKPOINT\s+(\d+)/);
+        return { type: 'checkpoint', label: cpMatch ? `Checkpoint ${cpMatch[1]}` : 'Checkpoint' };
+    }
+    // Conversation History injection
+    if (trimmed.startsWith('# Conversation History')) {
+        return { type: 'context_injection', label: 'Conversation History' };
+    }
+    // User information
+    if (trimmed.startsWith('<user_information>') || /^The USER's OS version is/i.test(trimmed)) {
+        return { type: 'user_info', label: 'User Information' };
+    }
+    // User rules
+    if (trimmed.startsWith('<user_rules>') || /<MEMORY\[/i.test(trimmed)) {
+        return { type: 'user_rules', label: 'User Rules' };
+    }
+    // MCP servers
+    if (trimmed.startsWith('<mcp_servers>')) {
+        return { type: 'mcp_servers', label: 'MCP Servers' };
+    }
+    // Workflows
+    if (trimmed.startsWith('<workflows>')) {
+        return { type: 'workflows', label: 'Workflows' };
+    }
+    // EPHEMERAL_MESSAGE
+    if (trimmed.startsWith('The following is an <EPHEMERAL_MESSAGE>') || trimmed.startsWith('<EPHEMERAL_MESSAGE>')) {
+        return { type: 'ephemeral', label: 'Ephemeral Message' };
+    }
+    // Step Id preamble (system-injected turn header)
+    if (/^Step Id:\s*\d+$/m.test(trimmed) && !/<USER_REQUEST>/.test(trimmed)) {
+        return { type: 'system_preamble', label: 'System Preamble' };
+    }
+    return null;
+}
+
+/** Extract all system-injected context items from USER messages in messagePrompts */
+export function extractSystemContextItems(messagePrompts: unknown): GMSystemContextItem[] {
+    const items: GMSystemContextItem[] = [];
+    if (!Array.isArray(messagePrompts)) { return items; }
+
+    for (const item of messagePrompts) {
+        if (!item || typeof item !== 'object') { continue; }
+        const rec = item as Record<string, unknown>;
+        const source = String(rec.source || '');
+        if (source !== 'CHAT_MESSAGE_SOURCE_USER') { continue; }
+
+        const prompt = String(rec.prompt || '');
+        if (!prompt) { continue; }
+
+        const classification = classifySystemContext(prompt);
+        if (!classification) { continue; }
+
+        const stepIdx = typeof rec.stepIdx === 'number' ? rec.stepIdx : -1;
+        const tokens = typeof rec.numTokens === 'number' ? rec.numTokens : 0;
+
+        // For checkpoints, extract the number
+        let checkpointNumber: number | undefined;
+        if (classification.type === 'checkpoint') {
+            const cpMatch = prompt.match(/CHECKPOINT\s+(\d+)/);
+            checkpointNumber = cpMatch ? parseInt(cpMatch[1], 10) : undefined;
+        }
+
+        // Cap full text to avoid UI bloat
+        const MAX_TEXT = 12000;
+        const fullText = prompt.length > MAX_TEXT
+            ? prompt.substring(0, MAX_TEXT) + '\n\n... (truncated)'
+            : prompt;
+
+        items.push({
+            type: classification.type,
+            stepIndex: stepIdx,
+            tokens,
+            label: classification.label,
+            fullText,
+            checkpointNumber,
+        });
+    }
+    return items;
+}
+
 export function extractPromptData(cm: Record<string, unknown>): {
     promptSnippet: string;
     promptSource: GMPromptSource;
@@ -288,6 +376,7 @@ export function extractPromptData(cm: Record<string, unknown>): {
     aiSnippetsByStep: Record<number, string>;
     checkpointSummaries: GMCheckpointSummary[];
     toolCallsByStep: Record<number, string[]>;
+    systemContextItems: GMSystemContextItem[];
 } {
     const messagePrompts = cm.messagePrompts;
     const messageMetadata = cm.messageMetadata;
@@ -296,6 +385,7 @@ export function extractPromptData(cm: Record<string, unknown>): {
     const aiSnippetsByStep = extractAISnippetsByStep(messagePrompts);
     const checkpointSummaries = extractCheckpointSummaries(messagePrompts);
     const toolCallsByStep = extractToolCallsByStep(messagePrompts);
+    const systemContextItems = extractSystemContextItems(messagePrompts);
 
     const fromPrompts = pickPromptSnippet(messagePrompts);
     if (fromPrompts) {
@@ -313,6 +403,7 @@ export function extractPromptData(cm: Record<string, unknown>): {
             aiSnippetsByStep,
             checkpointSummaries,
             toolCallsByStep,
+            systemContextItems,
         };
     }
 
@@ -331,6 +422,7 @@ export function extractPromptData(cm: Record<string, unknown>): {
         aiSnippetsByStep,
         checkpointSummaries,
         toolCallsByStep,
+        systemContextItems,
     };
 }
 
@@ -377,6 +469,9 @@ export function mergeGMCallEntries(primary: GMCallEntry, fallback: GMCallEntry):
         checkpointSummaries: primary.checkpointSummaries.length > 0
             ? primary.checkpointSummaries
             : fallback.checkpointSummaries,
+        systemContextItems: primary.systemContextItems.length > 0
+            ? primary.systemContextItems
+            : fallback.systemContextItems,
         toolCallsByStep: Object.keys(primary.toolCallsByStep).length > 0
             ? primary.toolCallsByStep
             : fallback.toolCallsByStep,
@@ -447,6 +542,38 @@ export function maybeEnrichCallsFromTrajectory(calls: GMCallEntry[], embeddedCal
         }
     }
 
+    // Broadcast: userMessageAnchors for user message timeline events.
+    // Only ONE embedded call has messagePrompts → only that call has real anchors.
+    // Share the richest set across ALL calls so injectGMData() can find them.
+    let richestUserAnchors: GMUserMessageAnchor[] = [];
+    for (const call of [...merged, ...embeddedCalls]) {
+        if (call.userMessageAnchors.length > richestUserAnchors.length) {
+            richestUserAnchors = call.userMessageAnchors;
+        }
+    }
+    if (richestUserAnchors.length > 0) {
+        for (const call of merged) {
+            if (call.userMessageAnchors.length < richestUserAnchors.length) {
+                call.userMessageAnchors = richestUserAnchors;
+            }
+        }
+    }
+
+    // Broadcast: systemContextItems for Context Intelligence viewer.
+    let richestContextItems: GMSystemContextItem[] = [];
+    for (const call of [...merged, ...embeddedCalls]) {
+        if (call.systemContextItems.length > richestContextItems.length) {
+            richestContextItems = call.systemContextItems;
+        }
+    }
+    if (richestContextItems.length > 0) {
+        for (const call of merged) {
+            if (call.systemContextItems.length < richestContextItems.length) {
+                call.systemContextItems = richestContextItems;
+            }
+        }
+    }
+
     return merged;
 }
 
@@ -458,6 +585,14 @@ export function shouldEnrichConversation(stepCount: number, calls: GMCallEntry[]
     // enrichment is needed to extract checkpoint summaries from messagePrompts
     // (only available in GetCascadeTrajectory, not the lightweight GM metadata API).
     if (calls.some(call => call.checkpointIndex > 0)) {
+        return true;
+    }
+    // GetCascadeTrajectoryGeneratorMetadata (lightweight API) does NOT include
+    // messagePrompts, so userMessageAnchors will always be empty without enrichment.
+    // Trigger enrichment when calls exist but no user anchors were found — this
+    // ensures the first user prompt and system injections (Conversation History)
+    // are captured in the timeline for new/short conversations.
+    if (calls.length > 0 && calls.every(call => call.userMessageAnchors.length === 0)) {
         return true;
     }
     return stepCount >= 350;
@@ -618,6 +753,7 @@ export function parseGMEntry(gm: Record<string, unknown>): GMCallEntry {
         startStepIndex: parseInt0(csm.startStepIndex),
         checkpointIndex: parseInt0(csm.checkpointIndex),
         checkpointSummaries: promptData.checkpointSummaries,
+        systemContextItems: promptData.systemContextItems,
         toolCallsByStep: promptData.toolCallsByStep,
     };
 }

@@ -40,6 +40,33 @@ export interface GMCheckpointSummary {
     fullText: string;
 }
 
+/** System context item type for the Context Intelligence viewer */
+export type GMSystemContextType =
+    | 'checkpoint'       // {{ CHECKPOINT N }}
+    | 'context_injection' // # Conversation History
+    | 'user_info'        // <user_information>
+    | 'user_rules'       // <user_rules>
+    | 'mcp_servers'      // <mcp_servers>
+    | 'workflows'        // <workflows>
+    | 'ephemeral'        // <EPHEMERAL_MESSAGE>
+    | 'system_preamble'; // other system-injected content
+
+/** A system-injected context item extracted from messagePrompts USER entries */
+export interface GMSystemContextItem {
+    /** Classification of the system context */
+    type: GMSystemContextType;
+    /** Step index where this item was injected */
+    stepIndex: number;
+    /** Token count consumed by this item */
+    tokens: number;
+    /** Short display label for UI */
+    label: string;
+    /** Full text content for viewer expansion */
+    fullText: string;
+    /** Checkpoint number (only for type='checkpoint') */
+    checkpointNumber?: number;
+}
+
 /** A single LLM invocation entry from generatorMetadata */
 export interface GMCallEntry {
     stepIndices: number[];
@@ -114,6 +141,8 @@ export interface GMCallEntry {
     checkpointIndex: number;
     /** Checkpoint summaries extracted from messagePrompts */
     checkpointSummaries: GMCheckpointSummary[];
+    /** System context items extracted from messagePrompts (for Context Intelligence viewer) */
+    systemContextItems: GMSystemContextItem[];
     /** Account email that triggered this call (for multi-account isolation) */
     accountEmail?: string;
     /** Per-step AI tool invocations: stepIdx → tool names invoked at that step.
@@ -170,6 +199,8 @@ export interface GMConversationData {
     coverageRate: number;   // coveredSteps / totalSteps
     /** Deduplicated checkpoint summaries across all calls in this conversation */
     checkpointSummaries: GMCheckpointSummary[];
+    /** Deduplicated system context items across all calls (for Context Intelligence viewer) */
+    systemContextItems?: GMSystemContextItem[];
     /** Credits consumed by current account only (account-filtered). Undefined = not computed. */
     accountCredits?: number;
 }
@@ -289,6 +320,7 @@ export function cloneGMCallEntry(call: GMCallEntry): GMCallEntry {
         tokenBreakdownGroups: cloneTokenBreakdownGroups(call.tokenBreakdownGroups),
         completionConfig: call.completionConfig ? { ...call.completionConfig } : null,
         checkpointSummaries: call.checkpointSummaries.map(cs => ({ ...cs })),
+        systemContextItems: call.systemContextItems.map(ci => ({ ...ci })),
         toolCallsByStep: Object.fromEntries(
             Object.entries(call.toolCallsByStep).map(([k, v]) => [k, [...v]]),
         ),
@@ -300,6 +332,7 @@ export function cloneConversationData(conversation: GMConversationData): GMConve
         ...conversation,
         calls: conversation.calls.map(cloneGMCallEntry),
         checkpointSummaries: conversation.checkpointSummaries.map(cs => ({ ...cs })),
+        systemContextItems: conversation.systemContextItems?.map(ci => ({ ...ci })),
     };
 }
 
@@ -362,6 +395,7 @@ export function slimCallForPersistence(call: GMCallEntry): GMCallEntry {
         startStepIndex: call.startStepIndex,
         checkpointIndex: call.checkpointIndex,
         checkpointSummaries: [],
+        systemContextItems: [],
         accountEmail: call.accountEmail,
         toolCallsByStep: {},
     };
@@ -379,6 +413,7 @@ export function slimSummaryForPersistence(summary: GMSummary): GMSummary {
             ...conv,
             calls: conv.calls.map(slimCallForPersistence),
             checkpointSummaries: [],
+            systemContextItems: [],
         })),
         latestTokenBreakdown: [],
         contextGrowth: summary.contextGrowth.map(p => ({ ...p })),
@@ -400,5 +435,6 @@ export function slimConversationForPersistence(conversation: GMConversationData)
         ...conversation,
         calls: conversation.calls.map(slimCallForPersistence),
         checkpointSummaries: [],
+        systemContextItems: [],
     };
 }

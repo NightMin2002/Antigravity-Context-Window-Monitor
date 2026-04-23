@@ -8,6 +8,59 @@
 
 ---
 
+## [1.17.17] - 2026-04-23
+
+### 新增 / Added
+
+- **上下文情报系统 / Context Intelligence System**:
+  全新的「上下文情报」查看器，替代原有的「上下文检查点」查看器，统一展示所有系统注入的上下文内容。
+
+  New "Context Intelligence" viewer replacing the old "Context Checkpoints" viewer, unified display of all system-injected context.
+
+  **类型系统 / Type System**:
+  - `GMSystemContextType`: 8 种分类 — `checkpoint` | `context_injection` | `user_info` | `user_rules` | `mcp_servers` | `workflows` | `ephemeral` | `system_preamble`
+  - `GMSystemContextItem`: 统一数据结构（type / stepIndex / tokens / label / fullText / checkpointNumber?）
+  - `GMCallEntry` + `GMConversationData` 新增 `systemContextItems: GMSystemContextItem[]` 字段
+  - clone / slim / persistence 工具函数同步更新
+
+  **数据提取 / Data Extraction** (`parser.ts`):
+  - `classifySystemContext()`: 从 USER 消息内容识别系统注入类型（`<user_information>` / `<user_rules>` / `<mcp_servers>` / `<workflows>` / `# Conversation History` / `{{ CHECKPOINT }}` 等）
+  - `extractSystemContextItems()`: 从 `messagePrompts` 提取所有匹配项
+  - 完整集成到数据流：`extractPromptData` → `parseGMEntry` → `mergeGMCallEntries` → `maybeEnrichCallsFromTrajectory`（广播所有 call）
+  - `deduplicateSystemContextItems()` 在 conversation 级按 `type:stepIndex` 去重
+
+  **UI 查看器 / UI Viewer** (`activity-panel.ts`):
+  - `buildContextIntelViewer()` 替代 `buildCheckpointViewer()`
+  - 每种类型独立 SVG 图标 + 颜色标识（金色 Checkpoint / 蓝色上下文注入 / 绿色用户信息 / 紫色用户规则 / 青色 MCP / 粉色工作流 / 灰色系统前导）
+  - 外层 `<details id="ciSection">` 双重折叠（默认收缩），`restoreDetailsState()` 自动记忆展开状态
+  - 卡片式边框 + 琥珀色主题 + hover 交互效果
+  - 标题栏按类型统计 badge（数量为 1 时不显示数字）
+  - `stepIndex < 0` 的初始注入项不显示 step 标签
+
+- **时间线系统注入分类扩展 / Timeline System Injection Classification**:
+  `injectGMData()` 用户锚点分类新增识别 `<user_information>`、`<user_rules>`、`<mcp_servers>`、`<workflows>`，归类为橙色系统事件（不再误判为绿色用户消息）。
+
+  Extended system injection classification in `injectGMData()` to recognize user_information, user_rules, mcp_servers, and workflows as system events instead of user messages.
+
+### 重构 / Refactored
+
+- **`.act-badge` 圆角升级 / Badge Border Radius**:
+  全局 `.act-badge` 新增 `padding: 1px 6px` + `border-radius: var(--radius-sm)`，从方块变为圆角药丸形。
+
+  Global `.act-badge` upgraded with padding and border-radius for rounded pill shape.
+
+### 统计 / Stats
+
+- **Files changed**: 7 (`src/gm/types.ts`, `src/gm/parser.ts`, `src/gm/tracker.ts`, `src/gm/index.ts`, `src/gm-tracker.ts`, `src/activity/tracker.ts`, `src/activity-panel.ts`)
+- **Docs updated**: 2 (`docs/project_structure.md`, `CHANGELOG-v2.md`)
+- **TypeScript compile**: Zero errors
+- **Tests**: 14/14 passed (activity-tracker 8, gm-tracker 6)
+- **Net lines**: +366 -27
+- **New types**: `GMSystemContextType`, `GMSystemContextItem`
+- **New CSS classes**: `.ci-section`, `.ci-section-header`, `.ci-badges`
+
+---
+
 ## [1.17.16] - 2026-04-23
 
 ### 新增 / Added

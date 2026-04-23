@@ -1202,7 +1202,11 @@ export class ActivityTracker {
                     // Classify system-injected messages vs real user input
                     const isCheckpoint = anchorText.startsWith('Step Id:') && /CHECKPOINT/.test(anchorText);
                     const isConvHistory = anchorText.startsWith('# Conversation History');
-                    const isSystemAnchor = isCheckpoint || isConvHistory;
+                    const isUserInfo = anchorText.startsWith('<user_information>') || /^The USER's OS version is/i.test(anchorText);
+                    const isUserRules = anchorText.startsWith('<user_rules>') || /^The following are user-defined rules/i.test(anchorText);
+                    const isMcpServers = anchorText.startsWith('<mcp_servers>');
+                    const isWorkflows = anchorText.startsWith('<workflows>');
+                    const isSystemAnchor = isCheckpoint || isConvHistory || isUserInfo || isUserRules || isMcpServers || isWorkflows;
 
                     if (isSystemAnchor) {
                         // System injection — show as inline system event (doesn't break segments)
@@ -1212,6 +1216,14 @@ export class ActivityTracker {
                             systemLabel = cpMatch ? `Checkpoint ${cpMatch[1]}` : 'Checkpoint';
                         } else if (isConvHistory) {
                             systemLabel = tBi('Context Injection', '上下文注入');
+                        } else if (isUserInfo) {
+                            systemLabel = tBi('User Information', '用户信息');
+                        } else if (isUserRules) {
+                            systemLabel = tBi('User Rules', '用户规则');
+                        } else if (isMcpServers) {
+                            systemLabel = tBi('MCP Servers', 'MCP 服务');
+                        } else if (isWorkflows) {
+                            systemLabel = tBi('Workflows', '工作流');
                         }
                         userAnchorEvents.push({
                             timestamp: anchorTimestamp,

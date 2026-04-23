@@ -7,7 +7,7 @@ import { tBi } from './i18n';
 import { ActivitySummary, ActivityArchive, ModelActivityStats, CheckpointSnapshot, ConversationBreakdown } from './activity-tracker';
 import { esc, formatShortTime as formatTime } from './webview-helpers';
 import type { ContextUsage } from './tracker';
-import type { GMSummary, GMModelStats, GMConversationData, TokenBreakdownGroup, PendingArchiveEntry } from './gm-tracker';
+import type { GMSummary, GMModelStats, GMConversationData, GMSystemContextItem, TokenBreakdownGroup, PendingArchiveEntry } from './gm-tracker';
 import { normalizeModelDisplayName } from './models';
 import { findPricing } from './pricing-store';
 import { formatResetCountdown, formatResetAbsolute, parseResetDate } from './reset-time';
@@ -874,7 +874,7 @@ export function getGMDataTabStyles(): string {
         color: var(--color-text-dim);
         border-color: var(--color-border, rgba(128,128,128,0.12));
     }
-    .act-badge { font-size: 0.75em; opacity: 0.7; }
+    .act-badge { font-size: 0.75em; opacity: 0.7; padding: 1px 6px; border-radius: var(--radius-sm); }
     .act-checkpoint-model { border-color: var(--color-border, rgba(128,128,128,0.1)); opacity: 0.85; }
 
     /* ─── Activity Tab: Timeline Legend Tooltip ─── */
@@ -1549,7 +1549,54 @@ export function getGMDataTabStyles(): string {
     }
     body.vscode-light .xray-total { border-top-color: var(--color-divider); }
 
-    /* ─── Checkpoint Viewer ─── */
+    /* ─── Context Intelligence Section ─── */
+    .ci-section {
+        margin-bottom: var(--space-3);
+        border: 1px solid var(--color-amber-border-dim);
+        border-radius: var(--radius-lg);
+        background: rgba(251,191,36,0.02);
+        overflow: hidden;
+    }
+    .ci-section-header {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        padding: var(--space-2) var(--space-3);
+        cursor: pointer;
+        user-select: none;
+        list-style: none;
+        font-size: 1em;
+        font-weight: 600;
+        color: var(--color-text);
+        transition: background 0.15s cubic-bezier(.4,0,.2,1);
+    }
+    .ci-section-header::-webkit-details-marker { display: none; }
+    .ci-section-header::before {
+        content: '▸';
+        display: inline-block;
+        font-size: 0.8em;
+        transition: transform 0.2s cubic-bezier(.4,0,.2,1);
+        opacity: 0.5;
+        flex-shrink: 0;
+    }
+    .ci-section[open] > .ci-section-header::before { transform: rotate(90deg); opacity: 0.8; }
+    @media (hover: hover) {
+        .ci-section-header:hover { background: rgba(251,191,36,0.06); }
+    }
+    .ci-badges {
+        display: inline-flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        margin-left: auto;
+    }
+    .ci-section[open] > .cp-viewer {
+        border-top: 1px solid var(--color-amber-border-dim);
+    }
+    body.vscode-light .ci-section {
+        border-color: rgba(202,138,4,0.15);
+        background: rgba(202,138,4,0.02);
+    }
+    body.vscode-light .ci-section-header:hover { background: rgba(202,138,4,0.06); }
     .cp-viewer {
         margin-bottom: var(--space-4);
         max-height: 400px;
@@ -2119,7 +2166,7 @@ function buildTimeline(s: ActivitySummary, currentUsage?: ContextUsage | null, g
     // Build inline checkpoint viewer (from GM data for current conversation)
     let checkpointHtml = '';
     if (gm && gm.totalCalls > 0) {
-        checkpointHtml = buildCheckpointViewer(gm);
+        checkpointHtml = buildContextIntelViewer(gm);
     }
 
     let html = `<h2 class="act-section-title" style="display:flex;align-items:center;gap:var(--space-2)"><svg class="act-icon" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${tBi('Recent Activity', '最近操作')}${scopeBadge}${helpPopup}</h2>
@@ -2684,9 +2731,8 @@ function buildTokenBreakdownChart(s: GMSummary): string {
 
 // ─── Checkpoint Viewer Section ──────────────────────────────────────────────
 
-function buildCheckpointViewer(s: GMSummary): string {
-    // Find the most recently active conversation, then check if it has checkpoints.
-    // Never fall back to an older conversation's stale checkpoints — that's confusing.
+function buildContextIntelViewer(s: GMSummary): string {
+    // Find the most recently active conversation
     let primary = null as typeof s.conversations[0] | null;
     let latestTime = '';
     for (const conv of s.conversations) {
@@ -2698,42 +2744,127 @@ function buildCheckpointViewer(s: GMSummary): string {
         }
     }
     if (!primary) { return ''; }
-    const cps = primary.checkpointSummaries || [];
-    if (cps.length === 0) { return ''; }
 
-    // Deduplicate by checkpointNumber
-    const byNum = new Map<number, typeof cps[0]>();
-    for (const cp of cps) {
-        if (!byNum.has(cp.checkpointNumber)) {
-            byNum.set(cp.checkpointNumber, cp);
+    // Merge checkpoint summaries into systemContextItems format
+    const rawItems: GMSystemContextItem[] = [...(primary.systemContextItems || [])];
+
+    // Add checkpoints from checkpointSummaries that aren't already in systemContextItems
+    const existingCPSteps = new Set(rawItems.filter(i => i.type === 'checkpoint').map(i => i.stepIndex));
+    for (const cp of (primary.checkpointSummaries || [])) {
+        if (!existingCPSteps.has(cp.stepIndex)) {
+            rawItems.push({
+                type: 'checkpoint',
+                stepIndex: cp.stepIndex,
+                tokens: cp.tokens,
+                label: `Checkpoint ${cp.checkpointNumber}`,
+                fullText: cp.fullText,
+                checkpointNumber: cp.checkpointNumber,
+            });
         }
     }
-    const sorted = [...byNum.values()].sort((a, b) => a.checkpointNumber - b.checkpointNumber);
+
+    if (rawItems.length === 0) { return ''; }
+
+    // Deduplicate by type+stepIndex, keep richest
+    const byKey = new Map<string, GMSystemContextItem>();
+    for (const item of rawItems) {
+        const key = `${item.type}:${item.stepIndex}`;
+        const existing = byKey.get(key);
+        if (!existing || item.fullText.length > existing.fullText.length) {
+            byKey.set(key, item);
+        }
+    }
+    const items = [...byKey.values()].sort((a, b) => a.stepIndex - b.stepIndex);
 
     const fmt = (n: number) => n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n);
 
-    const cards = sorted.map(cp => {
-        const bodyHtml = esc(cp.fullText)
-            .replace(/\{\{\s*CHECKPOINT\s+(\d+)\s*\}\}/gi, '<h2>📋 CHECKPOINT $1</h2>')
+    // Type → icon SVG + color
+    const typeConfig: Record<string, { icon: string; color: string; label: string }> = {
+        checkpoint: {
+            icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2z"/><path d="M9 21V9h6v12"/></svg>',
+            color: '#fbbf24',
+            label: 'Checkpoint',
+        },
+        context_injection: {
+            icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
+            color: '#60a5fa',
+            label: tBi('Context Injection', '上下文注入'),
+        },
+        user_info: {
+            icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+            color: '#4ade80',
+            label: tBi('User Information', '用户信息'),
+        },
+        user_rules: {
+            icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
+            color: '#a78bfa',
+            label: tBi('User Rules', '用户规则'),
+        },
+        mcp_servers: {
+            icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>',
+            color: '#2dd4bf',
+            label: 'MCP Servers',
+        },
+        workflows: {
+            icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>',
+            color: '#f472b6',
+            label: tBi('Workflows', '工作流'),
+        },
+        ephemeral: {
+            icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>',
+            color: '#94a3b8',
+            label: 'Ephemeral',
+        },
+        system_preamble: {
+            icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+            color: '#94a3b8',
+            label: tBi('System Preamble', '系统前导'),
+        },
+    };
+
+    const cards = items.map((item, idx) => {
+        const conf = typeConfig[item.type] || typeConfig.system_preamble;
+        const bodyHtml = esc(item.fullText)
+            .replace(/\{\{\s*CHECKPOINT\s+(\d+)\s*\}\}/gi, '<h2>CHECKPOINT $1</h2>')
             .replace(/^#\s+(.+)$/gm, '<h2>$1</h2>')
             .replace(/^##\s+(.+)$/gm, '<h3>$1</h3>')
             .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
             .replace(/`([^`]+)`/g, '<code>$1</code>');
 
-        return `<details class="cp-card" id="cpCard${cp.checkpointNumber}">
+        const cpBadge = item.checkpointNumber !== undefined
+            ? `<span class="cp-card-num" style="color:${conf.color}">#${item.checkpointNumber}</span>`
+            : '';
+        const iconHtml = `<span class="ci-icon" style="color:${conf.color};width:14px;height:14px;display:inline-flex;flex-shrink:0">${conf.icon}</span>`;
+
+        return `<details class="cp-card" id="ciCard${idx}" style="--ci-color:${conf.color}">
             <summary class="cp-card-header">
-                <span class="cp-card-num">📋 #${cp.checkpointNumber}</span>
-                <span class="cp-card-chip cp-card-chip-step">step ${cp.stepIndex >= 0 ? cp.stepIndex.toLocaleString() : '?'}</span>
-                <span class="cp-card-chip cp-card-chip-tok">${fmt(cp.tokens)} tok</span>
+                ${iconHtml}
+                ${cpBadge}
+                <span style="font-weight:600;color:${conf.color}">${conf.label}</span>
+                ${item.stepIndex >= 0 ? `<span class="cp-card-chip cp-card-chip-step">step ${item.stepIndex.toLocaleString()}</span>` : ''}
+                ${item.tokens > 0 ? `<span class="cp-card-chip cp-card-chip-tok">${fmt(item.tokens)} tok</span>` : ''}
             </summary>
             <div class="cp-card-body">${bodyHtml}</div>
         </details>`;
     }).join('');
 
-    const maxCPNum = sorted[sorted.length - 1].checkpointNumber;
+    // Count by type for badge
+    const typeCounts = new Map<string, number>();
+    for (const item of items) {
+        typeCounts.set(item.type, (typeCounts.get(item.type) || 0) + 1);
+    }
+    const badgeParts: string[] = [];
+    for (const [type, count] of typeCounts) {
+        const conf = typeConfig[type] || typeConfig.system_preamble;
+        badgeParts.push(`<span class="act-badge" style="background:${conf.color}22;color:${conf.color};border:1px solid ${conf.color}44">${conf.label}${count > 1 ? ' ' + count : ''}</span>`);
+    }
 
-    return `<h2 class="act-section-title"><svg class="act-icon" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2z"/><path d="M9 21V9h6v12"/></svg>${tBi('Context Checkpoints', '上下文检查点')} <span class="act-badge">#${maxCPNum}</span></h2>
-    <div class="cp-viewer">${cards}</div>`;
+    const titleIcon = `<svg class="act-icon" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>`;
+
+    return `<details class="ci-section" id="ciSection">
+    <summary class="ci-section-header">${titleIcon}${tBi('Context Intelligence', '上下文情报')} <span class="ci-badges">${badgeParts.join(' ')}</span></summary>
+    <div class="cp-viewer">${cards}</div>
+    </details>`;
 }
 
 // ─── Account Status Panel ───────────────────────────────────────────────────

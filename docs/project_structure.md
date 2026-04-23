@@ -33,8 +33,8 @@ antigravity-context-monitor/
 │   ├── gm-tracker.ts             # GM 数据层 re-export shim（向后兼容，实际代码在 gm/）
 │   ├── gm/                       # GM 模块（从 gm-tracker.ts 拆分）
 │   │   ├── index.ts              #   barrel re-export
-│   │   ├── types.ts              #   所有 GM 类型定义 + clone 工具 + 持久化 slim 函数（含 toolCallsByStep / toolCallCounts / toolCallCountsByConv）
-│   │   ├── parser.ts             #   解析器 + 提取器 + 匹配/合并/增强 + 检查点摘要提取 + 工具调用提取
+│   │   ├── types.ts              #   所有 GM 类型定义 + clone 工具 + 持久化 slim 函数（含 toolCallsByStep / toolCallCounts / toolCallCountsByConv / GMSystemContextItem）
+│   │   ├── parser.ts             #   解析器 + 提取器 + 匹配/合并/增强 + 检查点摘要提取 + 工具调用提取 + 系统上下文提取（classifySystemContext / extractSystemContextItems）
 │   │   ├── summary.ts            #   汇总构建 + 过滤 + 标准化（含 toolCallCounts 透传）
 │   │   └── tracker.ts            #   GMTracker 类核心（fetch/reset/serialize + toolCallCounts 聚合 + persistedToolCounts 跨重启合并）
 │   ├── pricing-store.ts          # 定价数据层：默认价格表 + 用户自定义持久化 + 费用计算
@@ -299,7 +299,7 @@ Unified "GM Data" tab merging Activity and GM precise data. All stats are GM-sou
 | Dashboard Grid 概览 / Dashboard Grid | `buildSummaryBar()` 使用 CSS Grid (`auto-fill, minmax(85px, 1fr)`) 统一面板布局，1px 间隙网格分隔线。仅显示 GM 精确数据：调用、步骤、模型、会话、消息、输入/输出 token、缓存、错误。已移除所有装饰性 GM 徽章（数据源 100% GM，无需标注）|
 | GM 错误报告 / Error Reporting | Summary Bar 末位显示红色「报错」卡片（错误总数），tooltip 展示错误码分布（如 `429 ×2, 503 ×1`）和 token 浪费明细。`buildErrorDetailsSection()` 在 GM Data 面板中渲染独立的「错误详情」区块：错误码分类标签（限流/服务端/其他颜色编码）+ 开销统计行 + 最近 8 条错误消息列表。时间线和 Turn header 使用 `error(N)` 标签替代旧的 `retry(N)` 格式 |
 | Tooltip 边缘适配 / Tooltip Edge Anchoring | 向下弹出（`top`）避免顶部裁剪；`:first-child` 靠左对齐、`:last-child` 靠右对齐，防止左右溢出 webview 边界 |
-| 检查点查看器 / Checkpoint Viewer | `buildCheckpointViewer()` 渲染当前活跃对话（通过最新 `createdAt` 定位）的 `{{ CHECKPOINT N }}` 压缩摘要全文，琥珀色可折叠卡片 + 限高滚动容器。已从独立 section 移入「最近操作」Timeline 区块顶部（标题 → 检查点 → 时间线事件流） |
+| 上下文情报 / Context Intelligence | `buildContextIntelViewer()` 渲染当前活跃对话的所有系统注入内容（`GMSystemContextItem[]`），统一展示 Checkpoint 压缩摘要、上下文注入（Conversation History）、用户信息（`<user_information>`）、用户规则（`<user_rules>`）、MCP 服务（`<mcp_servers>`）、工作流（`<workflows>`）等 8 种类型。每种类型独立 SVG 图标 + 颜色（金/蓝/绿/紫/青/粉/灰），可折叠卡片。外层 `<details id="ciSection">` 双重折叠 + `restoreDetailsState()` 状态记忆。标题栏按类型统计 badge（数量为 1 时不显示数字）。数据从 `messagePrompts` 的 USER 消息中由 `classifySystemContext()` 分类 + `extractSystemContextItems()` 提取，通过 `maybeEnrichCallsFromTrajectory()` 广播所有 call，`deduplicateSystemContextItems()` 在 conversation 级去重 |
 | 工具调用排行 / Tool Call Ranking | `buildToolCallRanking()` 渲染 GM 精确的工具调用频率排行榜（水平条形图，6 色循环），数据源为 `GMSummary.toolCallCounts`（从 `messagePrompts` SYSTEM `toolCalls[]` 提取，按 stepIdx 去重，基于 `sliced` 不受额度重置归档影响）。统计范围为全账号、全对话，通过 `_persistedToolCounts` 跨重启 max-wins 合并保障数据完整。`+x` 增量通过 `currentUsage.cascadeId` 精确匹配当前对话（不依赖时间戳），仅在 ≥2 对话时显示。每日 `reset()` 清零 |
 | 账号面板构建器 / Account Panel Builder | `buildAccountStatusPanel()`（已 export）渲染多账号状态卡片：`AccountSnapshot[]` → 按 email 分行，显示在线/缓存状态、Plan 徽章、按模型池独立倒计时（`ResetPool[]` 含 `hasUsage` 检测），到期显示红色「已就绪」，未消耗额度池显示灰色「未使用」。缓存账号名字行内显示红色「移除」文字链接。**v1.17.3 起已从 GM Data 标签页迁出至全局 dropdown**（由 `webview-panel.ts` 调用），`buildGMDataTabContent()` 不再包含账号面板 |
 | 红点检测 / Ready Pool Detection | `hasAccountReadyPool()` 遍历所有账号检测是否存在已过期且有使用记录的额度池，用于全局按钮上的红色脉冲指示器 |

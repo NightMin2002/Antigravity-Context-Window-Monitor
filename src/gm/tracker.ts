@@ -12,6 +12,7 @@ import type {
     GMConversationData,
     GMModelStats,
     GMSummary,
+    GMSystemContextItem,
     GMTrackerState,
     PendingArchiveEntry,
     TokenBreakdownGroup,
@@ -37,6 +38,21 @@ function deduplicateCheckpoints(calls: GMCallEntry[]): GMCheckpointSummary[] {
         }
     }
     return [...byStep.values()].sort((a, b) => a.stepIndex - b.stepIndex);
+}
+
+/** Deduplicate system context items from multiple GM calls, keyed by type+stepIndex */
+function deduplicateSystemContextItems(calls: GMCallEntry[]): GMSystemContextItem[] {
+    const byKey = new Map<string, GMSystemContextItem>();
+    for (const call of calls) {
+        for (const item of call.systemContextItems) {
+            const key = `${item.type}:${item.stepIndex}`;
+            const existing = byKey.get(key);
+            if (!existing || item.fullText.length > existing.fullText.length) {
+                byKey.set(key, item);
+            }
+        }
+    }
+    return [...byKey.values()].sort((a, b) => a.stepIndex - b.stepIndex);
 }
 
 // PendingArchiveEntry is now defined in ./types and re-exported from this module.
@@ -178,6 +194,7 @@ export class GMTracker {
                     coveredSteps,
                     coverageRate: t.stepCount > 0 ? coveredSteps / t.stepCount : 0,
                     checkpointSummaries: deduplicateCheckpoints(calls),
+                    systemContextItems: deduplicateSystemContextItems(calls),
                 });
             } catch {
                 // Keep stale cache on error
@@ -191,6 +208,7 @@ export class GMTracker {
                         coveredSteps: 0,
                         coverageRate: 0,
                         checkpointSummaries: [],
+                        systemContextItems: [],
                     });
                 }
             }
@@ -308,6 +326,7 @@ export class GMTracker {
                 coveredSteps: activeStepsCovered,
                 coverageRate: conv.totalSteps > 0 ? activeStepsCovered / conv.totalSteps : 0,
                 checkpointSummaries: conv.checkpointSummaries || deduplicateCheckpoints(activeCalls),
+                systemContextItems: conv.systemContextItems || deduplicateSystemContextItems(activeCalls),
                 accountCredits,
             });
 
@@ -1060,6 +1079,7 @@ export class GMTracker {
                 coveredSteps: 0,
                 coverageRate: 0,
                 checkpointSummaries: [],
+                systemContextItems: [],
             });
         }
 

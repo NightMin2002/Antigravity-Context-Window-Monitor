@@ -10,6 +10,8 @@ export type {
     GMPromptSource,
     GMUserMessageAnchor,
     GMCheckpointSummary,
+    GMSystemContextItem,
+    GMSystemContextType,
     GMCallEntry,
     GMModelStats,
     GMConversationData,
