@@ -388,7 +388,7 @@ Aggregates Activity + GM + Cost snapshots per day. `addDailySnapshot()` supports
 
 ### 📅 webview-calendar-tab.ts — Calendar 标签页渲染
 
-生成 Calendar 标签页 HTML：月历网格、可展开日详情（汇总视图 + 模型/GM 明细行）。每天只显示一个聚合快照，不再展示独立周期卡片。
+生成 Calendar 标签页 HTML：月历网格、可展开日详情（GM 调用/令牌/费用/积分汇总 + GM 模型明细行）。每天只显示一个聚合快照，不再展示独立周期卡片。汇总网格仅显示 GM 精确数据（天数/GM调用/令牌/费用/积分），已移除过时的 Step API 数据（错误/推理/工具计数/周期）和缓存命中率。
 
 ---
 

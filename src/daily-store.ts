@@ -74,6 +74,7 @@ export interface MonthCellSummary {
     totalReasoning: number;
     totalToolCalls: number;
     totalCost: number;
+    gmCalls: number;
 }
 
 /** Per-model cost aggregation for a month */
@@ -323,11 +324,12 @@ export class DailyStore {
 
         for (const [date, record] of this._records) {
             if (!date.startsWith(prefix)) { continue; }
-            let totalReasoning = 0, totalToolCalls = 0, totalCost = 0;
+            let totalReasoning = 0, totalToolCalls = 0, totalCost = 0, gmCalls = 0;
             for (const c of record.cycles) {
                 totalReasoning += c.totalReasoning;
                 totalToolCalls += c.totalToolCalls;
                 totalCost += c.estimatedCost || 0;
+                gmCalls += c.gmTotalCalls || 0;
             }
             results.push({
                 date,
@@ -335,6 +337,7 @@ export class DailyStore {
                 totalReasoning,
                 totalToolCalls,
                 totalCost,
+                gmCalls,
             });
         }
 

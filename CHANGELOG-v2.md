@@ -8,6 +8,48 @@
 
 ---
 
+## [1.17.12] - 2026-04-23
+
+### 重构 / Refactored
+
+- **日历模块 GM-only 清理 / Calendar Module GM-Only Cleanup**:
+  日历标签页全面移除过时的 Step API 数据渲染，统一为 GM 精确数据源。
+
+  **汇总网格清理 / Summary Grid Cleanup**:
+  | 项目 | 动作 | 原因 |
+  |------|------|------|
+  | 错误（Errors） | 移除 | Step API `totalErrors`，GM 有更精确的 `retryErrors` |
+  | 周期（Cycles） | 移除 | 一天一条记录，恒等于天数，冗余 |
+  | GM 调用 ×2 | 去重 | 复制粘贴 bug，同一块渲染了两次 |
+  | 缓存命中率 | 从日摘要移除 | 技术效率指标，在日回顾中价值低（模型明细行保留） |
+
+  **日详情面板清理 / Day Detail Panel Cleanup**:
+  - 移除所有 Activity 变量（`totalReasoning`/`totalToolCalls`/`totalErrors`/`totalInput`/`totalOutput`）
+  - 移除 `mergedModel` 聚合和 `mergedModelHtml` 渲染（Step API 模型汇总）
+  - 移除 `displayTokens` 降级逻辑，直接使用 `gmTotalTokens`
+  - 移除缓存命中率加权平均计算
+  - Tokens 显示改为条件渲染（`gmTotalTokens > 0`）
+
+  **死代码清理 / Dead Code Removal**:
+  - 删除 `buildMergedModelRows()`（Activity 模型汇总，计算后未使用）
+  - 删除 `buildCycleCard()`（旧多周期卡片，无调用方）
+  - 删除 `buildPerModelRows()`（Activity per-model 行，无调用方）
+  - 删除 `buildGMModelRows()`（仅被 `buildCycleCard` 调用）
+  - 清理未使用的导入（`DailyCycleEntry`/`ModelCycleStats`/`GMModelCycleStats`/`formatShortTime`/`formatDuration`）
+
+  **highActivity 判断修正 / High Activity Detection Fix**:
+  月历格子的高活跃度指示器从过时的 `totalReasoning > 20`（Step API）改为 `gmCalls > 20`（GM 精确数据）。`MonthCellSummary` 新增 `gmCalls` 字段支持此判断。
+
+### 统计 / Stats
+
+- **Files changed**: 2 (`src/webview-calendar-tab.ts`, `src/daily-store.ts`)
+- **Docs updated**: 2 (`docs/project_structure.md`, `CHANGELOG-v2.md`)
+- **TypeScript compile**: Zero errors
+- **Tests**: daily-store 5/5 passed
+- **Net lines**: ~-155
+
+---
+
 ## [1.17.11] - 2026-04-23
 
 ### 重构 / Refactored
