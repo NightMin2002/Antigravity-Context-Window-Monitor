@@ -507,6 +507,64 @@ extension.ts (入口 + 调度)
 
 ---
 
+## CSS 编码规范 / CSS Coding Guidelines
+
+> **强制约束**：所有 WebView CSS 中的颜色值**必须**使用 `webview-styles.ts` `:root` 中定义的 Design Token。**禁止**在 `activity-panel.ts`、`pricing-panel.ts`、`webview-calendar-tab.ts` 等面板文件中新增硬编码的 `rgba()`、`#hex` 或 `hsl()` 颜色值。
+>
+> **Mandatory**: All color values in WebView CSS **MUST** use Design Tokens defined in `webview-styles.ts` `:root`. **DO NOT** add new hardcoded `rgba()`, `#hex`, or `hsl()` values in panel files.
+
+### Token 体系结构 / Token Hierarchy
+
+`webview-styles.ts` 的 `:root` 定义了完整的语义色彩 token 体系，`body.vscode-light` 块自动翻转所有 token 为浅色主题适配值。
+
+| 层级 | 命名模式 | 示例 | 用途 |
+|---|---|---|---|
+| 核心语义色 | `--color-{semantic}` | `--color-ok`, `--color-danger`, `--color-info` | 文本、图标、边框的主色 |
+| 色彩变体 | `--color-{semantic}-{variant}` | `--color-ok-light`, `--color-danger-dim` | 浅色/暗色文本变体 |
+| 背景梯度 | `--color-{semantic}-bg` | `--color-danger-bg`, `--color-info-bg` | 低透明度背景填充 |
+| 背景变体 | `--color-{semantic}-bg-{variant}` | `--color-danger-bg-dim`, `--color-danger-bg-hover` | 更浅/hover 态背景 |
+| 边框梯度 | `--color-{semantic}-border` | `--color-ok-border`, `--color-info-border` | 中透明度边框 |
+| 边框变体 | `--color-{semantic}-border-{variant}` | `--color-danger-border-dim`, `--color-danger-border-strong` | 浅/深边框 |
+| 中性表面 | `--color-surface-{level}` | `--color-surface-subtle`, `--color-surface-hover` | 容器背景 |
+| 中性边框 | `--color-border-{level}` | `--color-border-subtle`, `--color-border-strong` | 容器边框 |
+| 分隔线 | `--color-divider` / `--color-divider-subtle` | | 水平/垂直分隔 |
+
+**可用的语义色族 / Available color families**: `ok`(绿), `danger`(红), `info`(蓝), `warn`(黄), `amber`(琥珀), `orange`(橙), `teal`(青), `purple`(紫), `muted`(灰蓝)
+
+### 使用规则 / Usage Rules
+
+```css
+/* CORRECT — 使用 token */
+.my-card { background: var(--color-surface); border: 1px solid var(--color-border); }
+.my-error { color: var(--color-danger); background: var(--color-danger-bg); }
+.my-divider { border-top: 1px solid var(--color-divider); }
+
+/* WRONG — 硬编码颜色（禁止） */
+.my-card { background: rgba(255,255,255,0.04); }  /* 应使用 var(--color-surface) */
+.my-error { color: #f87171; }                      /* 应使用 var(--color-danger) */
+```
+
+### 合理例外 / Acceptable Exceptions
+
+以下情况允许保留硬编码值：
+
+| 场景 | 说明 | 示例 |
+|---|---|---|
+| `linear-gradient` 端点 | CSS 变量无法用于渐变函数内部的颜色插值 | `background: linear-gradient(90deg, rgba(96,165,250,0.7), rgba(96,165,250,0.3))` |
+| JS 运行时 colors 数组 | 内联 `style` 中无法引用 CSS 变量 | `const colors = ['#06b6d4', '#f59e0b', ...]` |
+| `var()` fallback 基线 | 作为 CSS 变量未定义时的降级值 | `background: var(--color-surface, rgba(128,128,128,0.1))` |
+| Light theme `rgba(var(--lt-*))` | `body.vscode-light` 内用 RGB triplet 变量构造 | `background: rgba(var(--lt-blue),0.1)` |
+| `box-shadow` / `text-shadow` | 阴影颜色通常是固定的黑色半透明 | `box-shadow: 0 2px 8px rgba(0,0,0,0.25)` |
+
+### 新增颜色的流程 / Adding New Colors
+
+1. 在 `webview-styles.ts` 的 `:root` 中定义新 token（暗色主题值）
+2. 在 `body.vscode-light` 块中定义对应的浅色主题覆盖值
+3. 在面板文件中通过 `var(--color-xxx)` 引用
+4. **永远不要**跳过步骤 1-2 直接在面板中写硬编码值
+
+---
+
 ## 数据流 / Data Flow
 
 ```text
