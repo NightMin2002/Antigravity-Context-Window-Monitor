@@ -5,22 +5,106 @@
 export function getStyles(): string {
     return `
         :root {
+            /* ─── Core Semantic Colors ─── */
             --color-ok: #4ade80;
+            --color-ok-light: #86efac;
+            --color-ok-dim: #34d399;
             --color-warn: #facc15;
             --color-danger: #f87171;
+            --color-danger-light: #fca5a5;
             --color-info: #60a5fa;
+            --color-info-light: #93c5fd;
             --color-accent: var(--vscode-focusBorder, #007fd4);
+            --color-muted: #94a3b8;
+
+            /* ─── Extended Palette ─── */
+            --color-amber: #fbbf24;
+            --color-amber-light: #fcd34d;
+            --color-amber-dim: #eab308;
+            --color-orange: #fb923c;
+            --color-orange-strong: #f97316;
+            --color-orange-light: #fdba74;
+            --color-teal: #2dd4bf;
+            --color-teal-light: #5eead4;
+            --color-purple: #a78bfa;
+            --color-purple-strong: #8b5cf6;
+            --color-cyan: #06b6d4;
+
+            /* ─── Neutral Surfaces (white-based for dark theme) ─── */
+            --color-surface-subtle: rgba(255,255,255,0.02);
             --color-surface: rgba(255,255,255,0.04);
-            --color-border: rgba(255,255,255,0.08);
-            --color-border-hover: rgba(255,255,255,0.20);
+            --color-surface-dim: rgba(255,255,255,0.03);
             --color-surface-hover: rgba(255,255,255,0.06);
+            --color-surface-active: rgba(255,255,255,0.10);
+            --color-surface-raised: rgba(255,255,255,0.015);
+
+            /* ─── Neutral Borders ─── */
+            --color-border-subtle: rgba(255,255,255,0.04);
+            --color-border-dim: rgba(255,255,255,0.06);
+            --color-border: rgba(255,255,255,0.08);
+            --color-border-strong: rgba(255,255,255,0.12);
+            --color-border-hover: rgba(255,255,255,0.20);
+
+            /* ─── Neutral Dividers ─── */
+            --color-divider: rgba(255,255,255,0.06);
+            --color-divider-subtle: rgba(255,255,255,0.03);
+
+            /* ─── Danger (Red) Graduated ─── */
+            --color-danger-bg: rgba(248,113,113,0.08);
+            --color-danger-bg-dim: rgba(248,113,113,0.06);
+            --color-danger-bg-hover: rgba(248,113,113,0.15);
+            --color-danger-border: rgba(248,113,113,0.2);
+            --color-danger-border-dim: rgba(248,113,113,0.12);
+            --color-danger-border-strong: rgba(248,113,113,0.3);
+
+            /* ─── OK (Green) Graduated ─── */
+            --color-ok-bg: rgba(74,222,128,0.12);
+            --color-ok-bg-dim: rgba(74,222,128,0.06);
+            --color-ok-border: rgba(74,222,128,0.25);
+            --color-ok-border-dim: rgba(74,222,128,0.12);
+
+            /* ─── Info (Blue) Graduated ─── */
+            --color-info-bg: rgba(96,165,250,0.1);
+            --color-info-bg-dim: rgba(96,165,250,0.06);
+            --color-info-border: rgba(96,165,250,0.2);
+            --color-info-border-dim: rgba(96,165,250,0.12);
+            --color-info-strong: rgba(96,165,250,0.7);
+
+            /* ─── Amber (Yellow) Graduated ─── */
+            --color-amber-bg: rgba(251,191,36,0.1);
+            --color-amber-bg-dim: rgba(251,191,36,0.06);
+            --color-amber-border: rgba(251,191,36,0.15);
+            --color-amber-border-dim: rgba(251,191,36,0.12);
+
+            /* ─── Teal Graduated ─── */
+            --color-teal-bg: rgba(45,212,191,0.12);
+            --color-teal-border: rgba(45,212,191,0.2);
+
+            /* ─── Purple Graduated ─── */
+            --color-purple-bg: rgba(167,139,250,0.1);
+            --color-purple-border: rgba(167,139,250,0.2);
+
+            /* ─── Orange Graduated ─── */
+            --color-orange-bg: rgba(251,146,60,0.1);
+            --color-orange-border: rgba(251,146,60,0.2);
+
+            /* ─── Muted (Slate) Graduated ─── */
+            --color-muted-bg: rgba(148,163,184,0.08);
+            --color-muted-border: rgba(148,163,184,0.12);
+            --color-muted-border-strong: rgba(148,163,184,0.25);
+            --color-neutral-border: rgba(128,128,128,0.1);
+            --color-neutral-border-strong: rgba(128,128,128,0.12);
+
+            /* ─── Text ─── */
             --color-text: var(--vscode-foreground, #ccc);
             --color-text-dim: var(--vscode-descriptionForeground, #888);
             --color-bg: var(--vscode-editor-background, #1e1e1e);
 
+            /* ─── Layout ─── */
             --radius-sm: 4px;
             --radius-md: 8px;
             --radius-lg: 12px;
+            --radius-full: 9999px;
 
             --space-1: 4px;
             --space-2: 8px;
@@ -3946,13 +4030,90 @@ export function getStyles(): string {
 
             /* Override core semantic tokens */
             --color-ok: var(--lt-green-text);
+            --color-ok-light: #86efac;
+            --color-ok-dim: var(--lt-green-deep);
             --color-warn: var(--lt-amber-text);
             --color-danger: var(--lt-red-text);
+            --color-danger-light: var(--lt-red-deep);
             --color-info: var(--lt-blue-text);
+            --color-info-light: var(--lt-blue-deep);
+            --color-muted: #64748b;
+
+            --color-amber: var(--lt-amber-text);
+            --color-amber-light: var(--lt-amber-deep);
+            --color-amber-dim: var(--lt-amber-deep);
+            --color-orange: var(--lt-orange-text);
+            --color-orange-strong: var(--lt-orange-text);
+            --color-orange-light: var(--lt-orange-text);
+            --color-teal: var(--lt-teal-text);
+            --color-teal-light: var(--lt-teal-text);
+            --color-purple: #7c3aed;
+            --color-purple-strong: #6d28d9;
+
+            /* Neutral surfaces (black-based for light theme) */
+            --color-surface-subtle: rgba(0,0,0,0.015);
             --color-surface: rgba(0,0,0,0.03);
-            --color-border: rgba(0,0,0,0.1);
-            --color-border-hover: rgba(0,0,0,0.22);
+            --color-surface-dim: rgba(0,0,0,0.02);
             --color-surface-hover: rgba(0,0,0,0.06);
+            --color-surface-active: rgba(0,0,0,0.08);
+            --color-surface-raised: rgba(0,0,0,0.015);
+
+            /* Neutral borders */
+            --color-border-subtle: rgba(0,0,0,0.04);
+            --color-border-dim: rgba(0,0,0,0.06);
+            --color-border: rgba(0,0,0,0.1);
+            --color-border-strong: rgba(0,0,0,0.15);
+            --color-border-hover: rgba(0,0,0,0.22);
+
+            /* Dividers */
+            --color-divider: rgba(0,0,0,0.06);
+            --color-divider-subtle: rgba(0,0,0,0.03);
+
+            /* Danger graduated */
+            --color-danger-bg: rgba(var(--lt-red),0.08);
+            --color-danger-bg-dim: rgba(var(--lt-red),0.05);
+            --color-danger-bg-hover: rgba(var(--lt-red),0.12);
+            --color-danger-border: rgba(var(--lt-red),0.2);
+            --color-danger-border-dim: rgba(var(--lt-red),0.12);
+            --color-danger-border-strong: rgba(var(--lt-red),0.25);
+
+            /* OK graduated */
+            --color-ok-bg: rgba(var(--lt-green),0.1);
+            --color-ok-bg-dim: rgba(var(--lt-green),0.05);
+            --color-ok-border: rgba(var(--lt-green),0.2);
+            --color-ok-border-dim: rgba(var(--lt-green),0.1);
+
+            /* Info graduated */
+            --color-info-bg: rgba(var(--lt-blue),0.08);
+            --color-info-bg-dim: rgba(var(--lt-blue),0.05);
+            --color-info-border: rgba(var(--lt-blue),0.15);
+            --color-info-border-dim: rgba(var(--lt-blue),0.1);
+            --color-info-strong: rgba(var(--lt-blue),0.6);
+
+            /* Amber graduated */
+            --color-amber-bg: rgba(var(--lt-amber),0.08);
+            --color-amber-bg-dim: rgba(var(--lt-amber),0.05);
+            --color-amber-border: rgba(var(--lt-amber),0.15);
+            --color-amber-border-dim: rgba(var(--lt-amber),0.1);
+
+            /* Teal graduated */
+            --color-teal-bg: rgba(var(--lt-teal),0.1);
+            --color-teal-border: rgba(var(--lt-teal),0.18);
+
+            /* Purple graduated */
+            --color-purple-bg: rgba(124,58,237,0.08);
+            --color-purple-border: rgba(124,58,237,0.15);
+
+            /* Orange graduated */
+            --color-orange-bg: rgba(var(--lt-orange),0.08);
+            --color-orange-border: rgba(var(--lt-orange),0.15);
+
+            /* Muted graduated */
+            --color-muted-bg: rgba(0,0,0,0.05);
+            --color-muted-border: rgba(0,0,0,0.1);
+            --color-muted-border-strong: rgba(0,0,0,0.18);
+            --color-neutral-border: rgba(0,0,0,0.08);
+            --color-neutral-border-strong: rgba(0,0,0,0.12);
         }
 
         /* ─── Light Theme: Activity GM Chips ──── */

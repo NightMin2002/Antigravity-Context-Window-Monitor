@@ -136,7 +136,7 @@ export function getGMDataTabStyles(): string {
         align-items: center;
         gap: var(--space-2);
         padding: var(--space-2) var(--space-3);
-        background: rgba(255,255,255,0.03);
+        background: var(--color-surface-dim);
         border-bottom: 1px solid var(--color-border);
         font-size: 0.88em;
         font-weight: 600;
@@ -153,13 +153,13 @@ export function getGMDataTabStyles(): string {
         align-items: center;
         gap: var(--space-2);
         padding: 6px var(--space-3);
-        border-bottom: 1px solid rgba(255,255,255,0.04);
+        border-bottom: 1px solid var(--color-border-subtle);
         font-size: 0.85em;
         transition: background 0.15s cubic-bezier(.4,0,.2,1);
     }
     .acct-card:last-child { border-bottom: none; }
     @media (hover: hover) {
-        .acct-card:hover { background: rgba(255,255,255,0.03); }
+        .acct-card:hover { background: var(--color-surface-dim); }
     }
     .acct-indicator {
         width: 8px;
@@ -168,7 +168,7 @@ export function getGMDataTabStyles(): string {
         flex-shrink: 0;
     }
     .acct-indicator-active {
-        background: #4ade80;
+        background: var(--color-ok);
         box-shadow: 0 0 6px rgba(74,222,128,0.5);
         animation: acctPulse 2s ease-in-out infinite;
     }
@@ -211,24 +211,24 @@ export function getGMDataTabStyles(): string {
         letter-spacing: 0.5px;
     }
     .acct-plan-pro {
-        background: rgba(96,165,250,0.12);
-        color: #93c5fd;
+        background: var(--color-info-border-dim);
+        color: var(--color-info-light);
         border: 1px solid rgba(96,165,250,0.25);
     }
     .acct-plan-free {
-        background: rgba(148,163,184,0.12);
-        color: #94a3b8;
+        background: var(--color-muted-border);
+        color: var(--color-muted);
         border: 1px solid rgba(148,163,184,0.2);
     }
     .acct-plan-ultra {
-        background: rgba(167,139,250,0.12);
-        color: #a78bfa;
-        border: 1px solid rgba(167,139,250,0.25);
+        background: var(--color-purple-bg);
+        color: var(--color-purple);
+        border: 1px solid var(--color-purple-border);
     }
     .acct-plan-team {
-        background: rgba(74,222,128,0.12);
-        color: #86efac;
-        border: 1px solid rgba(74,222,128,0.25);
+        background: var(--color-ok-bg);
+        color: var(--color-ok-light);
+        border: 1px solid var(--color-ok-border);
     }
     .acct-reset {
         flex-shrink: 0;
@@ -244,10 +244,10 @@ export function getGMDataTabStyles(): string {
         color: var(--color-text);
     }
     .acct-reset-countdown-warn {
-        color: #fbbf24;
+        color: var(--color-amber);
     }
     .acct-reset-countdown-expired {
-        color: #f87171;
+        color: var(--color-danger);
         font-weight: 700;
     }
     .acct-reset-abs {
@@ -282,9 +282,9 @@ export function getGMDataTabStyles(): string {
         font-size: 0.72em;
         line-height: 1.6;
         white-space: nowrap;
-        background: rgba(255,255,255,0.06);
+        background: var(--color-surface-hover);
         color: var(--color-text-dim);
-        border: 1px solid rgba(255,255,255,0.08);
+        border: 1px solid var(--color-border);
         max-width: 100px;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -298,7 +298,7 @@ export function getGMDataTabStyles(): string {
     }
     .acct-tag-active {
         font-size: 0.72em;
-        color: #4ade80;
+        color: var(--color-ok);
         font-weight: 500;
     }
     .acct-tag-cached {
@@ -319,7 +319,7 @@ export function getGMDataTabStyles(): string {
     .acct-delete-link {
         font-size: 0.72em;
         font-weight: 500;
-        color: #f87171;
+        color: var(--color-danger);
         cursor: pointer;
         border: none;
         background: none;
@@ -337,7 +337,7 @@ export function getGMDataTabStyles(): string {
     .pending-archive-panel {
         margin: var(--space-3) 0;
         padding: var(--space-3);
-        border: 1px solid rgba(234,179,8,0.25);
+        border: 1px solid var(--color-amber-border);
         border-left: 3px solid rgba(234,179,8,0.6);
         border-radius: var(--radius);
         background: rgba(234,179,8,0.04);
@@ -348,7 +348,7 @@ export function getGMDataTabStyles(): string {
         gap: 6px;
         font-weight: 600;
         font-size: 0.9em;
-        color: #eab308;
+        color: var(--color-amber-dim);
         margin-bottom: var(--space-2);
     }
     .pending-archive-count {
@@ -383,13 +383,13 @@ export function getGMDataTabStyles(): string {
         gap: 4px;
         padding: 2px 8px;
         border-radius: var(--radius-sm);
-        background: rgba(234,179,8,0.1);
+        background: var(--color-amber-bg);
         border: 1px solid rgba(234,179,8,0.2);
         font-size: 0.78em;
         color: var(--color-text-dim);
     }
     .pending-model-chip b {
-        color: #eab308;
+        color: var(--color-amber-dim);
     }
     .pending-archive-note {
         font-size: 0.78em;
@@ -421,17 +421,17 @@ export function getGMDataTabStyles(): string {
         white-space: nowrap;
     }
     .act-stat-warn {
-        background: rgba(248, 113, 113, 0.06);
-        border-color: rgba(248, 113, 113, 0.2);
+        background: var(--color-danger-bg-dim);
+        border-color: var(--color-danger-border);
     }
     @media (hover: hover) {
         .act-stat:hover {
-            background: rgba(96, 165, 250, 0.08);
-            border-color: rgba(96, 165, 250, 0.25);
+            background: rgba(96,165,250,0.08);
+            border-color: rgba(96,165,250,0.25);
         }
         .act-stat-warn:hover {
-            background: rgba(248, 113, 113, 0.12);
-            border-color: rgba(248, 113, 113, 0.35);
+            background: var(--color-danger-border-dim);
+            border-color: var(--color-danger-border-strong);
         }
         .act-stat[data-tooltip]:hover::after {
             content: attr(data-tooltip);
@@ -530,19 +530,19 @@ export function getGMDataTabStyles(): string {
         padding: var(--space-2) var(--space-3);
         font-weight: 600;
         font-size: 0.9em;
-        background: rgba(255,255,255,0.03);
+        background: var(--color-surface-dim);
         border-bottom: 1px solid var(--color-border);
         word-break: break-word;
         overflow-wrap: anywhere;
         border-left: 3px solid var(--color-accent);
     }
     /* Model card color accents */
-    .act-model-card:nth-child(1) .act-card-header { border-left-color: #60a5fa; }
-    .act-model-card:nth-child(2) .act-card-header { border-left-color: #4ade80; }
-    .act-model-card:nth-child(3) .act-card-header { border-left-color: #facc15; }
-    .act-model-card:nth-child(4) .act-card-header { border-left-color: #f87171; }
-    .act-model-card:nth-child(5) .act-card-header { border-left-color: #2dd4bf; }
-    .act-model-card:nth-child(6) .act-card-header { border-left-color: #fb923c; }
+    .act-model-card:nth-child(1) .act-card-header { border-left-color: var(--color-info); }
+    .act-model-card:nth-child(2) .act-card-header { border-left-color: var(--color-ok); }
+    .act-model-card:nth-child(3) .act-card-header { border-left-color: var(--color-warn); }
+    .act-model-card:nth-child(4) .act-card-header { border-left-color: var(--color-danger); }
+    .act-model-card:nth-child(5) .act-card-header { border-left-color: var(--color-teal); }
+    .act-model-card:nth-child(6) .act-card-header { border-left-color: var(--color-orange); }
     .act-card-body { padding: var(--space-2) var(--space-3); }
     .act-card-row {
         display: flex;
@@ -562,7 +562,7 @@ export function getGMDataTabStyles(): string {
         display: inline-block;
         padding: 1px var(--space-1);
         font-size: 0.75em;
-        background: rgba(255,255,255,0.06);
+        background: var(--color-surface-hover);
         color: var(--color-text-dim);
         border-radius: var(--radius-sm);
     }
@@ -584,11 +584,11 @@ export function getGMDataTabStyles(): string {
         padding: 2px var(--space-2);
         min-height: 24px;
         font-size: 0.82em;
-        border-bottom: 1px solid rgba(255,255,255,0.03);
+        border-bottom: 1px solid var(--color-divider-subtle);
         transition: background-color 0.15s cubic-bezier(.4,0,.2,1);
     }
     @media (hover: hover) {
-        .act-tl-item:hover { background: rgba(255,255,255,0.04); }
+        .act-tl-item:hover { background: var(--color-surface); }
     }
     .act-tl-item:last-child { border-bottom: none; }
     .act-tl-time { color: var(--color-text-dim); flex-shrink: 0; width: 42px; font-size: 0.78em; font-variant-numeric: tabular-nums; }
@@ -597,13 +597,13 @@ export function getGMDataTabStyles(): string {
     .act-tl-model { color: var(--color-info); font-weight: 500; flex-shrink: 0; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .act-tl-detail { color: var(--color-text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
     .act-tl-user { color: var(--color-ok); font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: default; }
-    .act-tl-ai-preview { color: #fb923c; opacity: 0.8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; cursor: default; }
+    .act-tl-ai-preview { color: var(--color-orange); opacity: 0.8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; cursor: default; }
     .act-tl-meta { margin-left: auto; display: flex; align-items: center; gap: 3px; flex-shrink: 0; white-space: nowrap; }
     .act-tl-dur { color: var(--color-text-dim); flex-shrink: 0; padding: 0 3px; border-radius: var(--radius-sm); background: var(--color-surface, rgba(128,128,128,0.1)); border: 1px solid var(--color-border, rgba(128,128,128,0.15)); font-size: 0.78em; font-variant-numeric: tabular-nums; white-space: nowrap; }
     .act-tl-reasoning .act-tl-icon { color: var(--color-ok); }
-    .act-tl-system { background: rgba(251, 146, 60, 0.08); border-left: 2px solid rgba(251, 146, 60, 0.4); padding-left: 6px; }
-    .act-tl-system .act-tl-icon { color: #fb923c; }
-    .act-tl-system .act-tl-detail { color: #fb923c; font-weight: 500; }
+    .act-tl-system { background: var(--color-orange-bg); border-left: 2px solid rgba(251,146,60,0.4); padding-left: 6px; }
+    .act-tl-system .act-tl-icon { color: var(--color-orange); }
+    .act-tl-system .act-tl-detail { color: var(--color-orange); font-weight: 500; }
     .act-tl-tool .act-tl-icon { color: var(--color-warn); }
     .act-tl-tool-name {
         color: var(--color-text-dim);
@@ -657,14 +657,14 @@ export function getGMDataTabStyles(): string {
     .act-tl-gm-retry { background: rgba(220,38,38,0.12);  color: #dc2626; }
     .act-tl-gm-tool { background: rgba(100,116,139,0.12); color: #64748b; font-size: 0.88em; }
     .act-tl-gm-ctx { background: rgba(139,92,246,0.10); color: #8b5cf6; }
-    body.vscode-dark .act-tl-gm-in  { background: rgba(96,165,250,0.12);  color: #93c5fd; }
-    body.vscode-dark .act-tl-gm-out { background: rgba(74,222,128,0.12);  color: #86efac; }
-    body.vscode-dark .act-tl-gm-ttft { background: rgba(251,191,36,0.12); color: #fcd34d; }
-    body.vscode-dark .act-tl-gm-cache { background: rgba(45,212,191,0.12); color: #5eead4; }
-    body.vscode-dark .act-tl-gm-credit { background: rgba(248,113,113,0.16); color: #fca5a5; }
-    body.vscode-dark .act-tl-gm-retry { background: rgba(248,113,113,0.15); color: #fca5a5; }
-    body.vscode-dark .act-tl-gm-tool { background: rgba(148,163,184,0.12); color: #94a3b8; }
-    body.vscode-dark .act-tl-gm-ctx { background: rgba(167,139,250,0.12); color: #a78bfa; }
+    body.vscode-dark .act-tl-gm-in  { background: var(--color-info-border-dim);  color: var(--color-info-light); }
+    body.vscode-dark .act-tl-gm-out { background: var(--color-ok-bg);  color: var(--color-ok-light); }
+    body.vscode-dark .act-tl-gm-ttft { background: var(--color-amber-border-dim); color: var(--color-amber-light); }
+    body.vscode-dark .act-tl-gm-cache { background: var(--color-teal-bg); color: var(--color-teal-light); }
+    body.vscode-dark .act-tl-gm-credit { background: rgba(248,113,113,0.16); color: var(--color-danger-light); }
+    body.vscode-dark .act-tl-gm-retry { background: var(--color-danger-bg-hover); color: var(--color-danger-light); }
+    body.vscode-dark .act-tl-gm-tool { background: var(--color-muted-border); color: var(--color-muted); }
+    body.vscode-dark .act-tl-gm-ctx { background: var(--color-purple-bg); color: var(--color-purple); }
     /* ─── Turn Groups (collapsible segments) ─── */
     .act-tl-turn {
         border: 1px solid var(--color-border, rgba(128,128,128,0.12));
@@ -678,7 +678,7 @@ export function getGMDataTabStyles(): string {
         margin-bottom: 0;
     }
     .act-tl-turn[open] {
-        border-color: rgba(74,222,128,0.25);
+        border-color: var(--color-ok-border);
     }
     .act-tl-turn-header {
         display: flex;
@@ -707,11 +707,11 @@ export function getGMDataTabStyles(): string {
         transform: rotate(90deg);
     }
     @media (hover: hover) {
-        .act-tl-turn-header:hover { background: rgba(255,255,255,0.04); }
+        .act-tl-turn-header:hover { background: var(--color-surface); }
     }
     .act-tl-turn-icon {
         flex-shrink: 0;
-        color: #4ade80;
+        color: var(--color-ok);
         display: flex;
         align-items: center;
     }
@@ -740,19 +740,19 @@ export function getGMDataTabStyles(): string {
         line-height: 1.5;
         white-space: nowrap;
         border: 1px solid transparent;
-        background: rgba(255,255,255,0.06);
+        background: var(--color-surface-hover);
         color: var(--color-text-dim);
     }
     .seg-chip-model {
-        color: var(--color-info, #60a5fa);
-        border-color: rgba(96,165,250,0.2);
+        color: var(--color-info);
+        border-color: var(--color-info-border);
         background: rgba(96,165,250,0.08);
         font-weight: 500;
     }
     .seg-chip-calls {
         border-color: rgba(74,222,128,0.2);
         background: rgba(74,222,128,0.08);
-        color: #86efac;
+        color: var(--color-ok-light);
     }
     .seg-chip-tools {
         border-color: rgba(250,204,21,0.2);
@@ -760,32 +760,32 @@ export function getGMDataTabStyles(): string {
         color: #fde68a;
     }
     .seg-chip-tok {
-        border-color: rgba(248,113,113,0.2);
-        background: rgba(248,113,113,0.08);
-        color: #fca5a5;
+        border-color: var(--color-danger-border);
+        background: var(--color-danger-bg);
+        color: var(--color-danger-light);
     }
     .seg-chip-cache {
-        border-color: rgba(45,212,191,0.2);
+        border-color: var(--color-teal-border);
         background: rgba(45,212,191,0.08);
-        color: #5eead4;
+        color: var(--color-teal-light);
     }
     .seg-chip-credits {
-        border-color: rgba(249,115,22,0.2);
+        border-color: var(--color-orange-border);
         background: rgba(249,115,22,0.08);
-        color: #fdba74;
+        color: var(--color-orange-light);
     }
     .seg-chip-dur {
         border-color: rgba(148,163,184,0.2);
-        background: rgba(148,163,184,0.08);
+        background: var(--color-muted-bg);
         color: #cbd5e1;
     }
     .seg-chip-retry {
-        border-color: rgba(248,113,113,0.2);
-        background: rgba(248,113,113,0.08);
-        color: #fca5a5;
+        border-color: var(--color-danger-border);
+        background: var(--color-danger-bg);
+        color: var(--color-danger-light);
     }
     .act-tl-segment-user {
-        background: rgba(74, 222, 128, 0.04);
+        background: var(--color-ok-bg-dim);
         padding-left: var(--space-2);
     }
     .act-tl-segment-user::before {
@@ -793,14 +793,14 @@ export function getGMDataTabStyles(): string {
         width: 4px;
         height: 4px;
         border-radius: 50%;
-        background: #4ade80;
+        background: var(--color-ok);
         flex-shrink: 0;
         margin-right: var(--space-1);
     }
     .act-tl-segment-body {
         display: flex;
         flex-direction: column;
-        border-top: 1px solid rgba(255,255,255,0.04);
+        border-top: 1px solid var(--color-border-subtle);
     }
     .act-tl-segment-body .act-tl-item {
         padding-left: var(--space-2);
@@ -810,7 +810,7 @@ export function getGMDataTabStyles(): string {
         width: 4px;
         height: 4px;
         border-radius: 50%;
-        background: rgba(255,255,255,0.16);
+        background: var(--color-border-hover);
         flex-shrink: 0;
         margin-right: var(--space-1);
     }
@@ -832,24 +832,24 @@ export function getGMDataTabStyles(): string {
     }
     /* .act-tl-tag-exact removed — "Exact" label deemed too absolute */
     .act-tl-tag-alias {
-        background: rgba(251, 191, 36, 0.12);
-        color: #fcd34d;
-        border-color: rgba(251, 191, 36, 0.2);
+        background: var(--color-amber-border-dim);
+        color: var(--color-amber-light);
+        border-color: rgba(251,191,36,0.2);
     }
     .act-tl-tag-struct {
-        background: rgba(96, 165, 250, 0.12);
-        color: #93c5fd;
-        border-color: rgba(96, 165, 250, 0.2);
+        background: var(--color-info-border-dim);
+        color: var(--color-info-light);
+        border-color: var(--color-info-border);
     }
     .act-tl-tag-est {
-        background: rgba(248, 113, 113, 0.14);
-        color: #fca5a5;
-        border-color: rgba(248, 113, 113, 0.2);
+        background: rgba(248,113,113,0.14);
+        color: var(--color-danger-light);
+        border-color: var(--color-danger-border);
     }
     .act-tl-tag-basis {
-        background: rgba(45,212,191,0.12);
-        color: #5eead4;
-        border-color: rgba(45,212,191,0.2);
+        background: var(--color-teal-bg);
+        color: var(--color-teal-light);
+        border-color: var(--color-teal-border);
     }
     .act-tl-tag-model {
         background: var(--color-surface, rgba(128,128,128,0.08));
@@ -879,8 +879,8 @@ export function getGMDataTabStyles(): string {
         justify-content: center;
         width: 18px; height: 18px;
         border-radius: var(--radius-full);
-        border: 1px solid rgba(148,163,184,0.25);
-        background: rgba(148,163,184,0.08);
+        border: 1px solid var(--color-muted-border-strong);
+        background: var(--color-muted-bg);
         color: var(--color-text-dim);
         font-size: 0.7em;
         font-weight: 700;
@@ -910,8 +910,8 @@ export function getGMDataTabStyles(): string {
         max-height: 260px;
         overflow-y: auto;
         padding: var(--space-2) var(--space-3);
-        background: #1e1e2e;
-        border: 1px solid rgba(255,255,255,0.12);
+        background: var(--color-bg);
+        border: 1px solid var(--color-border-strong);
         border-radius: var(--radius-lg);
         box-shadow: 0 8px 24px rgba(0,0,0,0.5);
         backdrop-filter: blur(12px);
@@ -945,7 +945,7 @@ export function getGMDataTabStyles(): string {
     .act-tl-help-desc b { color: var(--color-text); }
     .act-tl-help-divider {
         height: 1px;
-        background: rgba(255,255,255,0.06);
+        background: var(--color-divider);
         margin: var(--space-1) 0;
     }
     .act-tl-help-group-label {
@@ -957,12 +957,12 @@ export function getGMDataTabStyles(): string {
         letter-spacing: 0.04em;
     }
     body.vscode-light .act-tl-help-popup {
-        background: #f8f8fa;
-        border-color: rgba(0,0,0,0.15);
+        background: var(--color-bg);
+        border-color: var(--color-border-strong);
         box-shadow: 0 8px 24px rgba(0,0,0,0.15);
     }
-    body.vscode-light .act-tl-help-divider { background: rgba(0,0,0,0.06); }
-    body.vscode-light .act-tl-help-btn { background: rgba(0,0,0,0.05); border-color: rgba(0,0,0,0.15); }
+    body.vscode-light .act-tl-help-divider { background: var(--color-divider); }
+    body.vscode-light .act-tl-help-btn { background: var(--color-muted-bg); border-color: var(--color-border-strong); }
 
 
     /* ─── Shared Legend Styles (used by X-ray) ─── */
@@ -992,7 +992,8 @@ export function getGMDataTabStyles(): string {
         color: var(--color-text-dim);
         margin-top: var(--space-2);
     }
-    .act-compress-note { color: #f87171; margin-left: var(--space-2); font-size: 0.85em; }
+    .act-compress-note { color: var(--color-danger); margin-left: var(--space-2); font-size: 0.85em; }
+    .err-delta { color: var(--color-danger); font-weight: 600; }
 
 
     /* ─── Activity Tab: Conversation Breakdown ─── */
@@ -1026,20 +1027,20 @@ export function getGMDataTabStyles(): string {
         }
     }
     /* Color cycling for conversation cards */
-    .act-conv-item:nth-child(6n+1) { border-left-color: #60a5fa; }
-    .act-conv-item:nth-child(6n+2) { border-left-color: #4ade80; }
-    .act-conv-item:nth-child(6n+3) { border-left-color: #facc15; }
-    .act-conv-item:nth-child(6n+4) { border-left-color: #f87171; }
-    .act-conv-item:nth-child(6n+5) { border-left-color: #2dd4bf; }
-    .act-conv-item:nth-child(6n+6) { border-left-color: #a78bfa; }
+    .act-conv-item:nth-child(6n+1) { border-left-color: var(--color-info); }
+    .act-conv-item:nth-child(6n+2) { border-left-color: var(--color-ok); }
+    .act-conv-item:nth-child(6n+3) { border-left-color: var(--color-warn); }
+    .act-conv-item:nth-child(6n+4) { border-left-color: var(--color-danger); }
+    .act-conv-item:nth-child(6n+5) { border-left-color: var(--color-teal); }
+    .act-conv-item:nth-child(6n+6) { border-left-color: var(--color-purple); }
     .act-conv-title-chip {
         flex: 1;
         min-width: 0;
         display: inline-block;
         padding: 1px 8px;
         border-radius: var(--radius-full);
-        background: rgba(96,165,250,0.1);
-        border: 1px solid rgba(96,165,250,0.2);
+        background: var(--color-info-bg);
+        border: 1px solid var(--color-info-border);
         color: var(--color-text);
         font-weight: 600;
         font-size: 0.85em;
@@ -1061,28 +1062,28 @@ export function getGMDataTabStyles(): string {
         gap: 3px;
         padding: 1px 6px;
         border-radius: var(--radius-sm);
-        background: rgba(255,255,255,0.04);
-        border: 1px solid rgba(255,255,255,0.06);
+        background: var(--color-surface);
+        border: 1px solid var(--color-border-dim);
         white-space: nowrap;
     }
     .act-conv-meta-chip b { color: var(--color-text); font-weight: 600; }
     .act-conv-meta-chip svg { width: 10px; height: 10px; flex-shrink: 0; opacity: 0.6; }
-    .act-conv-credits { color: #fcd34d; }
+    .act-conv-credits { color: var(--color-amber-light); }
     .act-conv-date { color: var(--color-text-dim); font-variant-numeric: tabular-nums; }
-    body.vscode-light .act-conv-item { border-color: rgba(0,0,0,0.08); background: rgba(0,0,0,0.015); }
-    body.vscode-light .act-conv-title-chip { background: rgba(37,99,235,0.08); border-color: rgba(37,99,235,0.15); }
-    body.vscode-light .act-conv-meta-chip { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.06); }
+    body.vscode-light .act-conv-item { border-color: var(--color-border); background: var(--color-surface-raised); }
+    body.vscode-light .act-conv-title-chip { background: var(--color-info-bg); border-color: var(--color-info-border); }
+    body.vscode-light .act-conv-meta-chip { background: var(--color-surface-dim); border-color: var(--color-border-dim); }
 
     /* ─── GM Precision Sections ─── */
     .gm-perf-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-2); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-3); margin-bottom: var(--space-4); }
-    .gm-perf-item { display: flex; flex-direction: column; gap: 2px; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); }
+    .gm-perf-item { display: flex; flex-direction: column; gap: 2px; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); background: var(--color-surface-subtle); border: 1px solid var(--color-border-subtle); }
     .gm-perf-label { font-size: 0.72em; color: var(--color-text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
     .gm-perf-val { font-weight: 700; font-size: 1.05em; }
     .gm-perf-sub { font-size: 0.75em; color: var(--color-text-dim); }
-    .gm-cache-bar-bg { height: 20px; background: rgba(255,255,255,0.06); border-radius: var(--radius-sm); overflow: hidden; margin-bottom: var(--space-1); }
+    .gm-cache-bar-bg { height: 20px; background: var(--color-surface-hover); border-radius: var(--radius-sm); overflow: hidden; margin-bottom: var(--space-1); }
     .gm-cache-bar { height: 100%; border-radius: var(--radius-sm); background: linear-gradient(90deg, #3b82f6, #60a5fa); transition: width 0.3s cubic-bezier(.4,0,.2,1); }
-    .gm-badge-real { display: inline-block; font-size: 0.65em; padding: 1px var(--space-1); border-radius: var(--radius-sm); background: rgba(52,211,153,0.15); color: #34d399; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; vertical-align: middle; margin-left: var(--space-1); }
-    .gm-provider-tag { display: inline-block; font-size: 0.72em; padding: 1px var(--space-1); border-radius: var(--radius-sm); background: rgba(96,165,250,0.1); color: var(--color-info); margin-top: var(--space-1); }
+    .gm-badge-real { display: inline-block; font-size: 0.65em; padding: 1px var(--space-1); border-radius: var(--radius-sm); background: rgba(52,211,153,0.15); color: var(--color-ok-dim); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; vertical-align: middle; margin-left: var(--space-1); }
+    .gm-provider-tag { display: inline-block; font-size: 0.72em; padding: 1px var(--space-1); border-radius: var(--radius-sm); background: var(--color-info-bg); color: var(--color-info); margin-top: var(--space-1); }
     .gm-account-section {
         padding: var(--space-1) 0 0;
     }
@@ -1111,14 +1112,14 @@ export function getGMDataTabStyles(): string {
     .gm-account-row .gm-account-count {
         font-weight: 600;
         font-variant-numeric: tabular-nums;
-        color: #a78bfa;
+        color: var(--color-purple);
         flex-shrink: 0;
     }
     /* Active account highlight */
     .gm-account-row.gm-account-active {
-        background: rgba(52,211,153,0.06);
+        background: var(--color-ok-bg-dim);
         border: 1px solid rgba(52,211,153,0.2);
-        border-left: 2px solid #34d399;
+        border-left: 2px solid var(--color-ok-dim);
         border-radius: var(--radius-sm);
         padding: 3px 8px 3px 6px;
         margin: 1px -8px 1px -8px;
@@ -1127,15 +1128,15 @@ export function getGMDataTabStyles(): string {
         color: var(--color-text);
     }
     .gm-account-row.gm-account-active .gm-account-label svg {
-        stroke: #34d399;
+        stroke: var(--color-ok-dim);
         opacity: 1;
     }
     .gm-account-row.gm-account-active .gm-account-count {
-        color: #34d399;
+        color: var(--color-ok-dim);
     }
     /* ── Error count in account rows ── */
     .gm-account-err {
-        color: #f87171;
+        color: var(--color-danger);
         font-weight: 600;
         font-size: 0.82em;
         font-variant-numeric: tabular-nums;
@@ -1143,12 +1144,12 @@ export function getGMDataTabStyles(): string {
         white-space: nowrap;
         padding: 0 4px;
         border-radius: var(--radius-sm);
-        background: rgba(248,113,113,0.12);
+        background: var(--color-danger-border-dim);
         border: 1px solid rgba(248,113,113,0.18);
         display: none; /* hidden by default */
     }
     .gm-account-row.gm-account-active .gm-account-err {
-        color: #f87171;
+        color: var(--color-danger);
     }
     /* Shown when toggle is ON */
     .model-stats-show-errors .gm-account-err {
@@ -1162,8 +1163,8 @@ export function getGMDataTabStyles(): string {
         padding: 1px 8px;
         border-radius: var(--radius-full);
         border: 1px solid rgba(248,113,113,0.25);
-        background: rgba(248,113,113,0.08);
-        color: #f87171;
+        background: var(--color-danger-bg);
+        color: var(--color-danger);
         font-size: 0.72em;
         font-weight: 600;
         cursor: pointer;
@@ -1178,29 +1179,29 @@ export function getGMDataTabStyles(): string {
     }
     @media (hover: hover) {
         .model-stats-err-toggle:hover {
-            background: rgba(248,113,113,0.15);
+            background: var(--color-danger-bg-hover);
             border-color: rgba(248,113,113,0.4);
         }
     }
     .model-stats-err-toggle.is-off {
-        background: rgba(255,255,255,0.03);
-        border-color: rgba(255,255,255,0.1);
+        background: var(--color-surface-dim);
+        border-color: var(--color-border);
         color: var(--color-text-dim);
         opacity: 0.6;
     }
     @media (hover: hover) {
         .model-stats-err-toggle.is-off:hover {
             opacity: 0.9;
-            background: rgba(255,255,255,0.06);
+            background: var(--color-surface-hover);
         }
     }
     body.vscode-light .model-stats-err-toggle {
-        background: rgba(248,113,113,0.06);
-        border-color: rgba(220,38,38,0.2);
+        background: var(--color-danger-bg-dim);
+        border-color: var(--color-danger-border);
     }
     body.vscode-light .model-stats-err-toggle.is-off {
-        background: rgba(0,0,0,0.03);
-        border-color: rgba(0,0,0,0.1);
+        background: var(--color-surface-dim);
+        border-color: var(--color-border);
     }
     /* ── Model Stats Summary Row ── */
     .model-stats-total {
@@ -1212,7 +1213,7 @@ export function getGMDataTabStyles(): string {
         font-size: 0.8em;
         color: var(--color-text-dim);
         background: rgba(96,165,250,0.04);
-        border: 1px solid rgba(96,165,250,0.12);
+        border: 1px solid var(--color-info-border-dim);
         border-radius: var(--radius-md);
     }
     .model-stats-total .mst-icon {
@@ -1223,7 +1224,7 @@ export function getGMDataTabStyles(): string {
     }
     .model-stats-total .mst-label {
         font-weight: 600;
-        color: rgba(96,165,250,0.7);
+        color: var(--color-info-strong);
         margin-right: 8px;
         letter-spacing: 0.3px;
     }
@@ -1240,8 +1241,8 @@ export function getGMDataTabStyles(): string {
         gap: 4px;
         white-space: nowrap;
         padding: 2px 8px;
-        background: rgba(255,255,255,0.03);
-        border: 1px solid rgba(148,163,184,0.1);
+        background: var(--color-surface-dim);
+        border: 1px solid var(--color-neutral-border);
         border-radius: var(--radius-sm);
         transition: border-color 0.15s ease;
     }
@@ -1275,14 +1276,14 @@ export function getGMDataTabStyles(): string {
     }
 
     /* ─── Retry Overhead ─── */
-    .act-stat-warn { border-color: rgba(248,113,113,0.3); }
+    .act-stat-warn { border-color: var(--color-danger-border-strong); }
     @media (hover: hover) {
         .act-stat-warn:hover { border-color: rgba(248,113,113,0.6); box-shadow: 0 0 8px rgba(248,113,113,0.15); }
     }
     /* ── Error Details Section ── */
     .gm-err-card {
         background: var(--color-surface);
-        border: 1px solid rgba(248,113,113,0.2);
+        border: 1px solid var(--color-danger-border);
         border-radius: var(--radius-md);
         padding: var(--space-3);
         margin-bottom: var(--space-4);
@@ -1301,14 +1302,14 @@ export function getGMDataTabStyles(): string {
         border-radius: var(--radius-sm);
         letter-spacing: 0.3px;
     }
-    .gm-err-tag-ratelimit { background: rgba(234,88,12,0.15); color: #f97316; }
-    .gm-err-tag-server    { background: rgba(248,113,113,0.12); color: #f87171; }
-    .gm-err-tag-other     { background: rgba(148,163,184,0.12); color: #94a3b8; }
+    .gm-err-tag-ratelimit { background: rgba(234,88,12,0.15); color: var(--color-orange-strong); }
+    .gm-err-tag-server    { background: var(--color-danger-border-dim); color: var(--color-danger); }
+    .gm-err-tag-other     { background: var(--color-muted-border); color: var(--color-muted); }
     .gm-err-overhead {
         font-size: 0.75em;
         color: var(--color-text-dim);
         padding: var(--space-1) 0;
-        border-top: 1px solid rgba(255,255,255,0.06);
+        border-top: 1px solid var(--color-divider);
         margin-top: var(--space-1);
     }
     .gm-err-list {
@@ -1317,15 +1318,15 @@ export function getGMDataTabStyles(): string {
         gap: 3px;
         margin-top: var(--space-2);
         padding-top: var(--space-2);
-        border-top: 1px solid rgba(255,255,255,0.06);
+        border-top: 1px solid var(--color-divider);
     }
     .gm-err-msg {
         font-size: 0.72em;
         font-family: var(--font-mono, monospace);
-        color: #fca5a5;
+        color: var(--color-danger-light);
         padding: 4px var(--space-2);
         border-radius: var(--radius-sm);
-        background: rgba(248,113,113,0.06);
+        background: var(--color-danger-bg-dim);
         line-height: 1.5;
     }
     .gm-err-idx {
@@ -1339,7 +1340,7 @@ export function getGMDataTabStyles(): string {
     /* ── Expandable error (details/summary) ── */
     .gm-err-expand {
         border-radius: var(--radius-sm);
-        background: rgba(248,113,113,0.06);
+        background: var(--color-danger-bg-dim);
     }
     .gm-err-msg-summary {
         cursor: pointer;
@@ -1365,7 +1366,7 @@ export function getGMDataTabStyles(): string {
     .gm-err-expand[open] > .gm-err-msg-summary {
         white-space: normal;
         word-break: break-all;
-        border-bottom: 1px solid rgba(248,113,113,0.12);
+        border-bottom: 1px solid var(--color-danger-border-dim);
         margin-bottom: 0;
         opacity: 0.55;
         font-size: 0.65em;
@@ -1373,12 +1374,12 @@ export function getGMDataTabStyles(): string {
     .gm-err-msg-full {
         font-size: 0.72em;
         font-family: var(--font-mono, monospace);
-        color: #fca5a5;
+        color: var(--color-danger-light);
         white-space: pre-wrap;
         word-break: break-all;
         line-height: 1.6;
         padding: 5px var(--space-2) 5px calc(var(--space-2) + 1.8em);
-        border-left: 2px solid rgba(248,113,113,0.3);
+        border-left: 2px solid var(--color-danger-border-strong);
         margin-left: var(--space-2);
     }
 
@@ -1386,9 +1387,9 @@ export function getGMDataTabStyles(): string {
     /* ─── Context X-ray Details ─── */
     .act-xray-details {
         margin-top: var(--space-3);
-        border: 1px solid rgba(255,255,255,0.08);
+        border: 1px solid var(--color-border);
         border-radius: var(--radius-md);
-        background: rgba(255,255,255,0.015);
+        background: var(--color-surface-raised);
         font-size: 0.85em;
     }
     .act-xray-details summary {
@@ -1440,7 +1441,7 @@ export function getGMDataTabStyles(): string {
     }
     .xray-bar-wrap {
         height: 5px;
-        background: rgba(255,255,255,0.06);
+        background: var(--color-surface-hover);
         border-radius: var(--radius-sm);
         overflow: hidden;
     }
@@ -1463,7 +1464,7 @@ export function getGMDataTabStyles(): string {
         padding: 2px var(--space-2);
         border-radius: var(--radius-sm);
         font-size: 0.78em;
-        background: rgba(255,255,255,0.04);
+        background: var(--color-surface);
         border: 1px solid var(--chip-color, var(--color-border));
         border-left: 2px solid var(--chip-color, var(--color-info));
         color: var(--color-text-dim);
@@ -1471,7 +1472,7 @@ export function getGMDataTabStyles(): string {
     }
     @media (hover: hover) {
         .xray-chip:hover {
-            background: rgba(255,255,255,0.08);
+            background: var(--color-border);
             border-color: var(--chip-color, var(--color-info));
         }
     }
@@ -1486,38 +1487,38 @@ export function getGMDataTabStyles(): string {
         text-align: right;
         font-weight: 600;
         padding-top: var(--space-1);
-        border-top: 1px solid rgba(255,255,255,0.06);
+        border-top: 1px solid var(--color-divider);
     }
     @media (prefers-reduced-motion: reduce) {
         .xray-bar { transition: none; }
     }
 
     /* ─── Light Theme: Activity Panel ──── */
-    body.vscode-light .act-card-header { background: rgba(0,0,0,0.03); }
-    body.vscode-light .act-tool-tag { background: rgba(0,0,0,0.05); }
-    body.vscode-light .act-tl-segment-body .act-tl-item::before { background: rgba(0,0,0,0.16); }
-    body.vscode-light .act-tl-item { border-bottom-color: rgba(0,0,0,0.04); }
+    body.vscode-light .act-card-header { background: var(--color-surface-dim); }
+    body.vscode-light .act-tool-tag { background: var(--color-surface-hover); }
+    body.vscode-light .act-tl-segment-body .act-tl-item::before { background: var(--color-border-hover); }
+    body.vscode-light .act-tl-item { border-bottom-color: var(--color-border-subtle); }
     @media (hover: hover) {
-        body.vscode-light .act-tl-item:hover { background: rgba(0,0,0,0.03); }
+        body.vscode-light .act-tl-item:hover { background: var(--color-surface-dim); }
     }
-    body.vscode-light .gm-perf-item { background: rgba(0,0,0,0.02); border-color: rgba(0,0,0,0.06); }
-    body.vscode-light .gm-cache-bar-bg { background: rgba(0,0,0,0.06); }
-    body.vscode-light .gm-retry-stops { border-top-color: rgba(0,0,0,0.06); }
-    body.vscode-light .act-rank-bar-bg { background: rgba(0,0,0,0.06); }
-    body.vscode-light .act-xray-details { border-color: rgba(0,0,0,0.08); background: rgba(0,0,0,0.015); }
-    body.vscode-light .xray-bar-wrap { background: rgba(0,0,0,0.06); }
-    body.vscode-light .xray-chip { background: rgba(0,0,0,0.03); }
+    body.vscode-light .gm-perf-item { background: var(--color-surface-subtle); border-color: var(--color-border-dim); }
+    body.vscode-light .gm-cache-bar-bg { background: var(--color-surface-hover); }
+    body.vscode-light .gm-retry-stops { border-top-color: var(--color-divider); }
+    body.vscode-light .act-rank-bar-bg { background: var(--color-surface-hover); }
+    body.vscode-light .act-xray-details { border-color: var(--color-border); background: var(--color-surface-raised); }
+    body.vscode-light .xray-bar-wrap { background: var(--color-surface-hover); }
+    body.vscode-light .xray-chip { background: var(--color-surface-dim); }
     @media (hover: hover) {
-        body.vscode-light .xray-chip:hover { background: rgba(0,0,0,0.06); }
+        body.vscode-light .xray-chip:hover { background: var(--color-surface-hover); }
     }
-    body.vscode-light .xray-total { border-top-color: rgba(0,0,0,0.06); }
+    body.vscode-light .xray-total { border-top-color: var(--color-divider); }
 
     /* ─── Checkpoint Viewer ─── */
     .cp-viewer {
         margin-bottom: var(--space-4);
         max-height: 400px;
         overflow-y: auto;
-        border: 1px solid rgba(251,191,36,0.12);
+        border: 1px solid var(--color-amber-border-dim);
         border-radius: var(--radius-lg);
         background: rgba(251,191,36,0.015);
         padding: var(--space-3);
@@ -1526,7 +1527,7 @@ export function getGMDataTabStyles(): string {
     .cp-viewer::-webkit-scrollbar-track { background: transparent; }
     .cp-viewer::-webkit-scrollbar-thumb { background: rgba(251,191,36,0.25); border-radius: var(--radius-full); }
     .cp-card {
-        border: 1px solid rgba(251,191,36,0.15);
+        border: 1px solid var(--color-amber-border);
         border-radius: var(--radius-md);
         background: rgba(251,191,36,0.03);
         margin-bottom: var(--space-2);
@@ -1564,11 +1565,11 @@ export function getGMDataTabStyles(): string {
         transform: rotate(90deg);
     }
     @media (hover: hover) {
-        .cp-card-header:hover { background: rgba(251,191,36,0.06); }
+        .cp-card-header:hover { background: var(--color-amber-bg-dim); }
     }
     .cp-card-num {
         font-weight: 700;
-        color: #fbbf24;
+        color: var(--color-amber);
         flex-shrink: 0;
     }
     .cp-card-chip {
@@ -1580,17 +1581,17 @@ export function getGMDataTabStyles(): string {
         white-space: nowrap;
     }
     .cp-card-chip-step {
-        background: rgba(148,163,184,0.1);
+        background: var(--color-neutral-border);
         color: var(--color-text-dim);
-        border: 1px solid rgba(148,163,184,0.15);
+        border: 1px solid var(--color-muted-border);
     }
     .cp-card-chip-tok {
-        background: rgba(251,191,36,0.1);
-        color: #fcd34d;
-        border: 1px solid rgba(251,191,36,0.15);
+        background: var(--color-amber-bg);
+        color: var(--color-amber-light);
+        border: 1px solid var(--color-amber-border);
     }
     .cp-card-body {
-        border-top: 1px solid rgba(251,191,36,0.1);
+        border-top: 1px solid var(--color-amber-bg);
         padding: var(--space-3);
         font-size: 0.82em;
         line-height: 1.7;
@@ -1607,12 +1608,12 @@ export function getGMDataTabStyles(): string {
         font-size: 1em;
         font-weight: 700;
         margin: var(--space-2) 0 var(--space-1) 0;
-        color: #fbbf24;
+        color: var(--color-amber);
     }
     .cp-card-body h1:first-child, .cp-card-body h2:first-child { margin-top: 0; }
     .cp-card-body strong { color: var(--color-text); }
     .cp-card-body code {
-        background: rgba(255,255,255,0.06);
+        background: var(--color-surface-hover);
         padding: 1px 4px;
         border-radius: 3px;
         font-size: 0.9em;
@@ -1622,9 +1623,9 @@ export function getGMDataTabStyles(): string {
         background: rgba(202,138,4,0.03);
     }
     body.vscode-light .cp-card[open] { border-color: rgba(202,138,4,0.4); }
-    body.vscode-light .cp-card-num { color: #b45309; }
+    body.vscode-light .cp-card-num { color: var(--color-amber); }
     body.vscode-light .cp-card-chip-tok { background: rgba(202,138,4,0.1); color: #92400e; border-color: rgba(202,138,4,0.2); }
-    body.vscode-light .cp-card-body h1, body.vscode-light .cp-card-body h2, body.vscode-light .cp-card-body h3 { color: #b45309; }
+    body.vscode-light .cp-card-body h1, body.vscode-light .cp-card-body h2, body.vscode-light .cp-card-body h3 { color: var(--color-amber); }
 
     /* ─── Tool Call Ranking ─── */
     .tool-rank-section {
@@ -1644,7 +1645,7 @@ export function getGMDataTabStyles(): string {
         gap: var(--space-2);
         padding: 3px 0;
         font-size: 0.82em;
-        border-bottom: 1px solid rgba(255,255,255,0.03);
+        border-bottom: 1px solid var(--color-divider-subtle);
     }
     .tool-rank-row:last-child { border-bottom: none; }
     .tool-rank-idx {
@@ -1669,7 +1670,7 @@ export function getGMDataTabStyles(): string {
         flex: 1;
         min-width: 40px;
         height: 14px;
-        background: rgba(255,255,255,0.04);
+        background: var(--color-surface);
         border-radius: var(--radius-sm);
         overflow: hidden;
     }
@@ -1703,11 +1704,11 @@ export function getGMDataTabStyles(): string {
         color: var(--color-text-dim);
         margin-top: var(--space-1);
         padding-top: var(--space-1);
-        border-top: 1px solid rgba(255,255,255,0.06);
+        border-top: 1px solid var(--color-divider);
     }
     .tool-rank-summary b { color: var(--color-text); }
     .tool-rank-delta {
-        color: #4ade80;
+        color: var(--color-ok);
         font-size: 0.82em;
         font-weight: 500;
         margin-left: 2px;
@@ -1728,7 +1729,7 @@ function buildSummaryBar(s: ActivitySummary | null, gm: GMSummary | null, curren
     const iconOut = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21V9M5 14l7-7 7 7"/></svg>`;
     const iconCache = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12H2"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>`;
     const iconCredits = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>`;
-    const iconErr = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
+    const iconErr = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
 
     // ── Helper: build error chip from GM data ──
     const buildErrorChip = (gm2: GMSummary): string => {
@@ -1741,7 +1742,7 @@ function buildSummaryBar(s: ActivitySummary | null, gm: GMSummary | null, curren
         const errCodes = Object.entries(gm2.retryErrorCodes || {}).sort((a, b) => b[1] - a[1]).map(([c, n]) => { const d = currentConvErrs[c] || 0; return d > 0 ? `${c} ×${n} (+${d})` : `${c} ×${n}`; }).join(', ');
         const wasteInfo = gm2.totalRetryTokens > 0 ? ` | ${fmt(gm2.totalRetryTokens)} ${tBi('tokens wasted', 'token 浪费')}` : '';
         const tipText = errCodes ? `${errCodes}${wasteInfo}` : `${gm2.totalRetryCount} ${tBi('retries', '重试')}${wasteInfo}`;
-        const deltaHtml = convDelta > 0 ? ` <span style="color:#f87171;font-size:0.75em;font-weight:600">+${convDelta}</span>` : '';
+        const deltaHtml = convDelta > 0 ? ` <span class="err-delta" style="font-size:0.75em">+${convDelta}</span>` : '';
         return `<div class="act-stat act-stat-warn" data-tooltip="${esc(tipText)}"><span class="act-stat-icon">${iconErr}</span><span class="act-stat-val">${errTotal > 0 ? errTotal : gm2.totalRetryCount}${deltaHtml}</span><span class="act-stat-label">${tBi('Errors', '报错')}</span></div>`;
     };
 
@@ -2018,7 +2019,7 @@ function buildTimeline(s: ActivitySummary, currentUsage?: ContextUsage | null, g
     const orderedEvents = [...scopedEvents];
     if (orderedEvents.length === 0) {
         if (!currentCascadeId) { return ''; }
-        return `<h2 class="act-section-title"><svg class="act-icon" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${tBi('Recent Activity', '最近操作')}</h2><p class="empty-msg">${tBi('No recent activity for the current conversation yet.', '当前对话暂时还没有可显示的最近操作。')}</p>`;
+        return `<h2 class="act-section-title"><svg class="act-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${tBi('Recent Activity', '最近操作')}</h2><p class="empty-msg">${tBi('No recent activity for the current conversation yet.', '当前对话暂时还没有可显示的最近操作。')}</p>`;
     }
 
     const fmtTok = (n: number) => n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n);
@@ -2488,14 +2489,14 @@ function buildErrorDetailsSection(s: GMSummary, currentCascadeId?: string): stri
             const tagClass = isRateLimit ? 'gm-err-tag-ratelimit' : isServer ? 'gm-err-tag-server' : 'gm-err-tag-other';
             const delta = currentConvErrors[code] || 0;
             const deltaHtml = delta > 0
-                ? `<span style="color:#f87171;font-size:0.85em;font-weight:600;margin-left:2px">+${delta}</span>`
+                ? `<span class="err-delta" style="font-size:0.85em;margin-left:2px">+${delta}</span>`
                 : '';
             return `<span class="gm-err-tag ${tagClass}">${esc(code)} \u00d7${count}${deltaHtml}</span>`;
         }).join('');
 
     // Section title with conversation delta badge
     const convDeltaBadge = currentConvTotal > 0
-        ? ` <span style="color:#f87171;font-size:0.8em;font-weight:600">+${currentConvTotal} ${tBi('this session', '\u672c\u5bf9\u8bdd')}</span>`
+        ? ` <span class="err-delta" style="font-size:0.8em">+${currentConvTotal} ${tBi('this session', '\u672c\u5bf9\u8bdd')}</span>`
         : '';
 
     // Recent error messages — CSS-driven truncation: summary auto-truncates via ellipsis,
