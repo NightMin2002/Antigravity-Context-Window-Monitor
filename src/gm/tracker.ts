@@ -662,9 +662,10 @@ export class GMTracker {
                     if (call.responseModel) {
                         const pr = findPricing(call.responseModel);
                         if (pr) {
+                            const respOut = Math.max(0, (call.outputTokens || 0) - (call.thinkingTokens || 0));
                             summaryCost += (
                                 (call.inputTokens || 0) * pr.input +
-                                (call.outputTokens || 0) * pr.output +
+                                respOut * pr.output +
                                 (call.cacheReadTokens || 0) * pr.cacheRead +
                                 (call.thinkingTokens || 0) * pr.thinking
                             ) / 1_000_000;
@@ -723,9 +724,10 @@ export class GMTracker {
                 if (call.responseModel) {
                     const pr = findPricing(call.responseModel);
                     if (pr) {
+                        const respOut = Math.max(0, (call.outputTokens || 0) - (call.thinkingTokens || 0));
                         cacheCost += (
                             (call.inputTokens || 0) * pr.input +
-                            (call.outputTokens || 0) * pr.output +
+                            respOut * pr.output +
                             (call.cacheReadTokens || 0) * pr.cacheRead +
                             (call.thinkingTokens || 0) * pr.thinking
                         ) / 1_000_000;

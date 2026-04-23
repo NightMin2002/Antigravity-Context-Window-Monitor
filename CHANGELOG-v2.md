@@ -8,6 +8,45 @@
 
 ---
 
+## [1.17.19] - 2026-04-23
+
+### 修复 / Fixed
+
+- **Thinking Tokens 费用双重计算 / Thinking Token Double-Counting Bug**:
+  `outputTokens` 已包含 `thinkingOutputTokens`（即 `output = responseOutput + thinking`），但费用公式同时使用了 `outputTokens × output_price` 和 `thinkingTokens × thinking_price`，造成 thinking 被计费两次。
+
+  修正：所有 8 处费用计算统一改为 `respOut = outputTokens - thinkingTokens`，仅用 `respOut × output_price` 计算输出费用。
+
+  对 Claude 无影响（`thinkingTokens` 始终为 0），对 Gemini 修正约 12-15%。
+
+  Fix: `outputTokens` includes `thinkingOutputTokens`, but the cost formula was using both `outputTokens × output_price` AND `thinkingTokens × thinking_price`, double-charging thinking. All 8 cost calculation sites now use `respOut = outputTokens - thinkingTokens` for the output cost.
+
+- **月费用总计未包含待归档区 / Monthly Cost Missing Pending Archive**:
+  `buildMonthlyCostSummary` 仅汇总已归档周期 + 当前活跃周期，遗漏了待归档区的 `estimatedCost`。
+
+  修正：`buildPricingTabContent` 新增 `pendingArchiveCost` 参数，`webview-panel.ts` 传入 `lastPendingArchives.reduce(estimatedCost)`。费用概览、费用明细、月总计三处统一纳入。
+
+  Fix: Monthly cost now includes pending archive `estimatedCost` sum. All three cost display sections (overview, breakdown, monthly) unified.
+
+### 改进 / Improved
+
+- **移除 Cache Write 费用显示 / Remove Cache Write Cost Display**:
+  API 从未上报 `cacheCreationTokens`（858 次调用全部为 0），移除相关 UI 避免误导：
+  - `ModelCostRow` 删除 `cacheWriteCost`、`cacheWriteTokens` 字段
+  - 费用明细卡片删除「缓存写入」行
+  - 费用柱状图不再包含 cacheWrite 段
+  - 自定义价格编辑器隐藏 cacheWrite 字段
+
+  Removed cacheWrite cost from all UI surfaces since API never reports `cacheCreationTokens`. `ModelPricing` and `DEFAULT_PRICING` retain the field for future use.
+
+### 统计 / Stats
+
+- **Files changed**: 5 (`src/pricing-store.ts`, `src/pricing-panel.ts`, `src/activity-panel.ts`, `src/gm/tracker.ts`, `src/webview-panel.ts`)
+- **Docs updated**: 2 (`docs/project_structure.md`, `CHANGELOG-v2.md`)
+- **TypeScript compile**: Zero errors
+
+---
+
 ## [1.17.18] - 2026-04-23
 
 ### 修复 / Fixed

@@ -1968,9 +1968,10 @@ function buildModelCards(s: ActivitySummary | null, gm: GMSummary | null, active
                 {
                     const pr = findPricing(call.responseModel) || findPricing(call.modelDisplay || call.model);
                     if (pr) {
+                        const respOut = Math.max(0, (call.outputTokens || 0) - (call.thinkingTokens || 0));
                         allAccountTotalCost += (
                             (call.inputTokens || 0) * pr.input +
-                            (call.outputTokens || 0) * pr.output +
+                            respOut * pr.output +
                             (call.cacheReadTokens || 0) * pr.cacheRead +
                             (call.thinkingTokens || 0) * pr.thinking
                         ) / 1_000_000;
@@ -2246,9 +2247,10 @@ function buildTimeline(s: ActivitySummary, currentUsage?: ContextUsage | null, g
             if (e.gmModel) {
                 const pricing = findPricing(e.gmModel);
                 if (pricing) {
+                    const respOut = Math.max(0, (e.gmOutputTokens || 0) - (e.gmThinkingTokens || 0));
                     const callCost = (
                         (e.gmInputTokens || 0) * pricing.input +
-                        (e.gmOutputTokens || 0) * pricing.output +
+                        respOut * pricing.output +
                         (e.gmCacheReadTokens || 0) * pricing.cacheRead +
                         (e.gmThinkingTokens || 0) * pricing.thinking
                     ) / 1_000_000;
@@ -2356,9 +2358,10 @@ function buildTimeline(s: ActivitySummary, currentUsage?: ContextUsage | null, g
                 if (a.gmModel) {
                     const pricing = findPricing(a.gmModel);
                     if (pricing) {
+                        const respOut = Math.max(0, (a.gmOutputTokens || 0) - (a.gmThinkingTokens || 0));
                         totalCost += (
                             (a.gmInputTokens || 0) * pricing.input +
-                            (a.gmOutputTokens || 0) * pricing.output +
+                            respOut * pricing.output +
                             (a.gmCacheReadTokens || 0) * pricing.cacheRead +
                             (a.gmThinkingTokens || 0) * pricing.thinking
                         ) / 1_000_000;

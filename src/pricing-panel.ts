@@ -16,6 +16,7 @@ export function buildPricingTabContent(
     summary: GMSummary | null,
     store: PricingStore,
     monthBreakdown?: MonthCostBreakdown,
+    pendingArchiveCost?: number,
 ): string {
     const hasGM = summary && summary.totalCalls > 0;
     const parts: string[] = [];
@@ -25,15 +26,17 @@ export function buildPricingTabContent(
 
     // Monthly total cost summary (always shown if breakdown data exists)
     if (monthBreakdown) {
-        parts.push(buildMonthlyCostSummary(monthBreakdown, costResult?.grandTotal ?? 0, costResult?.rows ?? []));
+        parts.push(buildMonthlyCostSummary(monthBreakdown, costResult?.grandTotal ?? 0, costResult?.rows ?? [], pendingArchiveCost ?? 0));
     }
 
     if (hasGM && costResult) {
         const { rows, grandTotal } = costResult;
+        // Include pending archive costs in the displayed totals
+        const fullTotal = grandTotal + (pendingArchiveCost ?? 0);
         const merged = store.getMerged();
         parts.push(
-            buildCostVisualization(rows, grandTotal, summary),
-            buildCostSummary(rows, grandTotal),
+            buildCostVisualization(rows, fullTotal, summary),
+            buildCostSummary(rows, fullTotal),
             buildEditablePricingTable(summary, merged, store.getCustom()),
         );
     } else {
@@ -684,7 +687,7 @@ function buildCostVisualization(
         const total = r.totalCost || 1;
         const inputPct = (r.inputCost / total) * pct;
         const outputPct = (r.outputCost / total) * pct;
-        const cachePct = ((r.cacheCost + r.cacheWriteCost) / total) * pct;
+        const cachePct = (r.cacheCost / total) * pct;
         const thinkPct = (r.thinkingCost / total) * pct;
 
         html += `<div class="prc-bar-row">
@@ -692,7 +695,7 @@ function buildCostVisualization(
             <div class="prc-bar-track">
                 ${inputPct > 0 ? `<div class="prc-bar-seg prc-bar-seg-input" style="width:${inputPct.toFixed(1)}%" data-tooltip="${tBi('Input', '输入')}: ${fmtUsd(r.inputCost)}"></div>` : ''}
                 ${outputPct > 0 ? `<div class="prc-bar-seg prc-bar-seg-output" style="width:${outputPct.toFixed(1)}%" data-tooltip="${tBi('Output', '输出')}: ${fmtUsd(r.outputCost)}"></div>` : ''}
-                ${cachePct > 0 ? `<div class="prc-bar-seg prc-bar-seg-cache" style="width:${cachePct.toFixed(1)}%" data-tooltip="${tBi('Cache', '缓存')}: ${fmtUsd(r.cacheCost + r.cacheWriteCost)}"></div>` : ''}
+                ${cachePct > 0 ? `<div class="prc-bar-seg prc-bar-seg-cache" style="width:${cachePct.toFixed(1)}%" data-tooltip="${tBi('Cache', '缓存')}: ${fmtUsd(r.cacheCost)}"></div>` : ''}
                 ${thinkPct > 0 ? `<div class="prc-bar-seg prc-bar-seg-thinking" style="width:${thinkPct.toFixed(1)}%" data-tooltip="${tBi('Thinking', '思考')}: ${fmtUsd(r.thinkingCost)}"></div>` : ''}
             </div>
             <span class="prc-bar-val" style="color:#f59e0b">${fmtUsd(r.totalCost)}</span>
@@ -959,13 +962,6 @@ function buildCostSummary(rows: import('./pricing-store').ModelCostRow[], grandT
                     <span class="prc-cost-item-label"><span class="prc-cost-item-dot" style="background:#22d3ee"></span>${tBi('Cache Read', '缓存读取')}</span>
                     <span class="prc-cost-item-val">${fmtUsd(r.cacheCost)}</span>
                 </div>
-                <div class="prc-cost-item" data-tooltip="${tBi(
-            `${fmt(r.cacheWriteTokens)} tok × $${r.pricing.cacheWrite}/M`,
-            `${fmt(r.cacheWriteTokens)} 令牌 × $${r.pricing.cacheWrite}/百万`,
-        )}">
-                    <span class="prc-cost-item-label"><span class="prc-cost-item-dot" style="background:#22d3ee"></span>${tBi('Cache Write', '缓存写入')}</span>
-                    <span class="prc-cost-item-val">${fmtUsd(r.cacheWriteCost)}</span>
-                </div>
                 ${r.thinkingTokens > 0 ? `<div class="prc-cost-item" data-tooltip="${tBi(
             `${fmt(r.thinkingTokens)} tok × $${r.pricing.thinking}/M`,
             `${fmt(r.thinkingTokens)} 令牌 × $${r.pricing.thinking}/百万`,
@@ -1003,7 +999,7 @@ function buildEditablePricingTable(
     const entries = Object.entries(summary.modelBreakdown);
     if (entries.length === 0) { return ''; }
 
-    const fields: (keyof ModelPricing)[] = ['input', 'output', 'cacheRead', 'cacheWrite', 'thinking'];
+    const fields: (keyof ModelPricing)[] = ['input', 'output', 'cacheRead', 'thinking'];
 
     let html = `<h2 class="act-section-title">${tBi('Custom Pricing', '自定义价格')} <span style="font-size:0.82em;color:var(--color-text-dim)">(${tBi('USD / 1M tokens', 'USD / 100万令牌')})</span></h2>`;
     html += `<div class="prc-edit-section">`;
@@ -1055,7 +1051,7 @@ function buildDefaultPricingTable(
     const entries = Object.entries(merged);
     if (entries.length === 0) { return ''; }
 
-    const fields: (keyof ModelPricing)[] = ['input', 'output', 'cacheRead', 'cacheWrite', 'thinking'];
+    const fields: (keyof ModelPricing)[] = ['input', 'output', 'cacheRead', 'thinking'];
 
     let html = `<h2 class="act-section-title">${tBi('Custom Pricing', '自定义价格')} <span style="font-size:0.82em;color:var(--color-text-dim)">(${tBi('USD / 1M tokens', 'USD / 100万令牌')})</span></h2>`;
     html += `<div class="prc-edit-section"><div class="prc-edit-grid">`;
@@ -1116,6 +1112,7 @@ function buildMonthlyCostSummary(
     breakdown: MonthCostBreakdown,
     currentCycleCost: number,
     currentCycleRows: ModelCostRow[],
+    pendingArchiveCost: number,
 ): string {
     const monthEn = MONTH_NAMES_EN[breakdown.month - 1];
     const monthZh = MONTH_NAMES_ZH[breakdown.month - 1];
@@ -1162,7 +1159,7 @@ function buildMonthlyCostSummary(
         }
     }
 
-    const grandTotal = breakdown.grandTotal + (isCurrentMonth ? currentCycleCost : 0);
+    const grandTotal = breakdown.grandTotal + (isCurrentMonth ? currentCycleCost : 0) + (isCurrentMonth ? pendingArchiveCost : 0);
     const totalCycles = breakdown.cycleCount + (isCurrentMonth && currentCycleCost > 0 ? 1 : 0);
     const models = [...mergedModels.values()].sort((a, b) => b.totalCost - a.totalCost);
     const maxCost = models.length > 0 ? models[0].totalCost : 1;
@@ -1225,12 +1222,6 @@ function buildMonthlyCostSummary(
                 <div class="prc-monthly-bar-fill" style="width:${pct.toFixed(1)}%"></div>
             </div>
             <span class="prc-monthly-model-cost">${fmtCost(m.totalCost)}</span>
-        </div>
-        <div class="prc-monthly-chips" style="padding-left:var(--space-3); margin-top:-4px; margin-bottom:var(--space-1)">
-            <span class="prc-monthly-chip">${fmtTokensK(m.inputTokens)} in</span>
-            <span class="prc-monthly-chip">${fmtTokensK(m.outputTokens)} out</span>
-            ${m.thinkingTokens > 0 ? `<span class="prc-monthly-chip">${fmtTokensK(m.thinkingTokens)} think</span>` : ''}
-            <span class="prc-monthly-chip">${m.calls} ${tBi('calls', '调用')}</span>
         </div>`;
     }
     html += `</div>`;

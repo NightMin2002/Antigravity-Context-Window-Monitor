@@ -20,15 +20,13 @@ export interface ModelCostRow {
     name: string;
     responseModel: string;
     inputCost: number;
-    outputCost: number;
+    outputCost: number;      // cost of responseOutputTokens only (excludes thinking)
     cacheCost: number;
-    cacheWriteCost: number;
     thinkingCost: number;
     totalCost: number;
     inputTokens: number;
-    outputTokens: number;
+    outputTokens: number;    // responseOutputTokens (= totalOutputTokens - totalThinkingTokens)
     cacheTokens: number;
-    cacheWriteTokens: number;
     thinkingTokens: number;
     pricing: ModelPricing | null;
 }
@@ -105,30 +103,32 @@ export function calculateCosts(
 
     for (const [name, ms] of entries) {
         const pricing = findPricing(ms.responseModel, mergedTable);
+        // responseOutputTokens = totalOutputTokens - totalThinkingTokens
+        // This avoids double-counting: outputTokens includes thinking already.
+        const responseOutputTokens = Math.max(0, ms.totalOutputTokens - ms.totalThinkingTokens);
         if (!pricing) {
             rows.push({
                 name, responseModel: ms.responseModel,
-                inputCost: 0, outputCost: 0, cacheCost: 0, cacheWriteCost: 0, thinkingCost: 0, totalCost: 0,
-                inputTokens: ms.totalInputTokens, outputTokens: ms.totalOutputTokens,
-                cacheTokens: ms.totalCacheRead, cacheWriteTokens: ms.totalCacheCreation,
+                inputCost: 0, outputCost: 0, cacheCost: 0, thinkingCost: 0, totalCost: 0,
+                inputTokens: ms.totalInputTokens, outputTokens: responseOutputTokens,
+                cacheTokens: ms.totalCacheRead,
                 thinkingTokens: ms.totalThinkingTokens, pricing: null,
             });
             continue;
         }
 
         const inputCost = calcCost(ms.totalInputTokens, pricing.input);
-        const outputCost = calcCost(ms.totalOutputTokens, pricing.output);
+        const outputCost = calcCost(responseOutputTokens, pricing.output);
         const cacheCost = calcCost(ms.totalCacheRead, pricing.cacheRead);
-        const cacheWriteCost = calcCost(ms.totalCacheCreation, pricing.cacheWrite);
         const thinkingCost = calcCost(ms.totalThinkingTokens, pricing.thinking);
-        const totalCost = inputCost + outputCost + cacheCost + cacheWriteCost + thinkingCost;
+        const totalCost = inputCost + outputCost + cacheCost + thinkingCost;
         grandTotal += totalCost;
 
         rows.push({
             name, responseModel: ms.responseModel,
-            inputCost, outputCost, cacheCost, cacheWriteCost, thinkingCost, totalCost,
-            inputTokens: ms.totalInputTokens, outputTokens: ms.totalOutputTokens,
-            cacheTokens: ms.totalCacheRead, cacheWriteTokens: ms.totalCacheCreation,
+            inputCost, outputCost, cacheCost, thinkingCost, totalCost,
+            inputTokens: ms.totalInputTokens, outputTokens: responseOutputTokens,
+            cacheTokens: ms.totalCacheRead,
             thinkingTokens: ms.totalThinkingTokens, pricing,
         });
     }

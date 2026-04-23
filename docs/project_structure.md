@@ -37,7 +37,7 @@ antigravity-context-monitor/
 │   │   ├── parser.ts             #   解析器 + 提取器 + 匹配/合并/增强 + 检查点摘要提取 + 工具调用提取 + 系统上下文提取（classifySystemContext / extractSystemContextItems）
 │   │   ├── summary.ts            #   汇总构建 + 过滤 + 标准化（含 toolCallCounts 透传）
 │   │   └── tracker.ts            #   GMTracker 类核心（fetch/reset/serialize + toolCallCounts 聚合 + persistedToolCounts 跨重启合并 + baseline 时预算 estimatedCost）
-│   ├── pricing-store.ts          # 定价数据层：默认价格表 + 用户自定义持久化 + 费用计算 + findPricing display name fallback
+│   ├── pricing-store.ts          # 定价数据层：默认价格表 + 用户自定义持久化 + 费用计算（respOut = output - thinking 避免 double-counting）+ findPricing display name fallback
 │   ├── model-dna-store.ts        # 模型信息持久化：跨周期保留静态模型 DNA
 │   ├── daily-store.ts            # 日历数据层：按日聚合 Activity / GM / Cost（每日单快照）
 │   ├── webview-panel.ts          # WebView 面板框架（9 标签切换 + 消息通信 + 全局账号面板 dropdown + gmFullSummary 跨账号费用）
@@ -51,8 +51,8 @@ antigravity-context-monitor/
 │   ├── webview-profile-tab.ts    # Profile 标签页 HTML（账户 / 计划限制 / 功能与团队）
 │   ├── webview-history-tab.ts    # Quota Tracking 标签页 HTML
 │   ├── webview-chat-history-tab.ts # Sessions 标签页 HTML（会话目录 — 全量对话列表 + 筛选）
-│   ├── activity-panel.ts         # GM Data 统一标签页 HTML（Activity + GM 数据 + 检查点查看器 + 账号面板构建器 + 模型卡片/汇总行/待归档费用显示）
-│   ├── pricing-panel.ts          # Cost 标签页 HTML（费用分析 + 模型信息卡片构建器）v1.17.14 模型信息卡 UI 重构为 act-model-card 行式布局 + 同名模型去重 + responseModel 智能隐藏
+│   ├── activity-panel.ts         # GM Data 统一标签页 HTML（Activity + GM 数据 + 检查点查看器 + 账号面板构建器 + 模型卡片/汇总行/待归档费用显示 + respOut 费用计算）
+│   ├── pricing-panel.ts          # Cost 标签页 HTML（费用分析 + 待归档费用纳入月总计 + cacheWrite UI 清理）v1.17.14 模型信息卡 UI 重构为 act-model-card 行式布局 + 同名模型去重 + responseModel 智能隐藏
 │   ├── webview-calendar-tab.ts   # Calendar 标签页 HTML
 │   ├── i18n.ts                   # 国际化：语言模式、翻译表、偏好持久化
 │   └── images/                   # README 截图资源
