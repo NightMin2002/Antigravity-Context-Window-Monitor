@@ -8,7 +8,7 @@
 
 ---
 
-## [1.17.21] - 2026-04-23
+## 成本标签页 UI 重构 — 2026-04-23
 
 ### 重构 / Refactored
 
@@ -50,7 +50,7 @@
 
 ---
 
-## [1.17.20] - 2026-04-23
+## 会话标签页 UI 重构 — 2026-04-23
 
 ### 重构 / Refactored
 
@@ -99,7 +99,7 @@
 
 ---
 
-## [1.17.19] - 2026-04-23
+## Thinking Tokens 费用修复 — 2026-04-23
 
 ### 修复 / Fixed
 
@@ -138,7 +138,7 @@
 
 ---
 
-## [1.17.18] - 2026-04-23
+## 模型卡片费用行 + 全量 GM 数据 — 2026-04-23
 
 ### 修复 / Fixed
 
@@ -189,7 +189,7 @@
 
 ---
 
-## [1.17.17] - 2026-04-23
+## 上下文情报系统 — 2026-04-23
 
 ### 新增 / Added
 
@@ -235,14 +235,13 @@
 - **Files changed**: 7 (`src/gm/types.ts`, `src/gm/parser.ts`, `src/gm/tracker.ts`, `src/gm/index.ts`, `src/gm-tracker.ts`, `src/activity/tracker.ts`, `src/activity-panel.ts`)
 - **Docs updated**: 2 (`docs/project_structure.md`, `CHANGELOG-v2.md`)
 - **TypeScript compile**: Zero errors
-- **Tests**: 14/14 passed (activity-tracker 8, gm-tracker 6)
 - **Net lines**: +366 -27
 - **New types**: `GMSystemContextType`, `GMSystemContextItem`
 - **New CSS classes**: `.ci-section`, `.ci-section-header`, `.ci-badges`
 
 ---
 
-## [1.17.16] - 2026-04-23
+## 时间线实时费用标签 — 2026-04-23
 
 ### 新增 / Added
 
@@ -285,7 +284,7 @@
 
 ---
 
-## [1.17.15] - 2026-04-23
+## Turn Header 气泡组重排 — 2026-04-23
 
 ### 重构 / Refactored
 
@@ -334,7 +333,7 @@
 
 ---
 
-## [1.17.14] - 2026-04-23
+## 模型信息卡 UI 重构 — 2026-04-23
 
 ### 重构 / Refactored
 
@@ -368,7 +367,7 @@
 
 ---
 
-## [1.17.13] - 2026-04-23
+## 缓存账号追踪会话修复 — 2026-04-23
 
 ### 修复 / Fixed
 
@@ -408,7 +407,7 @@
 
 ---
 
-## [1.17.12] - 2026-04-23
+## 日历模块 GM-only 清理 — 2026-04-23
 
 ### 重构 / Refactored
 
@@ -445,12 +444,11 @@
 - **Files changed**: 2 (`src/webview-calendar-tab.ts`, `src/daily-store.ts`)
 - **Docs updated**: 2 (`docs/project_structure.md`, `CHANGELOG-v2.md`)
 - **TypeScript compile**: Zero errors
-- **Tests**: daily-store 5/5 passed
 - **Net lines**: ~-155
 
 ---
 
-## [1.17.11] - 2026-04-23
+## Credits 显示统一 — 2026-04-23
 
 ### 重构 / Refactored
 
@@ -500,7 +498,7 @@
 
 ---
 
-## [1.17.10] - 2026-04-23
+## GM Data 面板视觉精简 — 2026-04-23
 
 ### 重构 / Refactored
 
@@ -560,7 +558,6 @@
 - **Files changed**: 2 (`src/activity-panel.ts`, `src/pricing-panel.ts`)
 - **Docs updated**: 2 (`docs/project_structure.md`, `CHANGELOG-v2.md`)
 - **TypeScript compile**: Zero errors
-- **Tests**: 32/32 passed (activity-tracker, gm-tracker, daily-archival, daily-store)
 - **CSS net**: 删除 ~140 行旧 legend CSS，新增 ~100 行 tooltip CSS + ~90 行 conversation card CSS
 - **Design principle**: 信噪比优先 — 合并冗余指标、移除无意义装饰、将关联内容合并（检查点→Timeline）、按需展示（图例→tooltip）
 
@@ -583,7 +580,7 @@
 
 ---
 
-## [1.17.9] - 2026-04-22
+## 日历数据翻倍修复 — 2026-04-22
 
 ### 修复 / Fixed
 
@@ -625,12 +622,11 @@
 - **Files changed**: 3 (`src/extension.ts`, `src/gm/tracker.ts`, `src/daily-archival.ts`)
 - **Docs updated**: 2 (`docs/project_structure.md`, `CHANGELOG-v2.md`)
 - **TypeScript compile**: Zero errors
-- **Tests**: 24/24 passed (daily-archival, daily-store, gm-tracker)
 - **Root cause**: `getFullSummary()` 返回累积快照 + `append` 追加模式 → 同一天 N 次重置 = N 倍数据；修复后额度重置不写日历，午夜用 `getArchivalSummary()` 一次写入完整数据
 
 ---
 
-## [1.17.8] - 2026-04-22
+## 模型标识系统现代化 — 2026-04-22
 
 ### 重构 / Refactored
 
@@ -682,12 +678,11 @@
 
 - **Files changed**: 7 (`src/models.ts`, `src/daily-store.ts`, `src/pricing-panel.ts`, `src/extension.ts`, `src/webview-calendar-tab.ts`, `tests/model-dna-store.test.ts`, `tests/gm-tracker.test.ts`, `tests/activity-tracker.test.ts`)
 - **TypeScript compile**: Zero errors
-- **Tests**: 15/15 passed (model-dna-store, gm-tracker, activity-tracker)
 - **Key design**: 持久化数据不做破坏性迁移，渲染层运行时清洗；`LEGACY_ZH_MODEL_NAMES` 作为有限回退表兜底历史数据
 
 ---
 
-## [1.17.7] - 2026-04-22
+## GM-only Timeline 架构 — 2026-04-22
 
 ### 重构 / Refactored
 
@@ -751,7 +746,7 @@
 
 ---
 
-## [1.17.6] - 2026-04-22
+## 错误统计归属修复 — 2026-04-22
 
 ### 修复 / Fixed
 
@@ -779,7 +774,7 @@
 
 ---
 
-## [1.17.5] - 2026-04-22
+## 缓存账号归档修复 — 2026-04-22
 
 ### 修复 / Fixed
 
@@ -840,7 +835,7 @@
 
 ---
 
-## [1.17.4] - 2026-04-22
+## 报错增量 + 模型报错统计 — 2026-04-22
 
 ### 修复 / Fixed
 
@@ -893,12 +888,11 @@
 - **Files changed**: 3 (`src/gm/tracker.ts`, `src/activity-panel.ts`, `src/webview-script.ts`)
 - **Docs updated**: 2 (`docs/project_structure.md`, `CHANGELOG-v2.md`)
 - **TypeScript compile**: Zero errors
-- **Tests**: gm-tracker 7/7 passed
 - **Key fix**: `retryErrorCodesByConv` 和 `retryErrorCodes` 使用相同的 `accountFilteredCalls` 数据源；`baselineForQuotaReset()` 清除持久化错误数据防止 max-wins 恢复
 
 ---
 
-## [1.17.3] - 2026-04-22
+## 账号面板全局化 — 2026-04-22
 
 ### 重构 / Refactored
 
@@ -965,7 +959,7 @@
 
 ---
 
-## [1.17.2] - 2026-04-22
+## 模型卡片账号分布重设计 — 2026-04-22
 
 ### 重构 / Refactored
 
@@ -1038,7 +1032,7 @@
 
 ---
 
-## [1.17.1] - 2026-04-22
+## 错误报告现代化 — 2026-04-22
 
 ### 修复 / Fixed
 
@@ -1105,7 +1099,7 @@
 
 ---
 
-## [1.17.0] - 2026-04-22
+## 工具调用排行数据源重构 — 2026-04-22
 
 ### 🏗 Refactored / 重构
 
@@ -1153,7 +1147,7 @@
 
 ---
 
-## [1.16.1] - 2026-04-21
+## 工具调用排行榜 — 2026-04-21
 
 ### ✨ Added / 新增
 
@@ -1202,7 +1196,7 @@
 
 ---
 
-## [1.16.0] - 2026-04-21
+## 待归档区持久化 + 跨池归档修复 — 2026-04-21
 
 ### 修复 / Fixed
 
@@ -1238,7 +1232,7 @@
 
 ---
 
-## [1.15.13] - 2026-04-21
+## Step API 数据清除 — 2026-04-21
 
 ### 🗑 Removed / 移除
 
@@ -1287,7 +1281,46 @@
 
 ---
 
-## [1.15.11] - 2026-04-21
+## QuotaTracker 使用检测重构 — 2026-04-21
+
+### 🏗 Refactored / 重构
+
+- **QuotaTracker 使用检测策略重构 / Usage Detection Overhaul**:
+  移除旧的 instant detect（基于 `knownWindowMs` 推算已消耗时间）和 observation window（10 分钟 resetTime 稳定性检测）两种猜测策略，均在 `remainingFraction` 20% 量化下不可靠且会产生幽灵 session。改为 GMTracker 辅助检测：调用方通过新增 `usedModelIds` 参数传入当前周期内有实际 LLM 调用的模型 ID 集合，frac=1.0 时若确认有调用则立即进入追踪。同时移除废弃常量 `ELAPSED_THRESHOLD_MS` 和 `OBSERVATION_WINDOW_MS`。
+  Removed unreliable instant detect (elapsed time inference from `knownWindowMs`) and observation window (10-min resetTime stability check) strategies — both produced ghost sessions under 20% quantization. Replaced with GMTracker-assisted detection via new `usedModelIds` parameter. Removed unused `ELAPSED_THRESHOLD_MS` and `OBSERVATION_WINDOW_MS` constants.
+
+- **QuotaTracker 按账号隔离 / Per-Account State Isolation**:
+  `modelStates` key 从 `modelId` 变更为 `email:modelId`，切换账号后各账号的追踪状态完全独立——旧账号状态冻结在 Map 中不被覆盖，切回时恢复追踪。旧格式（无 `:` 前缀）的 key 保留在 Map 中，逐步自然淘汰。
+  `modelStates` key changed from `modelId` to `email:modelId`. Each account's tracking state is fully independent — switching accounts freezes the old state in the map without overwriting, resuming when switching back.
+
+- **公共 `buildUsedModelIds()` / Shared Helper**:
+  从 `updateAccountSnapshot()` 中提取重复的 GMTracker 调用记录过滤逻辑为独立公共函数。按 `accountEmail` 过滤、使用语言无关的 `model` (model ID) 匹配，被 account snapshot 和 QuotaTracker 共同使用。
+  Extracted duplicated GMTracker call filtering logic into a shared function, used by both account snapshot `hasUsage` detection and QuotaTracker early tracking entry.
+
+### ✨ Added / 新增
+
+- **QuotaSession 账号归属 / Session Account Attribution**:
+  `QuotaSession` 新增 `accountEmail?: string` 字段，每个追踪 session 记录所属账号。
+
+- **追踪卡片账号标识 / Tracking Card Account Badge**:
+  额度追踪标签页（`webview-history-tab.ts`）和监控标签页（`webview-monitor-tab.ts`）的 session 卡片均新增蓝色账号 badge，带用户 SVG 图标，显示邮箱前缀（如 `moonwolf200202`），一眼区分不同账号的追踪数据。
+  Both the Quota Tracking tab and Monitor tab session cards now show a blue account badge with user SVG icon displaying the email prefix.
+
+### ✨ Improved / 改进
+
+- **追踪描述文案更新 / Tracking Description Update**:
+  活跃追踪区域的描述从"100% 模型回退到 resetTime 漂移观测（约 10 分钟）"更新为"100% 模型在 GMTracker 确认实际调用后开始追踪"，反映新的检测策略。
+
+### 📊 Stats / 统计
+
+- **Files changed**: 4 (`src/extension.ts`, `src/quota-tracker.ts`, `src/webview-history-tab.ts`, `src/webview-monitor-tab.ts`)
+- **Docs updated**: 1 (`docs/project_structure.md`)
+- **TypeScript compile**: Zero errors
+- **Key architectural decision**: GMTracker call records as the definitive usage signal at frac=1.0, replacing unreliable time-based heuristics
+
+---
+
+## 额度周期基线化 — 2026-04-21
 
 ### ✨ Added / 新增
 
@@ -1334,48 +1367,10 @@
 - **Files changed**: 9 (`src/gm/tracker.ts`, `src/gm/index.ts`, `src/gm-tracker.ts`, `src/extension.ts`, `src/daily-store.ts`, `src/daily-archival.ts`, `src/activity-panel.ts`, `src/webview-panel.ts`, `src/webview-script.ts`)
 - **Net change**: +398 lines, −18 lines
 - **TypeScript compile**: Zero errors
-- **Tests**: 166 passed (14 files)
 
 ---
 
-## [1.15.12] - 2026-04-21
-
-### 🏗 Refactored / 重构
-
-- **QuotaTracker 使用检测策略重构 / Usage Detection Overhaul**:
-  移除旧的 instant detect（基于 `knownWindowMs` 推算已消耗时间）和 observation window（10 分钟 resetTime 稳定性检测）两种猜测策略，均在 `remainingFraction` 20% 量化下不可靠且会产生幽灵 session。改为 GMTracker 辅助检测：调用方通过新增 `usedModelIds` 参数传入当前周期内有实际 LLM 调用的模型 ID 集合，frac=1.0 时若确认有调用则立即进入追踪。同时移除废弃常量 `ELAPSED_THRESHOLD_MS` 和 `OBSERVATION_WINDOW_MS`。
-  Removed unreliable instant detect (elapsed time inference from `knownWindowMs`) and observation window (10-min resetTime stability check) strategies — both produced ghost sessions under 20% quantization. Replaced with GMTracker-assisted detection via new `usedModelIds` parameter. Removed unused `ELAPSED_THRESHOLD_MS` and `OBSERVATION_WINDOW_MS` constants.
-
-- **QuotaTracker 按账号隔离 / Per-Account State Isolation**:
-  `modelStates` key 从 `modelId` 变更为 `email:modelId`，切换账号后各账号的追踪状态完全独立——旧账号状态冻结在 Map 中不被覆盖，切回时恢复追踪。旧格式（无 `:` 前缀）的 key 保留在 Map 中，逐步自然淘汰。
-  `modelStates` key changed from `modelId` to `email:modelId`. Each account's tracking state is fully independent — switching accounts freezes the old state in the map without overwriting, resuming when switching back.
-
-- **公共 `buildUsedModelIds()` / Shared Helper**:
-  从 `updateAccountSnapshot()` 中提取重复的 GMTracker 调用记录过滤逻辑为独立公共函数。按 `accountEmail` 过滤、使用语言无关的 `model` (model ID) 匹配，被 account snapshot 和 QuotaTracker 共同使用。
-  Extracted duplicated GMTracker call filtering logic into a shared function, used by both account snapshot `hasUsage` detection and QuotaTracker early tracking entry.
-
-### ✨ Added / 新增
-
-- **QuotaSession 账号归属 / Session Account Attribution**:
-  `QuotaSession` 新增 `accountEmail?: string` 字段，每个追踪 session 记录所属账号。
-
-- **追踪卡片账号标识 / Tracking Card Account Badge**:
-  额度追踪标签页（`webview-history-tab.ts`）和监控标签页（`webview-monitor-tab.ts`）的 session 卡片均新增蓝色账号 badge，带用户 SVG 图标，显示邮箱前缀（如 `moonwolf200202`），一眼区分不同账号的追踪数据。
-  Both the Quota Tracking tab and Monitor tab session cards now show a blue account badge with user SVG icon displaying the email prefix.
-
-### ✨ Improved / 改进
-
-- **追踪描述文案更新 / Tracking Description Update**:
-  活跃追踪区域的描述从"100% 模型回退到 resetTime 漂移观测（约 10 分钟）"更新为"100% 模型在 GMTracker 确认实际调用后开始追踪"，反映新的检测策略。
-
-### 📊 Stats / 统计
-
-- **Files changed**: 4 (`src/extension.ts`, `src/quota-tracker.ts`, `src/webview-history-tab.ts`, `src/webview-monitor-tab.ts`)
-- **Docs updated**: 1 (`docs/project_structure.md`)
-- **TypeScript compile**: Zero errors
-- **Key architectural decision**: GMTracker call records as the definitive usage signal at frac=1.0, replacing unreliable time-based heuristics
-
-## [1.15.3] - 2026-04-20
+## 跨账号配额隔离 — 2026-04-20
 
 ### ✨ Added / 新增
 
@@ -1413,198 +1408,283 @@
 
 ---
 
-## [1.15.2] - 2026-04-18
-
-### ✨ Added / 新增
-
-- **Collapsible Turn Groups in Timeline / 时间线可折叠轮次分组**:
-  Refactored the "Recent Activity" timeline from a flat segment list into collapsible `<details>` turn groups. Each group is anchored by the user's message and visually titled with a preview of the user input. The latest turn defaults to **open**; historical turns default to **collapsed**, dramatically reducing visual clutter on long conversations.
-  将"最近操作"时间线从平铺的 segment 列表重构为可折叠的 `<details>` 轮次分组。每个分组以用户消息为锚点，标题行预览用户输入文本。最新轮次默认**展开**，历史轮次默认**折叠**，极大减少长对话下的视觉噪音。
-
-- **Segment Summary Chips / 分组摘要标签**:
-  Each turn header now shows a row of compact, color-coded chips aggregated from GM data within that turn:
-  - 🔵 **Model** — dominant model name (filtered `MODEL_PLACEHOLDER_*`)
-  - 🟢 **Calls** — number of reasoning calls
-  - 🟡 **Tools** — tool invocation count (`🔧N`)
-  - 🔴 **Tokens** — total input + output tokens (e.g. `15.2k tok`)
-  - 🟤 **Cache** — cache read tokens
-  - 🟠 **Credits** — credit consumption (`0.4 cr`)
-  - ⚫ **Duration** — wall-clock span between first and last event (`2m14s`)
-  
-  每个轮次 header 右侧显示从 GM 数据聚合的彩色摘要 chip：模型、调用数、工具数、Token、缓存、积分、耗时。
-
-### ✨ Improved / 改进
-
-- **User Anchor at Bottom / 用户消息移至底部**:
-  Within each expanded turn, the user message (turn origin) now renders at the bottom, with the newest AI actions at the top. This matches the visual convention where top = newest, bottom = oldest, making the timeline read naturally from the most recent action downward to the triggering input.
-  展开的分组内，用户消息（轮次起点）移到底部，AI 最新操作在顶部。视觉逻辑：顶部 = 最新 → 底部 = 起点，符合从结果向起因的阅读顺序。
-
-### 🗑 Removed / 移除
-
-- **Alias / Placeholder / Basis Tags / 别名类标签**:
-  Removed the `Alias (别名)`, `Summary (摘要)`, `Generator (生成器)`, and `Dominant (主模型)` tags from timeline rows. These were legacy indicators from the era before GM provided exact model identification via `responseModel`. Since GM now reliably returns exact model names, these ambiguous "model basis" labels are no longer needed.
-  移除时间线行上的"别名""摘要""生成器""主模型"标签。这些是 GM 引入精确 `responseModel` 之前的遗留指示器，现在 GM 已提供精确模型名称，这些模糊的"模型来源"标签不再需要。
-
-### 🎨 Styles / 样式
-
-- **Turn Group CSS / 轮次分组样式**:
-  New `.act-tl-turn` / `.act-tl-turn-header` / `.seg-chip-*` CSS system with:
-  - Smooth triangle arrow rotation (90° on open)
-  - Green border highlight when expanded (`.act-tl-turn[open]`)
-  - Hover background feedback
-  - Full light theme (`body.vscode-light`) overrides for all 7 chip variants (`model`, `calls`, `tools`, `tok`, `cache`, `credits`, `dur`)
-  
-  新增可折叠分组 CSS 系统：平滑三角箭头旋转动画、展开态绿色边框高亮、hover 背景反馈，以及浅色主题下全部 7 种 chip 变体的完整适配。
-
-- **Light Theme Fix / 浅色主题修复**:
-  Fixed `seg-chip-dur` (duration) and `seg-chip-credits` being invisible on light backgrounds due to missing `body.vscode-light` overrides. Duration now uses `#334155` (dark slate), credits use `var(--lt-orange-text)`.
-  修复浅色背景下耗时和积分 chip 不可见的问题，补全缺失的 light theme 覆盖。
-
-### 📊 Stats / 统计
-
-- **Files changed**: 2 (`activity-panel.ts`, `webview-styles.ts`)
-- **TypeScript compile**: Zero errors
-- **Net change**: ~+100 lines (CSS) / ~+60 lines (render logic) / −30 lines (removed alias tags)
----
-
-## [1.15.3] - 2026-04-18
-
-### 🔬 Breakthrough / 技术突破
-
-- **Per-Step AI Response Extraction / 逐步 AI 回复提取**:
-  Discovered that `GetCascadeTrajectory` endpoint's embedded GM data contains `messagePrompts` with complete conversation history, where each SYSTEM message carries a `stepIdx` field. Built a `stepIdx → AI snippet` mapping system that enables each GM call to display its **own** AI response text or tool calls, rather than sharing identical previews.
-  发现 `GetCascadeTrajectory` 端点的嵌入式 GM 数据包含完整 messagePrompts，每条 SYSTEM 消息自带 `stepIdx` 字段。建立了 `stepIdx → AI 片段` 映射系统，使每个 GM 调用能显示**自己的** AI 回复文本或工具调用名称。
-
-  **Data Pipeline**:
-  ```
-  GetCascadeTrajectory → embedded GM → messagePrompts (array[180+])
-    → SYSTEM messages with { stepIdx, prompt, toolCalls }
-    → extractAISnippetsByStep() → Record<stepIdx, snippet>
-    → maybeEnrichCallsFromTrajectory() broadcasts to ALL calls
-    → buildGMVirtualPreview() lookups by call.stepIndices
-  ```
-
-### ✨ Improved / 改进
-
-- **GM Timeline Row Previews / GM 时间线行预览**:
-  - AI text responses now show actual response content (e.g. "OK！", "读完了！v1.15.2...")
-  - Tool-call-only steps show `🔧 view_file` instead of generic "GM 调用"
-  - Combined steps show text + tool badge: `好的，让我看...  🔧grep_search`
-  - Eliminated duplicate metrics in detail text (tokens/TTFT already shown as right-side chips)
-  
-  AI 文本回复现在显示实际内容，工具调用步骤显示 `🔧 工具名`，组合步骤同时显示文本和工具标记。消除了 detail 与右侧芯片的重复指标。
-
-- **Data Model Upgrade / 数据模型升级**:
-  `GMCallEntry.lastAISnippet: string` → `GMCallEntry.aiSnippetsByStep: Record<number, string>` — from single shared string to per-step indexed map, solving the "all rows show same text" problem.
-  数据模型从单一共享字符串升级为逐步索引映射，解决了"所有行显示相同文本"的问题。
-
-### 🔧 Tools / 工具
-
-- **`gm-live-watcher.ts` v3**: Real-time GM call monitor with dual-endpoint cross-validation (`GetCascadeTrajectoryGeneratorMetadata` vs `GetCascadeTrajectory`). Displays per-call AI response (📝), thinking preview (🧠), and tool invocations (🔧). Key diagnostic tool for validating data pipeline changes.
-  实时 GM 调用监控器，双端点交叉验证，显示每次调用的 AI 回复、思考预览和工具调用。验证数据管道变更的关键诊断工具。
-
-### 📊 Stats / 统计
-
-- **Files changed**: 3 (`gm-tracker.ts`, `activity-tracker.ts`, `diag-scripts/deep-dive/gm-live-watcher.ts`)
-- **TypeScript compile**: Zero errors
-- **Key discovery**: `GetCascadeTrajectoryGeneratorMetadata` has NO messagePrompts; only `GetCascadeTrajectory` embedded GM has them
-
----
-
-## [1.15.4] - 2026-04-18
+## 每日归档架构重构 — 2026-04-20
 
 ### 🏗 Refactored / 重构
 
-- **GM Module Modularization / GM 模块化拆分**:
-  Split `gm-tracker.ts` (1728 lines) into 5 focused sub-modules under `src/gm/`:
-  将 `gm-tracker.ts`（1728 行）拆分为 `src/gm/` 下的 5 个专注子模块：
+- **每日归档架构重构 / Daily Archival Architecture**:
+  将归档触发机制从复杂的「池级额度重置回调」彻底切换为简洁的「基于日期的每日归档」。系统不再依赖 `onQuotaReset` 回调进行分池归档，改为在每次轮询中检测本地日期变化，日期滚动时自动归档前一天的所有数据并全局重置 Tracker。
+  Replaced the complex per-pool quota-reset callback archival with a streamlined daily date-based archival. The system no longer depends on `onQuotaReset` for per-pool archiving; instead, it detects local date changes on each poll and automatically archives the previous day's data with a global tracker reset.
 
-  | Module | Lines | Responsibility |
-  |--------|:-----:|----------------|
-  | `types.ts` | ~210 | 所有 GM 类型定义 + clone 工具 |
-  | `parser.ts` | ~390 | 解析器 + 提取器 + 匹配/合并/增强 |
-  | `summary.ts` | ~360 | 汇总构建 + 过滤 + 标准化 |
-  | `tracker.ts` | ~500 | GMTracker 类核心 |
-  | `index.ts` | ~50 | barrel re-export |
+  **架构变更 / Architecture changes**:
+  
+  | 组件 / Component | 变更 / Change |
+  |---|---|
+  | `daily-archival.ts` | **新增** — 可测试纯函数模块，所有依赖通过 `DailyArchivalContext` 注入，时间通过 `now` 参数可控 |
+  | `extension.ts` | `performDailyArchival()` 改为委托调用；`onQuotaReset` 瘦身为仅日志记录 |
+  | `daily-store.ts` | 新增 `addDailySnapshot()` 每日单快照接口；移除 `importArchives()` 和 `backfilled` 标志 |
+  | `activity/tracker.ts` | `archiveAndReset()` 删除池级过滤分支（-145 行），仅保留全局重置 |
+  | `gm/tracker.ts` | `reset()` 删除 per-pool 分支（-26 行），仅保留全局重置 |
+  | `gm/summary.ts` | `filterGMSummaryByModels()` 移除 `accountEmail` 参数 |
+  
+  **归档触发规则 / Trigger rules**:
+  - 首次运行：记录当前日期，不归档
+  - 同日重复调用：无操作
+  - 日期滚动（如 23:59→00:00）：归档昨日数据，重置 Tracker
+  - Force 模式：跳过日期检查（dev 模拟按钮用）
+  - 无数据日：跳过 DailyStore 写入，仍更新日期
 
-  Original `gm-tracker.ts` reduced to a ~40-line backward-compatible re-export shim.
-  All 12 external import sites (`import { ... } from './gm-tracker'`) work unchanged.
-  原 `gm-tracker.ts` 缩减为约 40 行的向后兼容 re-export，12 个外部 import 全部无需修改。
+### ✨ Improved / 改进
 
-- **Interrupted Call Detection / 中断调用检测**:
-  GM timeline rows for interrupted/cancelled calls (0 tokens in + 0 tokens out) now show `⚡ 已中断` instead of falling back to user message bubble or generic "GM 调用".
-  中断/取消的 GM 调用现在显示 `⚡ 已中断`，而非回退到用户气泡或 "GM 调用"。
+- **日历 UI 简化 / Calendar UI Simplification**:
+  移除多 cycle 折叠逻辑（`<details>` + 独立周期卡片），每天只显示一个聚合快照视图。高亮条件从 `cycleCount > 2` 改为 `totalCost > 0.5`。
+  Removed multi-cycle collapsible details; each day now shows a single aggregated snapshot. High-activity highlight changed from cycle count to cost threshold.
 
-- **User Message Fallback Removed / 移除用户消息兜底**:
-  GM rows no longer echo the user's input text as a fallback preview. GM rows should only display AI behavior (responses, tool calls, or status).
-  GM 行不再将用户输入作为兜底预览，只显示 AI 行为。
+- **Settings 文案更新 / Settings Copy Update**:
+  「模拟额度重置」→「模拟每日归档」；「额度重置次数」→「归档天数」；所有描述文案同步更新。
+  "Simulate Quota Reset" → "Simulate Daily Archival"; "Quota Resets" → "Archival Days"; all description copy updated.
 
-- **Activity Module Modularization / Activity 模块化拆分**:
-  Split `activity-tracker.ts` (2718 lines) into 3 focused sub-modules under `src/activity/`:
-  将 `activity-tracker.ts`（2718 行）拆分为 `src/activity/` 下的 3 个专注子模块：
+- **存储诊断修正 / Storage Diagnostics Fix**:
+  `quotaResetCount` 数据源从 `lastArchives.length` 修正为 `lastDailyStore.totalDays`。
+  Fixed `quotaResetCount` data source from archive count to daily store day count.
 
-  | Module | Lines | Responsibility |
-  |--------|:-----:|----------------|
-  | `types.ts` | ~180 | 所有 Activity 类型定义 |
-  | `helpers.ts` | ~280 | 工具函数（分类/提取/合并/预览构建） |
-  | `tracker.ts` | ~2260 | ActivityTracker 类核心 |
-  | `index.ts` | ~45 | barrel re-export |
+### 🗑 Removed / 移除
 
-  Original `activity-tracker.ts` reduced to a ~40-line backward-compatible re-export shim.
-  All 4 external import sites (`import { ... } from './activity-tracker'`) work unchanged.
-  原 `activity-tracker.ts` 缩减为约 40 行的向后兼容 re-export，4 个外部 import 全部无需修改。
+- **池级归档逻辑 / Per-Pool Archival Logic**:
+  移除 `ActivityTracker.getCurrentStepCountForModels()`、`archiveAndReset()` 的 modelIds 参数、`GMTracker.reset()` 的 modelIds 参数、`filterGMSummaryByModels()` 的 accountEmail 参数。
+  Removed pool-scoped archival methods and parameters that are no longer needed.
+
+- **旧版 barrel export**:
+  从 `activity/index.ts` 和 `activity-tracker.ts` 移除不再使用的 `sameTriggeredByScope` 导出。
+  Removed unused `sameTriggeredByScope` export from barrel files.
+
+- **`daily-archival-refactor-plan.md`**: 计划文档已完成，删除。
+
+### 🧪 Tests / 测试
+
+- **`daily-archival.test.ts`**: 新增 13 个测试用例覆盖 `toLocalDateKey`（日期格式化、跨年、零填充）和 `performDailyArchival`（首次运行、同日、日期滚动、无数据、多日间隔、force、连续天数、23:59→00:00 午夜边界、无 DailyStore 容错）。
+  13 new test cases covering date formatting, rollover detection, midnight boundary, force mode, and error resilience.
+
+- **`daily-store.test.ts`**: 重写为 `addDailySnapshot` 测试（5 用例：写入与替换、无 GM、旧版 addCycle 兼容、序列化往返、clear）。
+  Rewritten with 5 test cases for `addDailySnapshot`.
+
+- **`activity-tracker.test.ts`**: 更新 `archiveAndReset()` 调用，移除不再需要的 modelIds 参数。
 
 ### 📊 Stats / 统计
 
-- **Files changed**: 4 (`gm-tracker.ts`, `activity-tracker.ts`, `docs/project_structure.md`, `CHANGELOG-v2.md`)
-- **Files created**: 9 (`src/gm/{types,parser,summary,tracker,index}.ts`, `src/activity/{types,helpers,tracker,index}.ts`)
+- **Files changed**: 11 (`src/daily-archival.ts` [new], `src/extension.ts`, `src/daily-store.ts`, `src/activity/tracker.ts`, `src/gm/tracker.ts`, `src/gm/summary.ts`, `src/webview-calendar-tab.ts`, `src/webview-settings-tab.ts`, `src/webview-panel.ts`, `src/activity/index.ts`, `src/activity-tracker.ts`)
 - **TypeScript compile**: Zero errors
-- **Net LOC**: ~80 (2 re-export shims) replaces ~4446 (2 monoliths) — zero logic change
+- **Key architectural decision**: Daily time-based archival replaces event-driven per-pool archival; testability achieved through dependency injection and injectable time
 
 ---
 
-## [1.15.5] - 2026-04-18
+## 多账号状态面板 — 2026-04-20
 
-### 🚀 Enhanced / 增强
+### ✨ Added / 新增
 
-- **GM-Driven Activity Classification / GM 驱动活动分类**:
-  Replaced the blind `+N steps (estimated)` counters with precise GM-derived category counts.
-  Each window-outside GM call is now classified into reasoning / toolCalls / errors / userInputs,
-  feeding directly into `ModelActivityStats`. The status bar and activity panel now show real
-  numbers instead of zeros for long conversations that exceed the ~500 Steps API window.
-  用 GM 精确数据替代了空洞的"推算 +N 步"计数器。每个窗口外 GM 调用现在精确分类为
-  推理/工具调用/错误/用户消息，直接写入 `ModelActivityStats`，状态栏和活动面板不再显示全零。
+- **Multi-Account Status Panel / 多账号状态面板**:
+  在 GM Data 标签页顶部新增多账号状态面板。每次 `fetchFullUserStatus` 成功后，自动从 `email` + `ModelConfig.quotaInfo.resetTime` 提取账号快照，按 email 存入 `Map<email, AccountSnapshot>` 并持久化至 `state-v1.json`。切换账号时，旧账号快照保留为「已缓存」状态，新账号标记为「在线」。
+  New multi-account status panel at the top of the GM Data tab. On each successful `fetchFullUserStatus`, the current account's snapshot is upserted into a `Map<email, AccountSnapshot>` and persisted to `state-v1.json`. When switching accounts, the previous account remains as "cached" while the new one is marked "active".
 
-- **Timeline Retry / 429 Display / 时间线重试/429 显示**:
-  Virtual GM timeline events now show retry and rate-limit information inline:
-  `⚠️2×retry(429)` for rate-limited calls, `🔄1×retry` for other retries.
-  GM 虚拟时间线事件现在内联显示重试和限流信息。
+  | 字段 / Field | 说明 / Description |
+  |---|---|
+  | 在线指示灯 / Active indicator | 绿色脉动 = 在线；灰色 = 已缓存 |
+  | Plan 徽章 / Plan badge | Pro (蓝) / Ultra (紫) / Team (绿) / Free (灰) |
+  | 模型池倒计时 / Per-pool countdown | 每个额度池独立倒计时，显示池内模型标签 |
+  | 到期提示 / Expiry label | 倒计时到期后显示红色「已就绪」 |
+  | 预警 / Warning | 倒计时 < 30 分钟时变黄色 |
+
+- **Per-Pool Model Countdown / 按模型池独立倒计时**:
+  新增 `ResetPool` 类型，每个池记录 `resetTime` + `modelLabels[]`。账号卡片右侧按池分行显示模型标签芯片和独立倒计时，而非单一笼统时间。例如：Claude + GPT 共享一个池，Gemini Pro 独立一个池，Gemini Flash 又是单独的池——各自显示独立的重置倒计时。
+  New `ResetPool` type with `resetTime` + `modelLabels[]`. Each account card shows per-pool rows with model chips and independent countdowns. Models sharing the same `quotaInfo.resetTime` are automatically grouped into one pool — no hardcoded rules.
+
+- **Cached Account Reset Notification / 缓存账号额度重置通知**:
+  新增 `checkCachedAccountResets()`，在每次轮询中自动检查非在线缓存账号的额度池是否已重置。到期时弹出一次性 VS Code 通知：`✅ Night Min: Claude 3.5 Sonnet, GPT-4o 额度已重置，可以切换到该账号了。` 附带「打开监控」按钮。通过 `email:resetTime` 去重，每个重置事件只通知一次，无需额外设置。
+  New `checkCachedAccountResets()` checks all cached accounts' quota pools on every poll cycle. When a pool expires, a one-time VS Code notification prompts the user to switch accounts. Deduplication via `email:resetTime` key ensures no spam.
+
+### 🏗 Technical / 技术细节
+
+- **Data Flow / 数据流**:
+  ```
+  fetchFullUserStatus() → userInfo.email + configs[].quotaInfo.resetTime
+    → updateAccountSnapshot()
+      → poolMap: Map<resetTime, modelLabels[]>
+      → AccountSnapshot { email, name, planName, resetPools, isActive, lastSeen }
+      → persistAccountSnapshots() → durableFileGlobalState → state-v1.json
+    → PanelPayload.accountSnapshots → buildGMDataTabContent()
+      → buildAccountStatusPanel() → per-pool HTML with countdowns
+  ```
+
+- **New Types / 新增类型** (`activity-panel.ts`):
+  - `ResetPool { resetTime: string; modelLabels: string[] }`
+  - `AccountSnapshot { email, name, planName, tierName, earliestResetTime, allResetTimes, resetPools, isActive, lastSeen }`
+
+- **Persistence Key / 持久化键**: `durableFileGlobalState → 'accountSnapshots'` (Array\<AccountSnapshot\>)
+
+### 🎨 Styles / 样式
+
+- **Account Status Panel CSS / 账号状态面板样式**:
+  - `.acct-panel` / `.acct-panel-header` — 容器 + 标题栏
+  - `.acct-card` — 账号行（flex 布局，hover 反馈）
+  - `.acct-indicator-active` — 绿色脉动动画 (`@keyframes acctPulse`)
+  - `.acct-indicator-cached` — 灰色静态
+  - `.acct-plan-pro/free/ultra/team` — Plan 徽章 4 色系
+  - `.acct-pools` / `.acct-pool-row` / `.acct-pool-model` — 模型池布局 + 模型标签芯片
+  - `.acct-reset-countdown-warn` — 黄色 (<30min)
+  - `.acct-reset-countdown-expired` — 红色 (已到期)
+
+### 📊 Stats / 统计
+
+- **Files changed**: 3 (`src/extension.ts`, `src/activity-panel.ts`, `src/webview-panel.ts`)
+- **Docs updated**: 2 (`docs/project_structure.md`, `CHANGELOG-v2.md`)
+- **TypeScript compile**: Zero errors
+- **Net change**: ~280 lines added (types + snapshot management + UI + CSS + notification)
+- **No settings required**: Account reset notifications work automatically with zero configuration
+
+---
+
+## 有损持久化架构 — 2026-04-20
+
+### 🏗 Refactored / 重构
+
+- **Lossy Persistence — Slim-on-Write Architecture / 有损持久化 — 写盘瘦身架构**:
+  Implemented a "slim-on-write" strategy that strips heavy, redundant metadata from GM and Activity data **only** at the serialization boundary (before writing to disk). Runtime memory remains fully intact — all stripped fields are dynamically re-fetched from the LS API on next poll cycle.
+  实现了"写盘瘦身"策略：仅在序列化边界（写盘前）剥离 GM 和 Activity 数据中的重型冗余元数据。运行时内存完全不受影响——所有剥离字段在下次 poll 时从 LS API 动态重新填充。
+
+  **State file size reduction / 状态文件瘦身效果**:
+  - Before: ~245 MB (6670+ GM calls with full chat history, prompts, tool lists, token trees)
+  - After: ~1 MB (structural stats only: token counts, credits, timestamps, step indices)
+
+  **Layer 1 — GM Summary Slim / GM 汇总瘦身** (`gm/types.ts`):
+  Three new persistence helpers strip heavy fields from `GMCallEntry` and `GMSummary`:
+  
+  | Function | Strips |
+  |----------|--------|
+  | `slimCallForPersistence()` | `promptSnippet`, `aiSnippetsByStep`, `checkpointSummaries`, `systemPromptSnippet`, `userMessageAnchors.text`, `tokenBreakdownGroups`, `tools`, `retryErrors` |
+  | `slimSummaryForPersistence()` | Applies `slimCallForPersistence()` to all calls in all conversations |
+  | `slimConversationForPersistence()` | Applies to a single conversation's calls |
+
+  **Layer 2 — Activity Timeline Slim / 活动时间线瘦身** (`activity/helpers.ts`):
+  
+  | Function | Strips |
+  |----------|--------|
+  | `slimStepEventForPersistence()` | `fullUserInput`, `fullAiResponse`, `gmPromptSnippet`, `browserSub`; truncates `userInput`/`aiResponse`/`detail` to 40/60/80 chars |
+
+  Applied in `ActivityTracker.serialize()` to both `summary.recentSteps` and all `archives[].recentSteps`.
+
+  **Persistence Points Updated / 持久化点位更新**:
+  - `extension.ts`: Centralized all 5 `gmDetailedSummary` writes into `persistGMSummaryToFile()` helper
+  - `monitor-store.ts`: GM conversations slimmed via `slimConversationForPersistence()` before workspace state write
+  - `activity/tracker.ts`: `serialize()` applies `slimStepEventForPersistence()` to all timeline events and archives
+
+### ✨ Improved / 改进
+
+- **Settings Storage Diagnostics Redesign / 设置页存储诊断重新设计**:
+  Replaced 11 confusing internal metrics (Monitor Sessions, GM Snapshots, GM Conversations, Quota History, Price Overrides, Open Warn At...) with 9 user-meaningful stats:
+  替换了 11 个意义不明的内部指标为 9 个用户可理解的统计：
+
+  | Stat | Description |
+  |------|-------------|
+  | File Size / 文件大小 | Current state file size |
+  | GM Calls (Cycle) / GM 调用 (周期) | LLM invocations in current quota period |
+  | Input Tokens / 输入 Tokens | Total input tokens this cycle |
+  | Output Tokens / 输出 Tokens | Total output tokens this cycle |
+  | Credits Used / 已用积分 | Credits consumed this cycle |
+  | Est. Total Cost / 估算总费用 | All-time cost: archived cycles (dailyStore) + current cycle (pricingStore) |
+  | Quota Resets / 额度重置次数 | Number of historical quota reset archives |
+  | Calendar Days / 日历天数 | Days with recorded data |
+  | Calendar Cycles / 日历周期 | Total archived quota cycles across all days |
+
+- **All-Time Cost Calculation / 累计总费用计算**:
+  New `computeAllTimeCost()` sums all `estimatedCost` from every archived cycle in `dailyStore` plus the current in-progress cycle's live cost from `pricingStore.calculateCosts()`.
+  新增累计费用计算：遍历日历所有归档周期费用 + 当前进行中周期的实时费用。
+
+- **File Stat Error Handling / 文件状态错误处理**:
+  Wrapped `fs.statSync()` in try-catch in both `getStorageDiagnostics()` and `refreshLocalStorageDiagnostics()` to prevent crashes when the state file is temporarily locked or inaccessible.
+  为文件大小读取添加异常保护，防止状态文件临时锁定时崩溃。
 
 ### 🐛 Fixed / 修复
 
-- **Retry Count Inflation / 重试计数虚高**:
-  `retryInfos` array always includes the successful attempt as its last entry (no error).
-  The parser now only counts entries with actual error messages as retries, fixing the bug
-  where every GM call showed `retries=1` even without any failures.
-  `retryInfos` 数组始终将成功调用作为末尾 entry，解析器现在只计算有错误消息的 entry 为 retry。
+- **Test Fixture Missing Fields / 测试夹具缺失字段**:
+  `activity-tracker.test.ts` fixtures were missing `aiSnippetsByStep` and `checkpointSummaries` fields (added in v1.15.3/v1.15.7), causing `Object.keys(undefined)` crashes in `buildGMVirtualPreview()`. Added empty defaults to all test GM call fixtures.
+  测试夹具缺少 v1.15.3/v1.15.7 新增字段，导致 `buildGMVirtualPreview()` 崩溃。
 
-- **Category Counter Inflation / 分类计数无限膨胀**:
-  `_normalizeModelState()` was stripping `categoriesByModel` from `_windowOutsideAttribution`
-  on every poll, causing the reconciliation to skip reversal of old categories and add full
-  new categories each cycle — inflating reasoning/toolCalls/userInputs indefinitely.
-  Fixed by preserving `categoriesByModel` during normalization.
-  `_normalizeModelState()` 每次 poll 丢弃 `categoriesByModel`，导致分类计数无限叠加。
-  修复：规范化时保留 `categoriesByModel`。
+### 🗑 Removed / 移除
+
+- **`webview-settings-tab.test.ts`**: Removed trivial UI snapshot test — the settings tab HTML is simple enough to validate visually.
+  移除简单的 UI 快照测试。
 
 ### 📊 Stats / 统计
 
-- **Files changed**: 3 (`src/gm/parser.ts`, `src/activity/tracker.ts`, `src/extension.ts`)
+- **Files changed**: 9 (`src/gm/types.ts`, `src/gm/index.ts`, `src/gm-tracker.ts`, `src/extension.ts`, `src/monitor-store.ts`, `src/activity/helpers.ts`, `src/activity/tracker.ts`, `src/webview-settings-tab.ts`, `src/webview-panel.ts`)
 - **TypeScript compile**: Zero errors
-- **Key insight**: `retryInfos` always contains N+1 entries (N failures + 1 success)
+- **Key architectural decision**: Lossy persistence is safe because all text content is re-fetched from API within 5 seconds of startup; only structural/statistical data needs to survive restarts
 
 ---
 
-## [1.15.6] - 2026-04-18
+## 上下文检查点查看器 — 2026-04-18
+
+### ✨ Added / 新增
+
+- **Context Checkpoint Viewer / 上下文检查点查看器**:
+  New collapsible card section in the GM Data tab that renders the full content of system-injected `{{ CHECKPOINT N }}` compression summaries. Users can now read exactly what the AI "remembers" after context compression — making the previously opaque truncation process fully transparent.
+  在 GM 数据标签页新增可折叠卡片区域，渲染系统注入的 `{{ CHECKPOINT N }}` 压缩摘要全文。用户现在可以直接阅读 AI 在上下文压缩后"记住"的内容，将原本不透明的截断过程完全透明化。
+
+  **Data Pipeline / 数据管线**:
+  ```
+  GetCascadeTrajectory → embedded GM → messagePrompts
+    → extractCheckpointSummaries() → GMCheckpointSummary[]
+    → maybeEnrichCallsFromTrajectory() broadcasts to all calls
+    → deduplicateCheckpoints() per conversation
+    → buildCheckpointViewer() renders active conversation only
+  ```
+
+- **`GMCheckpointSummary` Type / 检查点类型**:
+  New interface with `checkpointNumber`, `stepIndex`, `tokens`, and `fullText` fields, integrated into `GMCallEntry` and `GMConversationData`.
+  新增接口，包含编号、步骤索引、token 数和全文字段，集成至 GM 调用和会话数据结构。
+
+### ✨ Improved / 改进
+
+- **Active Conversation Detection / 活跃对话检测**:
+  Checkpoint viewer identifies the currently active conversation by finding the one with the most recent `createdAt` timestamp on its calls, rather than the highest step count. This ensures the viewer always displays checkpoints for the *running* conversation, not a historical one.
+  检查点查看器通过最新 `createdAt` 时间戳定位当前活跃对话，而非最高步数，确保始终显示*正在运行的*对话的检查点。
+
+- **Enrichment Trigger on Checkpoint / 检查点触发增强**:
+  `shouldEnrichConversation()` now triggers full trajectory fetch when `checkpointIndex > 0` is detected, ensuring compressed conversations automatically receive their checkpoint summaries.
+  检测到 `checkpointIndex > 0` 时自动触发完整轨迹拉取，确保压缩对话能获取到摘要数据。
+
+- **Scroll State Preservation / 滚动状态保留**:
+  Added `.cp-viewer` and `.cp-card-body` to the incremental refresh scroll-preservation system, preventing loss of reading position when the panel auto-refreshes.
+  将检查点容器加入增量刷新的滚动保护机制，防止自动刷新时丢失阅读位置。
+
+- **Badge Shows Compression Count / 徽章显示压缩次数**:
+  Section badge displays `#N` (the checkpoint number) instead of card count, so users can see total compression count at a glance.
+  区域徽章显示 `#N`（检查点编号）而非卡片数量，一眼可见总压缩次数。
+
+### 🎨 Styles / 样式
+
+- **Checkpoint Viewer CSS / 检查点查看器样式**:
+  - `.cp-viewer` — amber-bordered scrollable container (max-height 400px) with thin custom scrollbar
+  - `.cp-card` — collapsible `<details>` card with amber border, hover highlight
+  - `.cp-card-header` — flex row with `📋 #N`, step/token chips
+  - `.cp-card-body` — scrollable body (max-height 280px) with Markdown-like rendering (headings, bold, code)
+  - `.cp-card-chip-step`, `.cp-card-chip-tok` — metadata chips (gray/amber)
+
+### 🔬 Verified / 验证
+
+- **Checkpoint Persistence Behavior**: Deep diagnostic script confirmed that the API (`GetCascadeTrajectory`) only retains `messagePrompts` on the **latest** GM entry. Older CHECKPOINT texts (1,2,3...) are absorbed into each subsequent compression — only the newest survives. This is by design, not a data loss bug.
+  深度诊断脚本确认 API 仅为最后一个 GM 条目保留 `messagePrompts`。旧 CHECKPOINT 文本被后续压缩吸收，仅最新一条存活——这是设计行为，非数据丢失。
+
+### 📊 Stats / 统计
+
+- **Files changed**: 8 (`src/gm/types.ts`, `src/gm/parser.ts`, `src/gm/tracker.ts`, `src/gm/summary.ts`, `src/gm/index.ts`, `src/gm-tracker.ts`, `src/activity-panel.ts`, `src/webview-script.ts`)
+- **TypeScript compile**: Zero errors
+- **Net change**: +291 lines (data pipeline + UI + CSS)
+- **Key discovery**: `messagePrompts` exists only on the last GM entry; `checkpointIndex` distribution records compression history
+
+---
+
+## Timeline 统一化 — 2026-04-18
 
 ### 🏗 Refactored / 重构
 
@@ -1679,281 +1759,192 @@
 
 ---
 
-## [1.15.7] - 2026-04-18
+## GM 驱动活动分类 — 2026-04-18
 
-### ✨ Added / 新增
+### 🚀 Enhanced / 增强
 
-- **Context Checkpoint Viewer / 上下文检查点查看器**:
-  New collapsible card section in the GM Data tab that renders the full content of system-injected `{{ CHECKPOINT N }}` compression summaries. Users can now read exactly what the AI "remembers" after context compression — making the previously opaque truncation process fully transparent.
-  在 GM 数据标签页新增可折叠卡片区域，渲染系统注入的 `{{ CHECKPOINT N }}` 压缩摘要全文。用户现在可以直接阅读 AI 在上下文压缩后"记住"的内容，将原本不透明的截断过程完全透明化。
+- **GM-Driven Activity Classification / GM 驱动活动分类**:
+  Replaced the blind `+N steps (estimated)` counters with precise GM-derived category counts.
+  Each window-outside GM call is now classified into reasoning / toolCalls / errors / userInputs,
+  feeding directly into `ModelActivityStats`. The status bar and activity panel now show real
+  numbers instead of zeros for long conversations that exceed the ~500 Steps API window.
+  用 GM 精确数据替代了空洞的"推算 +N 步"计数器。每个窗口外 GM 调用现在精确分类为
+  推理/工具调用/错误/用户消息，直接写入 `ModelActivityStats`，状态栏和活动面板不再显示全零。
 
-  **Data Pipeline / 数据管线**:
-  ```
-  GetCascadeTrajectory → embedded GM → messagePrompts
-    → extractCheckpointSummaries() → GMCheckpointSummary[]
-    → maybeEnrichCallsFromTrajectory() broadcasts to all calls
-    → deduplicateCheckpoints() per conversation
-    → buildCheckpointViewer() renders active conversation only
-  ```
-
-- **`GMCheckpointSummary` Type / 检查点类型**:
-  New interface with `checkpointNumber`, `stepIndex`, `tokens`, and `fullText` fields, integrated into `GMCallEntry` and `GMConversationData`.
-  新增接口，包含编号、步骤索引、token 数和全文字段，集成至 GM 调用和会话数据结构。
-
-### ✨ Improved / 改进
-
-- **Active Conversation Detection / 活跃对话检测**:
-  Checkpoint viewer identifies the currently active conversation by finding the one with the most recent `createdAt` timestamp on its calls, rather than the highest step count. This ensures the viewer always displays checkpoints for the *running* conversation, not a historical one.
-  检查点查看器通过最新 `createdAt` 时间戳定位当前活跃对话，而非最高步数，确保始终显示*正在运行的*对话的检查点。
-
-- **Enrichment Trigger on Checkpoint / 检查点触发增强**:
-  `shouldEnrichConversation()` now triggers full trajectory fetch when `checkpointIndex > 0` is detected, ensuring compressed conversations automatically receive their checkpoint summaries.
-  检测到 `checkpointIndex > 0` 时自动触发完整轨迹拉取，确保压缩对话能获取到摘要数据。
-
-- **Scroll State Preservation / 滚动状态保留**:
-  Added `.cp-viewer` and `.cp-card-body` to the incremental refresh scroll-preservation system, preventing loss of reading position when the panel auto-refreshes.
-  将检查点容器加入增量刷新的滚动保护机制，防止自动刷新时丢失阅读位置。
-
-- **Badge Shows Compression Count / 徽章显示压缩次数**:
-  Section badge displays `#N` (the checkpoint number) instead of card count, so users can see total compression count at a glance.
-  区域徽章显示 `#N`（检查点编号）而非卡片数量，一眼可见总压缩次数。
-
-### 🎨 Styles / 样式
-
-- **Checkpoint Viewer CSS / 检查点查看器样式**:
-  - `.cp-viewer` — amber-bordered scrollable container (max-height 400px) with thin custom scrollbar
-  - `.cp-card` — collapsible `<details>` card with amber border, hover highlight
-  - `.cp-card-header` — flex row with `📋 #N`, step/token chips
-  - `.cp-card-body` — scrollable body (max-height 280px) with Markdown-like rendering (headings, bold, code)
-  - `.cp-card-chip-step`, `.cp-card-chip-tok` — metadata chips (gray/amber)
-
-### 🔬 Verified / 验证
-
-- **Checkpoint Persistence Behavior**: Deep diagnostic script confirmed that the API (`GetCascadeTrajectory`) only retains `messagePrompts` on the **latest** GM entry. Older CHECKPOINT texts (1,2,3...) are absorbed into each subsequent compression — only the newest survives. This is by design, not a data loss bug.
-  深度诊断脚本确认 API 仅为最后一个 GM 条目保留 `messagePrompts`。旧 CHECKPOINT 文本被后续压缩吸收，仅最新一条存活——这是设计行为，非数据丢失。
-
-### 📊 Stats / 统计
-
-- **Files changed**: 8 (`src/gm/types.ts`, `src/gm/parser.ts`, `src/gm/tracker.ts`, `src/gm/summary.ts`, `src/gm/index.ts`, `src/gm-tracker.ts`, `src/activity-panel.ts`, `src/webview-script.ts`)
-- **TypeScript compile**: Zero errors
-- **Net change**: +291 lines (data pipeline + UI + CSS)
-- **Key discovery**: `messagePrompts` exists only on the last GM entry; `checkpointIndex` distribution records compression history
-
----
-
-## [1.15.8] - 2026-04-20
-
-### 🏗 Refactored / 重构
-
-- **Lossy Persistence — Slim-on-Write Architecture / 有损持久化 — 写盘瘦身架构**:
-  Implemented a "slim-on-write" strategy that strips heavy, redundant metadata from GM and Activity data **only** at the serialization boundary (before writing to disk). Runtime memory remains fully intact — all stripped fields are dynamically re-fetched from the LS API on next poll cycle.
-  实现了"写盘瘦身"策略：仅在序列化边界（写盘前）剥离 GM 和 Activity 数据中的重型冗余元数据。运行时内存完全不受影响——所有剥离字段在下次 poll 时从 LS API 动态重新填充。
-
-  **State file size reduction / 状态文件瘦身效果**:
-  - Before: ~245 MB (6670+ GM calls with full chat history, prompts, tool lists, token trees)
-  - After: ~1 MB (structural stats only: token counts, credits, timestamps, step indices)
-
-  **Layer 1 — GM Summary Slim / GM 汇总瘦身** (`gm/types.ts`):
-  Three new persistence helpers strip heavy fields from `GMCallEntry` and `GMSummary`:
-  
-  | Function | Strips |
-  |----------|--------|
-  | `slimCallForPersistence()` | `promptSnippet`, `aiSnippetsByStep`, `checkpointSummaries`, `systemPromptSnippet`, `userMessageAnchors.text`, `tokenBreakdownGroups`, `tools`, `retryErrors` |
-  | `slimSummaryForPersistence()` | Applies `slimCallForPersistence()` to all calls in all conversations |
-  | `slimConversationForPersistence()` | Applies to a single conversation's calls |
-
-  **Layer 2 — Activity Timeline Slim / 活动时间线瘦身** (`activity/helpers.ts`):
-  
-  | Function | Strips |
-  |----------|--------|
-  | `slimStepEventForPersistence()` | `fullUserInput`, `fullAiResponse`, `gmPromptSnippet`, `browserSub`; truncates `userInput`/`aiResponse`/`detail` to 40/60/80 chars |
-
-  Applied in `ActivityTracker.serialize()` to both `summary.recentSteps` and all `archives[].recentSteps`.
-
-  **Persistence Points Updated / 持久化点位更新**:
-  - `extension.ts`: Centralized all 5 `gmDetailedSummary` writes into `persistGMSummaryToFile()` helper
-  - `monitor-store.ts`: GM conversations slimmed via `slimConversationForPersistence()` before workspace state write
-  - `activity/tracker.ts`: `serialize()` applies `slimStepEventForPersistence()` to all timeline events and archives
-
-### ✨ Improved / 改进
-
-- **Settings Storage Diagnostics Redesign / 设置页存储诊断重新设计**:
-  Replaced 11 confusing internal metrics (Monitor Sessions, GM Snapshots, GM Conversations, Quota History, Price Overrides, Open Warn At...) with 9 user-meaningful stats:
-  替换了 11 个意义不明的内部指标为 9 个用户可理解的统计：
-
-  | Stat | Description |
-  |------|-------------|
-  | File Size / 文件大小 | Current state file size |
-  | GM Calls (Cycle) / GM 调用 (周期) | LLM invocations in current quota period |
-  | Input Tokens / 输入 Tokens | Total input tokens this cycle |
-  | Output Tokens / 输出 Tokens | Total output tokens this cycle |
-  | Credits Used / 已用积分 | Credits consumed this cycle |
-  | Est. Total Cost / 估算总费用 | All-time cost: archived cycles (dailyStore) + current cycle (pricingStore) |
-  | Quota Resets / 额度重置次数 | Number of historical quota reset archives |
-  | Calendar Days / 日历天数 | Days with recorded data |
-  | Calendar Cycles / 日历周期 | Total archived quota cycles across all days |
-
-- **All-Time Cost Calculation / 累计总费用计算**:
-  New `computeAllTimeCost()` sums all `estimatedCost` from every archived cycle in `dailyStore` plus the current in-progress cycle's live cost from `pricingStore.calculateCosts()`.
-  新增累计费用计算：遍历日历所有归档周期费用 + 当前进行中周期的实时费用。
-
-- **File Stat Error Handling / 文件状态错误处理**:
-  Wrapped `fs.statSync()` in try-catch in both `getStorageDiagnostics()` and `refreshLocalStorageDiagnostics()` to prevent crashes when the state file is temporarily locked or inaccessible.
-  为文件大小读取添加异常保护，防止状态文件临时锁定时崩溃。
+- **Timeline Retry / 429 Display / 时间线重试/429 显示**:
+  Virtual GM timeline events now show retry and rate-limit information inline:
+  `⚠️2×retry(429)` for rate-limited calls, `🔄1×retry` for other retries.
+  GM 虚拟时间线事件现在内联显示重试和限流信息。
 
 ### 🐛 Fixed / 修复
 
-- **Test Fixture Missing Fields / 测试夹具缺失字段**:
-  `activity-tracker.test.ts` fixtures were missing `aiSnippetsByStep` and `checkpointSummaries` fields (added in v1.15.3/v1.15.7), causing `Object.keys(undefined)` crashes in `buildGMVirtualPreview()`. Added empty defaults to all test GM call fixtures.
-  测试夹具缺少 v1.15.3/v1.15.7 新增字段，导致 `buildGMVirtualPreview()` 崩溃。
+- **Retry Count Inflation / 重试计数虚高**:
+  `retryInfos` array always includes the successful attempt as its last entry (no error).
+  The parser now only counts entries with actual error messages as retries, fixing the bug
+  where every GM call showed `retries=1` even without any failures.
+  `retryInfos` 数组始终将成功调用作为末尾 entry，解析器现在只计算有错误消息的 entry 为 retry。
 
-### 🗑 Removed / 移除
-
-- **`webview-settings-tab.test.ts`**: Removed trivial UI snapshot test — the settings tab HTML is simple enough to validate visually.
-  移除简单的 UI 快照测试。
+- **Category Counter Inflation / 分类计数无限膨胀**:
+  `_normalizeModelState()` was stripping `categoriesByModel` from `_windowOutsideAttribution`
+  on every poll, causing the reconciliation to skip reversal of old categories and add full
+  new categories each cycle — inflating reasoning/toolCalls/userInputs indefinitely.
+  Fixed by preserving `categoriesByModel` during normalization.
+  `_normalizeModelState()` 每次 poll 丢弃 `categoriesByModel`，导致分类计数无限叠加。
+  修复：规范化时保留 `categoriesByModel`。
 
 ### 📊 Stats / 统计
 
-- **Files changed**: 9 (`src/gm/types.ts`, `src/gm/index.ts`, `src/gm-tracker.ts`, `src/extension.ts`, `src/monitor-store.ts`, `src/activity/helpers.ts`, `src/activity/tracker.ts`, `src/webview-settings-tab.ts`, `src/webview-panel.ts`)
-- **Tests deleted**: 1 (`webview-settings-tab.test.ts`)
-- **Tests fixed**: 2 (activity-tracker fixture + expectation updates)
-- **Final test count**: 149 tests across 13 files — all passing
+- **Files changed**: 3 (`src/gm/parser.ts`, `src/activity/tracker.ts`, `src/extension.ts`)
 - **TypeScript compile**: Zero errors
-- **Key architectural decision**: Lossy persistence is safe because all text content is re-fetched from API within 5 seconds of startup; only structural/statistical data needs to survive restarts
+- **Key insight**: `retryInfos` always contains N+1 entries (N failures + 1 success)
 
 ---
 
-## [1.15.10] - 2026-04-20
+## GM 模块化拆分 — 2026-04-18
 
 ### 🏗 Refactored / 重构
 
-- **每日归档架构重构 / Daily Archival Architecture**:
-  将归档触发机制从复杂的「池级额度重置回调」彻底切换为简洁的「基于日期的每日归档」。系统不再依赖 `onQuotaReset` 回调进行分池归档，改为在每次轮询中检测本地日期变化，日期滚动时自动归档前一天的所有数据并全局重置 Tracker。
-  Replaced the complex per-pool quota-reset callback archival with a streamlined daily date-based archival. The system no longer depends on `onQuotaReset` for per-pool archiving; instead, it detects local date changes on each poll and automatically archives the previous day's data with a global tracker reset.
+- **GM Module Modularization / GM 模块化拆分**:
+  Split `gm-tracker.ts` (1728 lines) into 5 focused sub-modules under `src/gm/`:
+  将 `gm-tracker.ts`（1728 行）拆分为 `src/gm/` 下的 5 个专注子模块：
 
-  **架构变更 / Architecture changes**:
-  
-  | 组件 / Component | 变更 / Change |
-  |---|---|
-  | `daily-archival.ts` | **新增** — 可测试纯函数模块，所有依赖通过 `DailyArchivalContext` 注入，时间通过 `now` 参数可控 |
-  | `extension.ts` | `performDailyArchival()` 改为委托调用；`onQuotaReset` 瘦身为仅日志记录 |
-  | `daily-store.ts` | 新增 `addDailySnapshot()` 每日单快照接口；移除 `importArchives()` 和 `backfilled` 标志 |
-  | `activity/tracker.ts` | `archiveAndReset()` 删除池级过滤分支（-145 行），仅保留全局重置 |
-  | `gm/tracker.ts` | `reset()` 删除 per-pool 分支（-26 行），仅保留全局重置 |
-  | `gm/summary.ts` | `filterGMSummaryByModels()` 移除 `accountEmail` 参数 |
-  
-  **归档触发规则 / Trigger rules**:
-  - 首次运行：记录当前日期，不归档
-  - 同日重复调用：无操作
-  - 日期滚动（如 23:59→00:00）：归档昨日数据，重置 Tracker
-  - Force 模式：跳过日期检查（dev 模拟按钮用）
-  - 无数据日：跳过 DailyStore 写入，仍更新日期
+  | Module | Lines | Responsibility |
+  |--------|:-----:|----------------|
+  | `types.ts` | ~210 | 所有 GM 类型定义 + clone 工具 |
+  | `parser.ts` | ~390 | 解析器 + 提取器 + 匹配/合并/增强 |
+  | `summary.ts` | ~360 | 汇总构建 + 过滤 + 标准化 |
+  | `tracker.ts` | ~500 | GMTracker 类核心 |
+  | `index.ts` | ~50 | barrel re-export |
 
-### ✨ Improved / 改进
+  Original `gm-tracker.ts` reduced to a ~40-line backward-compatible re-export shim.
+  All 12 external import sites (`import { ... } from './gm-tracker'`) work unchanged.
+  原 `gm-tracker.ts` 缩减为约 40 行的向后兼容 re-export，12 个外部 import 全部无需修改。
 
-- **日历 UI 简化 / Calendar UI Simplification**:
-  移除多 cycle 折叠逻辑（`<details>` + 独立周期卡片），每天只显示一个聚合快照视图。高亮条件从 `cycleCount > 2` 改为 `totalCost > 0.5`。
-  Removed multi-cycle collapsible details; each day now shows a single aggregated snapshot. High-activity highlight changed from cycle count to cost threshold.
+- **Interrupted Call Detection / 中断调用检测**:
+  GM timeline rows for interrupted/cancelled calls (0 tokens in + 0 tokens out) now show `⚡ 已中断` instead of falling back to user message bubble or generic "GM 调用".
+  中断/取消的 GM 调用现在显示 `⚡ 已中断`，而非回退到用户气泡或 "GM 调用"。
 
-- **Settings 文案更新 / Settings Copy Update**:
-  「模拟额度重置」→「模拟每日归档」；「额度重置次数」→「归档天数」；所有描述文案同步更新。
-  "Simulate Quota Reset" → "Simulate Daily Archival"; "Quota Resets" → "Archival Days"; all description copy updated.
+- **User Message Fallback Removed / 移除用户消息兜底**:
+  GM rows no longer echo the user's input text as a fallback preview. GM rows should only display AI behavior (responses, tool calls, or status).
+  GM 行不再将用户输入作为兜底预览，只显示 AI 行为。
 
-- **存储诊断修正 / Storage Diagnostics Fix**:
-  `quotaResetCount` 数据源从 `lastArchives.length` 修正为 `lastDailyStore.totalDays`。
-  Fixed `quotaResetCount` data source from archive count to daily store day count.
+- **Activity Module Modularization / Activity 模块化拆分**:
+  Split `activity-tracker.ts` (2718 lines) into 3 focused sub-modules under `src/activity/`:
+  将 `activity-tracker.ts`（2718 行）拆分为 `src/activity/` 下的 3 个专注子模块：
 
-### 🗑 Removed / 移除
+  | Module | Lines | Responsibility |
+  |--------|:-----:|----------------|
+  | `types.ts` | ~180 | 所有 Activity 类型定义 |
+  | `helpers.ts` | ~280 | 工具函数（分类/提取/合并/预览构建） |
+  | `tracker.ts` | ~2260 | ActivityTracker 类核心 |
+  | `index.ts` | ~45 | barrel re-export |
 
-- **池级归档逻辑 / Per-Pool Archival Logic**:
-  移除 `ActivityTracker.getCurrentStepCountForModels()`、`archiveAndReset()` 的 modelIds 参数、`GMTracker.reset()` 的 modelIds 参数、`filterGMSummaryByModels()` 的 accountEmail 参数。
-  Removed pool-scoped archival methods and parameters that are no longer needed.
-
-- **旧版 barrel export**:
-  从 `activity/index.ts` 和 `activity-tracker.ts` 移除不再使用的 `sameTriggeredByScope` 导出。
-  Removed unused `sameTriggeredByScope` export from barrel files.
-
-- **`daily-archival-refactor-plan.md`**: 计划文档已完成，删除。
-
-### 🧪 Tests / 测试
-
-- **`daily-archival.test.ts`**: 新增 13 个测试用例覆盖 `toLocalDateKey`（日期格式化、跨年、零填充）和 `performDailyArchival`（首次运行、同日、日期滚动、无数据、多日间隔、force、连续天数、23:59→00:00 午夜边界、无 DailyStore 容错）。
-  13 new test cases covering date formatting, rollover detection, midnight boundary, force mode, and error resilience.
-
-- **`daily-store.test.ts`**: 重写为 `addDailySnapshot` 测试（5 用例：写入与替换、无 GM、旧版 addCycle 兼容、序列化往返、clear）。
-  Rewritten with 5 test cases for `addDailySnapshot`.
-
-- **`activity-tracker.test.ts`**: 更新 `archiveAndReset()` 调用，移除不再需要的 modelIds 参数。
+  Original `activity-tracker.ts` reduced to a ~40-line backward-compatible re-export shim.
+  All 4 external import sites (`import { ... } from './activity-tracker'`) work unchanged.
+  原 `activity-tracker.ts` 缩减为约 40 行的向后兼容 re-export，4 个外部 import 全部无需修改。
 
 ### 📊 Stats / 统计
 
-- **Files changed**: 11 (`src/daily-archival.ts` [new], `src/extension.ts`, `src/daily-store.ts`, `src/activity/tracker.ts`, `src/gm/tracker.ts`, `src/gm/summary.ts`, `src/webview-calendar-tab.ts`, `src/webview-settings-tab.ts`, `src/webview-panel.ts`, `src/activity/index.ts`, `src/activity-tracker.ts`)
-- **Tests changed**: 3 (`tests/daily-archival.test.ts` [new], `tests/daily-store.test.ts` [rewritten], `tests/activity-tracker.test.ts` [updated])
-- **Final test count**: 166 tests across 14 files — all passing
+- **Files changed**: 4 (`gm-tracker.ts`, `activity-tracker.ts`, `docs/project_structure.md`, `CHANGELOG-v2.md`)
+- **Files created**: 9 (`src/gm/{types,parser,summary,tracker,index}.ts`, `src/activity/{types,helpers,tracker,index}.ts`)
 - **TypeScript compile**: Zero errors
-- **Key architectural decision**: Daily time-based archival replaces event-driven per-pool archival; testability achieved through dependency injection and injectable time
+- **Net LOC**: ~80 (2 re-export shims) replaces ~4446 (2 monoliths) — zero logic change
 
 ---
 
-## [1.15.9] - 2026-04-20
+## AI 回复逐步提取 — 2026-04-18
 
-### ✨ Added / 新增
+### 🔬 Breakthrough / 技术突破
 
-- **Multi-Account Status Panel / 多账号状态面板**:
-  在 GM Data 标签页顶部新增多账号状态面板。每次 `fetchFullUserStatus` 成功后，自动从 `email` + `ModelConfig.quotaInfo.resetTime` 提取账号快照，按 email 存入 `Map<email, AccountSnapshot>` 并持久化至 `state-v1.json`。切换账号时，旧账号快照保留为「已缓存」状态，新账号标记为「在线」。
-  New multi-account status panel at the top of the GM Data tab. On each successful `fetchFullUserStatus`, the current account's snapshot is upserted into a `Map<email, AccountSnapshot>` and persisted to `state-v1.json`. When switching accounts, the previous account remains as "cached" while the new one is marked "active".
+- **Per-Step AI Response Extraction / 逐步 AI 回复提取**:
+  Discovered that `GetCascadeTrajectory` endpoint's embedded GM data contains `messagePrompts` with complete conversation history, where each SYSTEM message carries a `stepIdx` field. Built a `stepIdx → AI snippet` mapping system that enables each GM call to display its **own** AI response text or tool calls, rather than sharing identical previews.
+  发现 `GetCascadeTrajectory` 端点的嵌入式 GM 数据包含完整 messagePrompts，每条 SYSTEM 消息自带 `stepIdx` 字段。建立了 `stepIdx → AI 片段` 映射系统，使每个 GM 调用能显示**自己的** AI 回复文本或工具调用名称。
 
-  | 字段 / Field | 说明 / Description |
-  |---|---|
-  | 在线指示灯 / Active indicator | 绿色脉动 = 在线；灰色 = 已缓存 |
-  | Plan 徽章 / Plan badge | Pro (蓝) / Ultra (紫) / Team (绿) / Free (灰) |
-  | 模型池倒计时 / Per-pool countdown | 每个额度池独立倒计时，显示池内模型标签 |
-  | 到期提示 / Expiry label | 倒计时到期后显示红色「已就绪」 |
-  | 预警 / Warning | 倒计时 < 30 分钟时变黄色 |
-
-- **Per-Pool Model Countdown / 按模型池独立倒计时**:
-  新增 `ResetPool` 类型，每个池记录 `resetTime` + `modelLabels[]`。账号卡片右侧按池分行显示模型标签芯片和独立倒计时，而非单一笼统时间。例如：Claude + GPT 共享一个池，Gemini Pro 独立一个池，Gemini Flash 又是单独的池——各自显示独立的重置倒计时。
-  New `ResetPool` type with `resetTime` + `modelLabels[]`. Each account card shows per-pool rows with model chips and independent countdowns. Models sharing the same `quotaInfo.resetTime` are automatically grouped into one pool — no hardcoded rules.
-
-- **Cached Account Reset Notification / 缓存账号额度重置通知**:
-  新增 `checkCachedAccountResets()`，在每次轮询中自动检查非在线缓存账号的额度池是否已重置。到期时弹出一次性 VS Code 通知：`✅ Night Min: Claude 3.5 Sonnet, GPT-4o 额度已重置，可以切换到该账号了。` 附带「打开监控」按钮。通过 `email:resetTime` 去重，每个重置事件只通知一次，无需额外设置。
-  New `checkCachedAccountResets()` checks all cached accounts' quota pools on every poll cycle. When a pool expires, a one-time VS Code notification prompts the user to switch accounts. Deduplication via `email:resetTime` key ensures no spam.
-
-### 🏗 Technical / 技术细节
-
-- **Data Flow / 数据流**:
+  **Data Pipeline**:
   ```
-  fetchFullUserStatus() → userInfo.email + configs[].quotaInfo.resetTime
-    → updateAccountSnapshot()
-      → poolMap: Map<resetTime, modelLabels[]>
-      → AccountSnapshot { email, name, planName, resetPools, isActive, lastSeen }
-      → persistAccountSnapshots() → durableFileGlobalState → state-v1.json
-    → PanelPayload.accountSnapshots → buildGMDataTabContent()
-      → buildAccountStatusPanel() → per-pool HTML with countdowns
+  GetCascadeTrajectory → embedded GM → messagePrompts (array[180+])
+    → SYSTEM messages with { stepIdx, prompt, toolCalls }
+    → extractAISnippetsByStep() → Record<stepIdx, snippet>
+    → maybeEnrichCallsFromTrajectory() broadcasts to ALL calls
+    → buildGMVirtualPreview() lookups by call.stepIndices
   ```
 
-- **New Types / 新增类型** (`activity-panel.ts`):
-  - `ResetPool { resetTime: string; modelLabels: string[] }`
-  - `AccountSnapshot { email, name, planName, tierName, earliestResetTime, allResetTimes, resetPools, isActive, lastSeen }`
+### ✨ Improved / 改进
 
-- **Persistence Key / 持久化键**: `durableFileGlobalState → 'accountSnapshots'` (Array\<AccountSnapshot\>)
+- **GM Timeline Row Previews / GM 时间线行预览**:
+  - AI text responses now show actual response content (e.g. "OK！", "读完了！v1.15.2...")
+  - Tool-call-only steps show `🔧 view_file` instead of generic "GM 调用"
+  - Combined steps show text + tool badge: `好的，让我看...  🔧grep_search`
+  - Eliminated duplicate metrics in detail text (tokens/TTFT already shown as right-side chips)
+  
+  AI 文本回复现在显示实际内容，工具调用步骤显示 `🔧 工具名`，组合步骤同时显示文本和工具标记。消除了 detail 与右侧芯片的重复指标。
 
-### 🎨 Styles / 样式
+- **Data Model Upgrade / 数据模型升级**:
+  `GMCallEntry.lastAISnippet: string` → `GMCallEntry.aiSnippetsByStep: Record<number, string>` — from single shared string to per-step indexed map, solving the "all rows show same text" problem.
+  数据模型从单一共享字符串升级为逐步索引映射，解决了"所有行显示相同文本"的问题。
 
-- **Account Status Panel CSS / 账号状态面板样式**:
-  - `.acct-panel` / `.acct-panel-header` — 容器 + 标题栏
-  - `.acct-card` — 账号行（flex 布局，hover 反馈）
-  - `.acct-indicator-active` — 绿色脉动动画 (`@keyframes acctPulse`)
-  - `.acct-indicator-cached` — 灰色静态
-  - `.acct-plan-pro/free/ultra/team` — Plan 徽章 4 色系
-  - `.acct-pools` / `.acct-pool-row` / `.acct-pool-model` — 模型池布局 + 模型标签芯片
-  - `.acct-reset-countdown-warn` — 黄色 (<30min)
-  - `.acct-reset-countdown-expired` — 红色 (已到期)
+### 🔧 Tools / 工具
+
+- **`gm-live-watcher.ts` v3**: Real-time GM call monitor with dual-endpoint cross-validation (`GetCascadeTrajectoryGeneratorMetadata` vs `GetCascadeTrajectory`). Displays per-call AI response (📝), thinking preview (🧠), and tool invocations (🔧). Key diagnostic tool for validating data pipeline changes.
+  实时 GM 调用监控器，双端点交叉验证，显示每次调用的 AI 回复、思考预览和工具调用。验证数据管道变更的关键诊断工具。
 
 ### 📊 Stats / 统计
 
-- **Files changed**: 3 (`src/extension.ts`, `src/activity-panel.ts`, `src/webview-panel.ts`)
-- **Docs updated**: 2 (`docs/project_structure.md`, `CHANGELOG-v2.md`)
+- **Files changed**: 3 (`gm-tracker.ts`, `activity-tracker.ts`, `diag-scripts/deep-dive/gm-live-watcher.ts`)
 - **TypeScript compile**: Zero errors
-- **Net change**: ~280 lines added (types + snapshot management + UI + CSS + notification)
-- **No settings required**: Account reset notifications work automatically with zero configuration
+- **Key discovery**: `GetCascadeTrajectoryGeneratorMetadata` has NO messagePrompts; only `GetCascadeTrajectory` embedded GM has them
+
+---
+
+## 可折叠轮次分组 — 2026-04-18
+
+### ✨ Added / 新增
+
+- **Collapsible Turn Groups in Timeline / 时间线可折叠轮次分组**:
+  Refactored the "Recent Activity" timeline from a flat segment list into collapsible `<details>` turn groups. Each group is anchored by the user's message and visually titled with a preview of the user input. The latest turn defaults to **open**; historical turns default to **collapsed**, dramatically reducing visual clutter on long conversations.
+  将"最近操作"时间线从平铺的 segment 列表重构为可折叠的 `<details>` 轮次分组。每个分组以用户消息为锚点，标题行预览用户输入文本。最新轮次默认**展开**，历史轮次默认**折叠**，极大减少长对话下的视觉噪音。
+
+- **Segment Summary Chips / 分组摘要标签**:
+  Each turn header now shows a row of compact, color-coded chips aggregated from GM data within that turn:
+  - 🔵 **Model** — dominant model name (filtered `MODEL_PLACEHOLDER_*`)
+  - 🟢 **Calls** — number of reasoning calls
+  - 🟡 **Tools** — tool invocation count (`🔧N`)
+  - 🔴 **Tokens** — total input + output tokens (e.g. `15.2k tok`)
+  - 🟤 **Cache** — cache read tokens
+  - 🟠 **Credits** — credit consumption (`0.4 cr`)
+  - ⚫ **Duration** — wall-clock span between first and last event (`2m14s`)
+  
+  每个轮次 header 右侧显示从 GM 数据聚合的彩色摘要 chip：模型、调用数、工具数、Token、缓存、积分、耗时。
+
+### ✨ Improved / 改进
+
+- **User Anchor at Bottom / 用户消息移至底部**:
+  Within each expanded turn, the user message (turn origin) now renders at the bottom, with the newest AI actions at the top. This matches the visual convention where top = newest, bottom = oldest, making the timeline read naturally from the most recent action downward to the triggering input.
+  展开的分组内，用户消息（轮次起点）移到底部，AI 最新操作在顶部。视觉逻辑：顶部 = 最新 → 底部 = 起点，符合从结果向起因的阅读顺序。
+
+### 🗑 Removed / 移除
+
+- **Alias / Placeholder / Basis Tags / 别名类标签**:
+  Removed the `Alias (别名)`, `Summary (摘要)`, `Generator (生成器)`, and `Dominant (主模型)` tags from timeline rows. These were legacy indicators from the era before GM provided exact model identification via `responseModel`. Since GM now reliably returns exact model names, these ambiguous "model basis" labels are no longer needed.
+  移除时间线行上的"别名""摘要""生成器""主模型"标签。这些是 GM 引入精确 `responseModel` 之前的遗留指示器，现在 GM 已提供精确模型名称，这些模糊的"模型来源"标签不再需要。
+
+### 🎨 Styles / 样式
+
+- **Turn Group CSS / 轮次分组样式**:
+  New `.act-tl-turn` / `.act-tl-turn-header` / `.seg-chip-*` CSS system with:
+  - Smooth triangle arrow rotation (90° on open)
+  - Green border highlight when expanded (`.act-tl-turn[open]`)
+  - Hover background feedback
+  - Full light theme (`body.vscode-light`) overrides for all 7 chip variants (`model`, `calls`, `tools`, `tok`, `cache`, `credits`, `dur`)
+  
+  新增可折叠分组 CSS 系统：平滑三角箭头旋转动画、展开态绿色边框高亮、hover 背景反馈，以及浅色主题下全部 7 种 chip 变体的完整适配。
+
+- **Light Theme Fix / 浅色主题修复**:
+  Fixed `seg-chip-dur` (duration) and `seg-chip-credits` being invisible on light backgrounds due to missing `body.vscode-light` overrides. Duration now uses `#334155` (dark slate), credits use `var(--lt-orange-text)`.
+  修复浅色背景下耗时和积分 chip 不可见的问题，补全缺失的 light theme 覆盖。
+
+### 📊 Stats / 统计
+
+- **Files changed**: 2 (`activity-panel.ts`, `webview-styles.ts`)
+- **TypeScript compile**: Zero errors
+- **Net change**: ~+100 lines (CSS) / ~+60 lines (render logic) / −30 lines (removed alias tags)
