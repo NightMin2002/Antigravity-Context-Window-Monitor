@@ -8,6 +8,40 @@
 
 ---
 
+## [1.17.14] - 2026-04-23
+
+### 重构 / Refactored
+
+- **模型信息卡 UI 重构 / Model Info Card UI Overhaul**:
+  从 `prc-dna-card` 网格式小方块布局完全重构为 `act-model-card` 行式布局，与 GM 数据标签页的"模型统计"视觉风格统一：
+  - 卡片结构：`act-card-header` + `act-card-body`（`act-card-row` 行式 icon+label+value） + `act-card-footer`（可折叠 MIME/技术参数）
+  - 数据行带 SVG icon（调用/步骤/积分/重试/错误），分隔线分组，错误行红色高亮
+  - 缓存模型使用 `act-checkpoint-model` 淡化样式 + `act-badge` 标签
+
+  Rewrites model info cards from `prc-dna-card` grid layout to `act-model-card` row-based layout, matching the GM Data tab's "Model Stats" visual style.
+
+- **同名模型去重 / Same-Name Model Deduplication**:
+  `buildModelDNACards()` 在排序后按规范化 displayName（`.toLowerCase()`）合并重复条目。有当前 GM 数据的优先保留，persisted-only 的合并后丢弃。
+
+  Deduplicates by normalized displayName after sorting. Entries with current GM data take priority; persisted-only duplicates are merged and discarded.
+
+- **responseModel 智能隐藏 / Smart responseModel Suppression**:
+  当 `responseModel`（如 `claude-opus-4-6-thinking`）与卡片标题（如 "Claude Opus 4.6 (Thinking)"）去标点比较后本质相同时，隐藏 `responseModel` 避免冗余显示。
+
+  Hides `responseModel` when it's essentially the same as the card title after stripping punctuation/spaces.
+
+- **Meta 信息条视觉升级 / Meta Bar Visual Enhancement**:
+  `prc-dna-meta` → `prc-dna-meta-bar`：从纯文字行改为带蓝色左边框 + 半透明背景 + 圆角边框的容器，增加视觉层级感。深色/浅色主题完整适配。
+
+  `prc-dna-meta` → `prc-dna-meta-bar`: from plain text to a container with blue left border, subtle background, and rounded border for better visual hierarchy.
+
+### 统计 / Stats
+
+- **Files changed**: 2 (`src/pricing-panel.ts`, `docs/project_structure.md`)
+- **TypeScript compile**: Zero errors
+
+---
+
 ## [1.17.13] - 2026-04-23
 
 ### 修复 / Fixed

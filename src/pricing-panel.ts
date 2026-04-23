@@ -110,6 +110,20 @@ export function getPricingTabStyles(): string {
     .prc-dna-sep {
         opacity: 0.45;
     }
+    .prc-dna-meta-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-2);
+        align-items: center;
+        margin-bottom: var(--space-2);
+        padding: var(--space-1) var(--space-2);
+        font-size: 0.8em;
+        color: var(--color-text-dim);
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.06);
+        border-left: 2px solid rgba(96,165,250,0.35);
+        border-radius: var(--radius-sm);
+    }
     .prc-dna-grid-inner {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
@@ -604,6 +618,7 @@ export function getPricingTabStyles(): string {
 
     /* ── Light Theme Overrides ── */
     body.vscode-light .prc-dna-provider { background: rgba(37,99,235,0.1); color: #1d4ed8; }
+    body.vscode-light .prc-dna-meta-bar { background: rgba(0,0,0,0.02); border-color: rgba(0,0,0,0.08); border-left-color: rgba(37,99,235,0.3); }
     body.vscode-light .prc-tool-tag { background: rgba(22,163,74,0.08); color: #15803d; }
     body.vscode-light .prc-error-tag { background: rgba(220,38,38,0.08); color: #dc2626; }
     body.vscode-light .prc-cost-card-total { color: #b45309; }
@@ -728,16 +743,53 @@ export function buildModelDNACards(
         return aName.localeCompare(bName);
     });
 
+    // Deduplicate by normalized display name — same model can appear under
+    // different DNA keys (e.g. responseModel changed). Prefer the entry with
+    // current GM data; merge persisted config/MIME from the duplicate.
+    const seenNames = new Map<string, number>();
+    const deduped: typeof entries = [];
+    for (const entry of entries) {
+        const rawName = entry.current?.[0] || entry.persisted?.displayName || entry.key;
+        const normName = (normalizeModelDisplayName(rawName) || rawName).toLowerCase();
+        const existingIdx = seenNames.get(normName);
+        if (existingIdx === undefined) {
+            seenNames.set(normName, deduped.length);
+            deduped.push(entry);
+        } else {
+            // Merge: if existing has no current data but this one does, swap
+            const existing = deduped[existingIdx];
+            if (!existing.current && entry.current) {
+                // Keep new entry's GM data, merge persisted from old
+                if (!entry.persisted && existing.persisted) {
+                    entry.persisted = existing.persisted;
+                }
+                deduped[existingIdx] = entry;
+            }
+            // Otherwise just skip the duplicate (persisted-only or lower priority)
+        }
+    }
+
     const configByLabel = new Map<string, ModelConfig>();
     for (const config of configs) {
         const normalizedLabel = normalizeModelDisplayName(config.label) || config.label;
         configByLabel.set(normalizedLabel, config);
     }
 
-    let html = `<h2 class="act-section-title">${tBi('Model Info', '模型信息')}</h2>`;
-    html += `<div class="prc-dna-grid">`;
+    // SVG icons for card rows (matching GM Data tab style)
+    const ICONS = {
+        bolt: `<svg class="act-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`,
+        bar: `<svg class="act-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>`,
+        coin: `<svg class="act-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>`,
+        error: `<svg class="act-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`,
+        retry: `<svg class="act-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>`,
+        provider: `<svg class="act-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>`,
+    };
+    const fmt = (n: number) => n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n);
 
-    for (const entry of entries) {
+    let html = `<h2 class="act-section-title">${tBi('Model Info', '模型信息')}</h2>`;
+    html += `<div class="act-cards-grid">`;
+
+    for (const entry of deduped) {
         const current = entry.current?.[1];
         const persistedEntry = entry.persisted;
         const rawName = entry.current?.[0] || persistedEntry?.displayName || entry.key;
@@ -755,8 +807,55 @@ export function buildModelDNACards(
         const isPersistedOnly = !current && !!persistedEntry;
         const entryId = toDomSafeId(entry.key);
         const supportedMimeTypes = config?.supportedMimeTypes || [];
-        const mimeDetailsHtml = supportedMimeTypes.length > 0
-            ? `
+
+        // ── Card header ──
+        const headerBadge = isPersistedOnly
+            ? ` <span class="act-badge" style="opacity:0.7">${tBi('cached', '已缓存')}</span>`
+            : '';
+        html += `<div class="act-model-card${isPersistedOnly ? ' act-checkpoint-model' : ''}">`;
+        html += `<div class="act-card-header">${esc(name)}${headerBadge}</div>`;
+        html += `<div class="act-card-body">`;
+
+        // ── Meta row: response model + provider ──
+        // Suppress responseModel when it's essentially the same as card title
+        const normTitle = name.toLowerCase().replace(/[\s().\-]+/g, '');
+        const normResp = responseModel.toLowerCase().replace(/[\s().\-]+/g, '');
+        const showResponseModel = responseModel && normResp !== normTitle;
+        if (showResponseModel || providerShort) {
+            html += `<div class="prc-dna-meta-bar">`;
+            if (showResponseModel) {
+                html += `<span class="prc-dna-response-model">${esc(responseModel)}</span>`;
+            }
+            if (providerShort) {
+                html += `${showResponseModel ? '<span class="prc-dna-sep">·</span>' : ''}<span class="prc-dna-provider">${esc(providerShort)}</span>`;
+            }
+            if (isPersistedOnly) {
+                html += `${(showResponseModel || providerShort) ? '<span class="prc-dna-sep">·</span>' : ''}<span class="prc-dna-provider">${tBi('cached', '已缓存')}</span>`;
+            }
+            html += `</div>`;
+        }
+
+        // ── Stats rows (GM Data card style) ──
+        html += `<div class="act-card-row"><span>${ICONS.bolt} <span>${tBi('Calls', '调用')}</span></span><span class="val">${fmt(callCount)}</span></div>`;
+        html += `<div class="act-card-row"><span>${ICONS.bar} <span>${tBi('Steps', '步骤')}</span></span><span class="val">${fmt(stepsCovered)}</span></div>`;
+        if (totalCredits > 0) {
+            html += `<div class="act-card-row"><span>${ICONS.coin} <span>${tBi('Credits', '积分')}</span></span><span class="val">${totalCredits.toFixed(1)}</span></div>`;
+        }
+        if (totalRetries > 0) {
+            html += `<div class="act-card-divider"></div>`;
+            html += `<div class="act-card-row"><span>${ICONS.retry} <span>${tBi('Retries', '重试')}</span></span><span class="val">${totalRetries}</span></div>`;
+        }
+        if (errorCount > 0) {
+            if (totalRetries <= 0) { html += `<div class="act-card-divider"></div>`; }
+            html += `<div class="act-card-row"><span>${ICONS.error} <span>${tBi('Errors', '错误')}</span></span><span class="val" style="color:#ef4444">${errorCount}</span></div>`;
+        }
+
+        html += `</div>`; // act-card-body
+
+        // ── Footer: MIME + Tech params (collapsible) ──
+        const footerParts: string[] = [];
+        if (supportedMimeTypes.length > 0) {
+            footerParts.push(`
                 <details class="collapsible inline-details" id="d-model-mime-${entryId}">
                     <summary>${tBi('MIME Types', 'MIME 类型')} (${supportedMimeTypes.length})</summary>
                     <div class="details-body">
@@ -764,10 +863,10 @@ export function buildModelDNACards(
                             ${supportedMimeTypes.map(mime => `<span class="mime-tag">${esc(mime)}</span>`).join('')}
                         </div>
                     </div>
-                </details>`
-            : '';
-        const techDetailsHtml = cc
-            ? `
+                </details>`);
+        }
+        if (cc) {
+            footerParts.push(`
                 <details class="collapsible inline-details" id="d-model-tech-${entryId}">
                     <summary>${tBi('Technical Params', '技术参数')}</summary>
                     <div class="details-body">
@@ -780,43 +879,13 @@ export function buildModelDNACards(
                             ${buildDNAField(tBi('stops', '停止词'), String(cc.stopPatternCount))}
                         </div>
                     </div>
-                </details>`
-            : '';
-
-        html += `<div class="prc-dna-card">`;
-        html += `<div class="prc-dna-header">
-            <span class="prc-dna-model">${esc(name)}</span>
-        </div>`;
-
-        const metaParts: string[] = [];
-        if (responseModel) {
-            metaParts.push(`<span class="prc-dna-response-model">${esc(responseModel)}</span>`);
+                </details>`);
         }
-        if (providerShort) {
-            metaParts.push(`<span class="prc-dna-provider">${esc(providerShort)}</span>`);
-        }
-        if (isPersistedOnly) {
-            metaParts.push(`<span class="prc-dna-provider">${tBi('cached', '已缓存')}</span>`);
-        }
-        if (metaParts.length > 0) {
-            html += `<div class="prc-dna-meta">${metaParts.join('<span class="prc-dna-sep">·</span>')}</div>`;
+        if (footerParts.length > 0) {
+            html += `<div class="act-card-footer" style="padding:var(--space-2) var(--space-3)">${footerParts.join('')}</div>`;
         }
 
-        html += `<div class="prc-dna-grid-inner">`;
-        html += buildDNAField(tBi('Calls', '调用'), String(callCount));
-        html += buildDNAField(tBi('Steps', '步骤'), String(stepsCovered));
-        html += buildDNAField(tBi('Credits', '积分'), String(totalCredits));
-        if (totalRetries > 0) {
-            html += buildDNAField(tBi('Retries', '重试'), String(totalRetries));
-        }
-        if (errorCount > 0) {
-            html += `<div class="prc-dna-field"><span class="prc-dna-label">${tBi('Errors', '错误')}</span><span class="prc-dna-val" style="color:#ef4444">${errorCount}</span></div>`;
-        }
-        html += `</div>`;
-        html += mimeDetailsHtml;
-        html += techDetailsHtml;
-
-        html += `</div>`;
+        html += `</div>`; // act-model-card
     }
 
     html += `</div>`;
