@@ -2001,6 +2001,28 @@ export function getGMDataTabStyles(): string {
         margin-left: 2px;
         white-space: nowrap;
     }
+    /* ── Tool Catalog Chips ── */
+    .tool-cat-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        padding: var(--space-2);
+    }
+    .tool-cat-chip {
+        font-family: var(--font-mono);
+        font-size: 0.78em;
+        padding: 2px 8px;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--color-border);
+        color: var(--color-text);
+        white-space: nowrap;
+        transition: background 0.12s ease, border-color 0.12s ease;
+    }
+    .tool-cat-chip:hover {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: var(--color-text-dim);
+    }
 
     `;
 }
@@ -2791,21 +2813,55 @@ function buildToolCallRanking(gm: GMSummary, currentCascadeId?: string): string 
         ? `<span>${tBi(`${convCount} conversations`, `${convCount} 个对话`)}</span>`
         : '';
 
+    // ── Tool Catalog: persistent inventory of all unique tools used ──
+    const catalog = gm.toolCatalog || [];
+    let catalogHtml = '';
+    if (catalog.length > 0) {
+        const toolDesc: Record<string, string> = {
+            view_file: '\u67e5\u770b\u6587\u4ef6\u5185\u5bb9',
+            view_file_outline: '\u67e5\u770b\u6587\u4ef6\u5927\u7eb2\u7ed3\u6784',
+            view_code_item: '\u67e5\u770b\u4ee3\u7801\u7b26\u53f7\u5b9a\u4e49',
+            run_command: '\u6267\u884c\u7ec8\u7aef\u547d\u4ee4',
+            command_status: '\u68c0\u67e5\u547d\u4ee4\u6267\u884c\u72b6\u6001',
+            send_command_input: '\u5411\u8fdb\u7a0b\u53d1\u9001\u8f93\u5165',
+            read_terminal: '\u8bfb\u53d6\u7ec8\u7aef\u8f93\u51fa',
+            replace_file_content: '\u7f16\u8f91\u66ff\u6362\u6587\u4ef6\u5185\u5bb9',
+            multi_replace_file_content: '\u591a\u5904\u7f16\u8f91\u66ff\u6362\u6587\u4ef6',
+            write_to_file: '\u521b\u5efa\u65b0\u6587\u4ef6',
+            find_by_name: '\u6309\u6587\u4ef6\u540d\u641c\u7d22',
+            grep_search: '\u6587\u4ef6\u5185\u5bb9\u641c\u7d22',
+            codebase_search: '\u8bed\u4e49\u4ee3\u7801\u641c\u7d22',
+            list_dir: '\u5217\u51fa\u76ee\u5f55\u5185\u5bb9',
+            search_web: '\u7f51\u9875\u641c\u7d22',
+            read_url_content: '\u8bfb\u53d6\u7f51\u9875\u5185\u5bb9',
+            generate_image: '\u751f\u6210\u56fe\u7247',
+            browser_subagent: '\u6d4f\u89c8\u5668\u81ea\u52a8\u5316',
+            view_content_chunk: '\u67e5\u770b\u6587\u6863\u5206\u7247',
+        };
+        const chips = catalog.map(entry => {
+            const desc = toolDesc[entry.name] || '';
+            const tooltipAttr = desc ? ` data-tooltip="${esc(desc)}"` : '';
+            return `<span class="tool-cat-chip"${tooltipAttr}>${esc(entry.name)}</span>`;
+        }).join('');
+        catalogHtml = `<div class="tool-cat-chips">${chips}</div>`;
+    }
+
     return `<div class="tool-rank-section">
         <h3 class="act-section-title">
             ${wrenchIcon}
-            ${tBi('Tool Call Ranking', '工具调用排行')}
-            <span class="act-badge">${tBi(`${totalInvocations} invocations`, `${totalInvocations} 次调用`)}</span>
+            ${tBi('Tool Call Ranking', '\u5de5\u5177\u8c03\u7528\u6392\u884c')}
+            <span class="act-badge">${tBi(`${totalInvocations} invocations`, `${totalInvocations} \u6b21\u8c03\u7528`)}</span>
         </h3>
         <ul class="tool-rank-list">
             ${rows}
             <li class="tool-rank-summary">
-                <span>${tBi('Unique Tools', '工具种类')}: <b>${entries.length}</b></span>
-                <span>${tBi('Total', '合计')}: <b>${totalInvocations}</b></span>
+                <span>${tBi('Unique Tools', '\u5de5\u5177\u79cd\u7c7b')}: <b>${entries.length}</b></span>
+                <span>${tBi('Total', '\u5408\u8ba1')}: <b>${totalInvocations}</b></span>
                 ${convNote}
                 ${moreNote}
             </li>
         </ul>
+        ${catalogHtml}
     </div>`;
 }
 

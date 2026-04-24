@@ -247,6 +247,9 @@ export interface GMSummary {
     /** Deduplicated unique error types: one entry per error code, first-seen only.
      *  Provides a "catalog" of all error kinds encountered for investigation. */
     uniqueErrors?: UniqueErrorEntry[];
+    /** Deduplicated tool catalog: one entry per tool name, first-seen timestamp.
+     *  Provides a persistent inventory of all tools AI has used. */
+    toolCatalog?: ToolCatalogEntry[];
 }
 
 /** A deduplicated error entry — one per unique error code, preserving only the first occurrence. */
@@ -267,6 +270,16 @@ export interface RecentErrorEntry {
     code: string;
     /** ISO timestamp of the call that produced this error */
     createdAt: string;
+}
+
+/** A cataloged tool entry — one per unique tool name, tracking first usage. */
+export interface ToolCatalogEntry {
+    /** Tool name (e.g. 'read_file', 'codebase_search') */
+    name: string;
+    /** ISO timestamp of the first call that used this tool */
+    firstSeen: string;
+    /** Human-readable description of what this tool does (for future use) */
+    description?: string;
 }
 
 /** Lightweight snapshot of a baselined quota cycle ("pending archive"). */
@@ -325,6 +338,8 @@ export interface GMTrackerState {
     persistedRecentErrorsByAccount?: Record<string, string[]>;
     /** Per-account deduplicated unique errors: email → { errorCode → { message, firstSeen } } (added v1.17.x) */
     persistedUniqueErrorsByAccount?: Record<string, Record<string, { message: string; firstSeen: string }>>;
+    /** Per-account tool catalog: email → { toolName → { firstSeen, description? } } (added v1.17.x) */
+    persistedToolCatalogByAccount?: Record<string, Record<string, { firstSeen: string; description?: string }>>;
 }
 
 // ─── Clone Utilities ─────────────────────────────────────────────────────────

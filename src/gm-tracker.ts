@@ -20,6 +20,7 @@ export type {
     PendingArchiveEntry,
     UniqueErrorEntry,
     RecentErrorEntry,
+    ToolCatalogEntry,
 } from './gm';
 
 export {

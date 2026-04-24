@@ -20,6 +20,7 @@ export type {
     PendingArchiveEntry,
     UniqueErrorEntry,
     RecentErrorEntry,
+    ToolCatalogEntry,
 } from './types';
 export { cloneTokenBreakdownGroups, cloneGMCallEntry, cloneConversationData, slimCallForPersistence, slimSummaryForPersistence, slimConversationForPersistence } from './types';
 

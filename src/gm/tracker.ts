@@ -19,6 +19,7 @@ import type {
     TokenBreakdownGroup,
     UniqueErrorEntry,
     RecentErrorEntry,
+    ToolCatalogEntry,
 } from './types';
 import { cloneConversationData, cloneTokenBreakdownGroups } from './types';
 import {
@@ -99,6 +100,9 @@ export class GMTracker {
     /** Per-account deduplicated unique errors: email → { errorCode → { message, firstSeen } }.
      *  Only the first occurrence of each error code is kept. */
     private _persistedUniqueErrorsByAccount: Record<string, Record<string, { message: string; firstSeen: string }>> = {};
+    /** Per-account tool catalog: email → { toolName → { firstSeen, description? } }.
+     *  Tracks the first usage of each tool for building a persistent inventory. */
+    private _persistedToolCatalogByAccount: Record<string, Record<string, { firstSeen: string; description?: string }>> = {};
     /** Tracks per-conversation RUNNING status to detect RUNNING→IDLE transition. */
     private _lastRunningStatus = new Map<string, boolean>();
 
@@ -277,6 +281,7 @@ export class GMTracker {
         const toolCallCounts: Record<string, number> = {};
         const toolCallCountsByConv: Record<string, Record<string, number>> = {};
         const retryErrorCodesByConv: Record<string, Record<string, number>> = {};
+        const toolCatalogMap = new Map<string, ToolCatalogEntry>();
         const contextGrowth: { step: number; tokens: number; model: string }[] = [];
 
         for (const [, conv] of this._cache) {
@@ -343,6 +348,7 @@ export class GMTracker {
             const countedToolSteps = new Set<number>();
             const convToolCounts: Record<string, number> = {};
             for (const c of sliced) {
+                const callTime = c.createdAt || '';
                 for (const stepIdx of c.stepIndices) {
                     if (countedToolSteps.has(stepIdx)) { continue; }
                     const toolNames = c.toolCallsByStep[stepIdx];
@@ -351,6 +357,11 @@ export class GMTracker {
                         for (const name of toolNames) {
                             toolCallCounts[name] = (toolCallCounts[name] || 0) + 1;
                             convToolCounts[name] = (convToolCounts[name] || 0) + 1;
+                            // Track first-seen for tool catalog
+                            const existing = toolCatalogMap.get(name);
+                            if (!existing || (callTime && callTime < existing.firstSeen)) {
+                                toolCatalogMap.set(name, { name, firstSeen: callTime });
+                            }
                         }
                     }
                 }
@@ -583,6 +594,34 @@ export class GMTracker {
         result.recentErrorEntries = allErrorEntries
             .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
             .slice(0, 20);
+
+        // ── Merge tool catalog with persisted data ──
+        const acctKey = this._currentAccountEmail || '__default__';
+        const persistedCatalog = this._persistedToolCatalogByAccount[acctKey] || {};
+        // Merge persisted → fresh map (keep earliest firstSeen + carry descriptions)
+        for (const [name, persisted] of Object.entries(persistedCatalog)) {
+            const fresh = toolCatalogMap.get(name);
+            if (!fresh) {
+                // Tool only exists in persisted data (API didn't return it yet)
+                toolCatalogMap.set(name, { name, firstSeen: persisted.firstSeen, description: persisted.description });
+            } else if (persisted.firstSeen && persisted.firstSeen < fresh.firstSeen) {
+                // Persisted has an earlier firstSeen
+                fresh.firstSeen = persisted.firstSeen;
+                if (persisted.description) { fresh.description = persisted.description; }
+            } else if (persisted.description && !fresh.description) {
+                fresh.description = persisted.description;
+            }
+        }
+        result.toolCatalog = [...toolCatalogMap.values()].sort((a, b) =>
+            a.firstSeen.localeCompare(b.firstSeen),
+        );
+        // Write back to persisted store
+        const catalogPersist: Record<string, { firstSeen: string; description?: string }> = {};
+        for (const entry of result.toolCatalog) {
+            catalogPersist[entry.name] = { firstSeen: entry.firstSeen };
+            if (entry.description) { catalogPersist[entry.name].description = entry.description; }
+        }
+        this._persistedToolCatalogByAccount[acctKey] = catalogPersist;
 
         // Merge persisted baselines with fresh data (max-wins per tool)
         // This ensures tool counts survive restarts even if the API doesn't
@@ -856,6 +895,7 @@ export class GMTracker {
         this._persistedRetryErrorCodesByAccount = {};
         this._persistedRecentErrorsByAccount = {};
         this._persistedUniqueErrorsByAccount = {};
+        this._persistedToolCatalogByAccount = {};
         this._persistedRetryErrorCodes = {};
         this._persistedRecentErrors = [];
 
@@ -938,6 +978,7 @@ export class GMTracker {
         this._persistedRetryErrorCodesByAccount = {};
         this._persistedRecentErrorsByAccount = {};
         this._persistedUniqueErrorsByAccount = {};
+        this._persistedToolCatalogByAccount = {};
         this._lastSummary = null;
         this._lastFetchedAt = '';
     }
@@ -962,6 +1003,7 @@ export class GMTracker {
         this._persistedRetryErrorCodesByAccount = {};
         this._persistedRecentErrorsByAccount = {};
         this._persistedUniqueErrorsByAccount = {};
+        this._persistedToolCatalogByAccount = {};
         this._lastSummary = null;
         this._lastFetchedAt = '';
         this._needsBaselineInit = true;
@@ -1172,6 +1214,7 @@ export class GMTracker {
             persistedRetryErrorCodesByAccount: Object.keys(this._persistedRetryErrorCodesByAccount).length > 0 ? this._persistedRetryErrorCodesByAccount : undefined,
             persistedRecentErrorsByAccount: Object.keys(this._persistedRecentErrorsByAccount).length > 0 ? this._persistedRecentErrorsByAccount : undefined,
             persistedUniqueErrorsByAccount: Object.keys(this._persistedUniqueErrorsByAccount).length > 0 ? this._persistedUniqueErrorsByAccount : undefined,
+            persistedToolCatalogByAccount: Object.keys(this._persistedToolCatalogByAccount).length > 0 ? this._persistedToolCatalogByAccount : undefined,
         };
     }
 
@@ -1293,6 +1336,10 @@ export class GMTracker {
         // Restore per-account unique errors (added v1.17.x)
         if (data.persistedUniqueErrorsByAccount && typeof data.persistedUniqueErrorsByAccount === 'object') {
             tracker._persistedUniqueErrorsByAccount = JSON.parse(JSON.stringify(data.persistedUniqueErrorsByAccount));
+        }
+        // Restore per-account tool catalog (added v1.17.x)
+        if (data.persistedToolCatalogByAccount && typeof data.persistedToolCatalogByAccount === 'object') {
+            tracker._persistedToolCatalogByAccount = JSON.parse(JSON.stringify(data.persistedToolCatalogByAccount));
         }
 
         return tracker;

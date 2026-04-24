@@ -8,6 +8,34 @@
 
 ---
 
+## 工具目录气泡标签 — 2026-04-24
+
+### 新增 / Added
+
+- **工具目录 / Tool Catalog**:
+  工具调用排行底部新增工具目录气泡标签（flex-wrap chips），每个气泡为一个去重工具名，hover 弹出中文描述 tooltip。
+
+  New tool catalog bubble tags at the bottom of the Tool Call Ranking section. Each bubble shows a unique tool name; hover displays a Chinese description tooltip.
+
+  - 新增 `ToolCatalogEntry` 接口（`name` / `firstSeen` / `description?`）
+  - `GMSummary.toolCatalog` 字段 + `GMTrackerState.persistedToolCatalogByAccount` 持久化
+  - 在工具计数循环中同步收集 `firstSeen`（取最早 `call.createdAt`）
+  - 与持久化数据合并（保留最早 firstSeen + 保留已有 description）
+  - 跨重启保留、多账号隔离、额度重置 / 午夜归档同步清零
+  - 内置 19 种 AI 编码助手工具中文描述映射表（`toolDesc`）
+  - `data-tooltip` CSS tooltip 系统复用，hover 即时显示
+
+### 统计 / Stats
+
+- **Files changed**: 5 (`src/gm/types.ts`, `src/gm/tracker.ts`, `src/gm/index.ts`, `src/gm-tracker.ts`, `src/activity-panel.ts`)
+- **Docs updated**: 2 (`docs/project_structure.md`, `CHANGELOG-v2.md`)
+- **TypeScript compile**: Zero errors
+- **Tests**: 50 passed
+- **New types**: `ToolCatalogEntry`
+- **New CSS classes**: `.tool-cat-chips`, `.tool-cat-chip`
+
+---
+
 ## 错误种类档案 + 报错日志升级 — 2026-04-24
 
 ### 新增 / Added
