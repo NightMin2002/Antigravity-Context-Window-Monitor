@@ -8,6 +8,49 @@
 
 ---
 
+## 上下文情报升级 — Model DNA + 上下文窗口容量 — 2026-04-24
+
+### 新增 / Added
+
+- **Artifacts 系统注入识别 / Artifacts System Context Classification**:
+  `classifySystemContext()` 新增 `<artifacts>` 标签识别规则，`GMSystemContextType` 新增 `'artifacts'` 类型（紫色图标）。
+
+  New `artifacts` classification for `<artifacts>` tags in system context with purple icon.
+
+- **Model DNA 可视化面板 / Model DNA Visualization**:
+  上下文情报（Context Intelligence）底部新增 3 张可折叠 Model DNA 卡片，展示模型运行时内部参数：
+
+  New collapsible Model DNA cards at the bottom of Context Intelligence viewer:
+
+  | 卡片 | 数据源 | 展示内容 |
+  |------|--------|---------|
+  | 系统提示词结构 | `promptSectionTitles` | 模型名 + 13 个 promptSection 彩色标签 + 工具/区段计数 |
+  | 生成配置 | `completionConfig` + `contextWindowCapacity` | temperature/topK/maxOutputTokens/stopPatterns + 上下文窗口容量进度条 |
+  | Token 组成 | `latestTokenBreakdown` | 上下文窗口 token 分布横向条形图（System Prompt / Chat / Tools 占比） |
+
+- **上下文窗口容量直取 / Context Window Capacity from GM Data**:
+  从 `gm.plannerConfig.truncationThresholdTokens` 提取真实的上下文窗口截断阈值（如 160000），不再使用启发式猜测。
+
+  `contextWindowCapacity` extracted directly from `plannerConfig.truncationThresholdTokens` in GM data, no heuristic estimation.
+
+  - 新增 `GMCallEntry.contextWindowCapacity` / `GMModelStats.contextWindowCapacity` 字段
+  - `parseGMEntry()` → `tracker.ts` 聚合 → `summary.ts` 合并，全链路打通
+  - 进度条标签从 `~200.0k`（估算）变为 `160.0k`（精确值），无波浪号
+
+- **空状态提示 / Empty State Placeholder**:
+  重装后 GM 数据尚未刷新时，上下文情报区域显示"等待 AI 回复中 — 上下文数据将在本次会话的首次模型调用后自动填充"提示，代替空白区域。
+
+  Empty state hint shown when no context data is available (e.g., after reinstall before first AI response).
+
+### 统计 / Stats
+
+- **Files changed**: 5 (`src/gm/types.ts`, `src/gm/parser.ts`, `src/gm/tracker.ts`, `src/gm/summary.ts`, `src/activity-panel.ts`)
+- **TypeScript compile**: Zero errors
+- **New fields**: `GMCallEntry.contextWindowCapacity`, `GMModelStats.contextWindowCapacity`
+- **New CSS classes**: `.ci-dna-chips`, `.ci-dna-chip`, `.ci-cfg-grid`, `.ci-cfg-row`, `.ci-cfg-label`, `.ci-cfg-val`
+
+---
+
 ## 全局颜色统一 + 去紫色化 — 2026-04-24
 
 ### 改进 / Improved

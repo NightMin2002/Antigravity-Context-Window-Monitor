@@ -202,6 +202,7 @@ export function filterGMSummaryByModels(
                 } else {
                     existing.placeholderOnlyCalls += 1;
                 }
+                if (call.contextWindowCapacity > 0) { existing.contextWindowCapacity = call.contextWindowCapacity; }
                 continue;
             }
 
@@ -230,6 +231,7 @@ export function filterGMSummaryByModels(
                 creditCallCount: call.credits > 0 ? 1 : 0,
                 exactCallCount: call.modelAccuracy === 'exact' ? 1 : 0,
                 placeholderOnlyCalls: call.modelAccuracy === 'placeholder' ? 1 : 0,
+                contextWindowCapacity: call.contextWindowCapacity || 0,
             };
         }
     }
@@ -306,6 +308,7 @@ export function mergeGMModelStats(target: GMModelStats, source: GMModelStats): v
     target.creditCallCount = (target.creditCallCount || 0) + (source.creditCallCount || 0);
     target.exactCallCount += source.exactCallCount;
     target.placeholderOnlyCalls += source.placeholderOnlyCalls;
+    if (source.contextWindowCapacity > 0) { target.contextWindowCapacity = source.contextWindowCapacity; }
 }
 
 export function normalizeGMSummary(summary: GMSummary): GMSummary {
@@ -447,6 +450,7 @@ export function buildSummaryFromConversations(
                     creditCallCount: call.credits > 0 ? 1 : 0,
                     exactCallCount: call.modelAccuracy === 'exact' ? 1 : 0,
                     placeholderOnlyCalls: call.modelAccuracy === 'placeholder' ? 1 : 0,
+                    contextWindowCapacity: call.contextWindowCapacity || 0,
                 });
             } else {
                 modelBreakdown[key] = {
@@ -474,6 +478,7 @@ export function buildSummaryFromConversations(
                     creditCallCount: call.credits > 0 ? 1 : 0,
                     exactCallCount: call.modelAccuracy === 'exact' ? 1 : 0,
                     placeholderOnlyCalls: call.modelAccuracy === 'placeholder' ? 1 : 0,
+                    contextWindowCapacity: call.contextWindowCapacity || 0,
                 };
             }
         }

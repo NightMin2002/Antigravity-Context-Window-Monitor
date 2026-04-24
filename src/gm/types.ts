@@ -48,6 +48,7 @@ export type GMSystemContextType =
     | 'user_rules'       // <user_rules>
     | 'mcp_servers'      // <mcp_servers>
     | 'workflows'        // <workflows>
+    | 'artifacts'        // <artifacts>
     | 'ephemeral'        // <EPHEMERAL_MESSAGE>
     | 'system_preamble'; // other system-injected content
 
@@ -148,6 +149,8 @@ export interface GMCallEntry {
     /** Per-step AI tool invocations: stepIdx → tool names invoked at that step.
      *  Extracted from messagePrompts SYSTEM entries' toolCalls[]. */
     toolCallsByStep: Record<number, string[]>;
+    /** Context window truncation threshold from plannerConfig (e.g. 160000) */
+    contextWindowCapacity: number;
 }
 
 /** Aggregated per-model statistics */
@@ -185,6 +188,8 @@ export interface GMModelStats {
     exactCallCount: number;
     /** Calls that only expose placeholder model IDs */
     placeholderOnlyCalls: number;
+    /** Context window truncation threshold from plannerConfig (e.g. 160000) */
+    contextWindowCapacity: number;
 }
 
 /** Per-conversation GM data */
@@ -442,6 +447,7 @@ export function slimCallForPersistence(call: GMCallEntry): GMCallEntry {
         systemContextItems: [],
         accountEmail: call.accountEmail,
         toolCallsByStep: {},
+        contextWindowCapacity: call.contextWindowCapacity,
     };
 }
 

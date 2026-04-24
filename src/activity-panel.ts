@@ -1946,6 +1946,57 @@ export function getGMDataTabStyles(): string {
     body.vscode-light .cp-card-chip-tok { background: rgba(202,138,4,0.1); color: #92400e; border-color: rgba(202,138,4,0.2); }
     body.vscode-light .cp-card-body h1, body.vscode-light .cp-card-body h2, body.vscode-light .cp-card-body h3 { color: var(--color-amber); }
 
+    /* ─── Model DNA Cards (Context Intelligence) ─── */
+    .ci-dna-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+    .ci-dna-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        padding: 3px 10px;
+        border-radius: 12px;
+        font-size: 0.8em;
+        font-family: var(--font-mono, monospace);
+        background: var(--color-surface);
+        border: 1px solid;
+        white-space: nowrap;
+        transition: background 0.12s ease, border-color 0.12s ease;
+    }
+    @media (hover: hover) {
+        .ci-dna-chip:hover {
+            background: var(--color-surface-hover);
+        }
+    }
+    .ci-cfg-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+    .ci-cfg-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: var(--space-2);
+        font-size: 0.88em;
+    }
+    .ci-cfg-label {
+        font-family: var(--font-mono, monospace);
+        color: var(--color-text-dim);
+        font-size: 0.92em;
+    }
+    .ci-cfg-val {
+        font-family: var(--font-mono, monospace);
+        font-weight: 600;
+        color: var(--color-text);
+        font-variant-numeric: tabular-nums;
+    }
+    body.vscode-light .ci-dna-chip {
+        background: var(--color-surface-dim);
+    }
+
     /* ─── Tool Call Ranking ─── */
     .tool-rank-section {
         margin-bottom: var(--space-4);
@@ -3162,7 +3213,16 @@ function buildContextIntelViewer(s: GMSummary): string {
         }
     }
 
-    if (rawItems.length === 0) { return ''; }
+    // Even if rawItems is empty, we may still have model DNA data to show
+    const hasModelDNA = Object.keys(s.modelBreakdown).some(k => {
+        const ms = s.modelBreakdown[k];
+        return (ms.promptSectionTitles && ms.promptSectionTitles.length > 0)
+            || ms.completionConfig
+            || ms.toolCount > 0;
+    });
+    const hasTokenBreakdown = s.latestTokenBreakdown && s.latestTokenBreakdown.length > 0;
+
+    if (rawItems.length === 0 && !hasModelDNA && !hasTokenBreakdown) { return ''; }
 
     // Deduplicate by type+stepIndex, keep richest
     const byKey = new Map<string, GMSystemContextItem>();
@@ -3209,6 +3269,11 @@ function buildContextIntelViewer(s: GMSummary): string {
             color: '#f472b6',
             label: tBi('Workflows', '工作流'),
         },
+        artifacts: {
+            icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>',
+            color: '#a78bfa',
+            label: 'Artifacts',
+        },
         ephemeral: {
             icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>',
             color: '#94a3b8',
@@ -3221,7 +3286,8 @@ function buildContextIntelViewer(s: GMSummary): string {
         },
     };
 
-    const cards = items.map((item, idx) => {
+    // ── Build context item cards (existing) ──
+    const contextCards = items.map((item, idx) => {
         const conf = typeConfig[item.type] || typeConfig.system_preamble;
         const bodyHtml = esc(item.fullText)
             .replace(/\{\{\s*CHECKPOINT\s+(\d+)\s*\}\}/gi, '<h2>CHECKPOINT $1</h2>')
@@ -3247,6 +3313,170 @@ function buildContextIntelViewer(s: GMSummary): string {
         </details>`;
     }).join('');
 
+    // ── Build Model DNA cards (new) ──
+    const dnaCards: string[] = [];
+    const dnaIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20M7 4l10 16M17 4L7 20"/></svg>';
+    const promptIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>';
+    const configIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>';
+
+    // Per-model iteration for DNA cards
+    for (const [modelName, ms] of Object.entries(s.modelBreakdown)) {
+        if (ms.callCount <= 0) { continue; }
+
+        // 1. System Prompt Structure card
+        if (ms.promptSectionTitles && ms.promptSectionTitles.length > 0) {
+            const sectionChips = ms.promptSectionTitles.map((title, i) => {
+                const sectionColors = ['#60a5fa', '#4ade80', '#fbbf24', '#f472b6', '#2dd4bf', '#a78bfa', '#06b6d4', '#f59e0b', '#ef4444', '#94a3b8', '#8b5cf6', '#14b8a6', '#e879f9'];
+                const col = sectionColors[i % sectionColors.length];
+                return `<span class="ci-dna-chip" style="border-color:${col}44;color:${col}">${esc(title)}</span>`;
+            }).join('');
+            dnaCards.push(`<details class="cp-card" id="ciDna-sp-${esc(modelName)}" style="--ci-color:#60a5fa">
+                <summary class="cp-card-header">
+                    <span class="ci-icon" style="color:#60a5fa;width:14px;height:14px;display:inline-flex;flex-shrink:0">${promptIcon}</span>
+                    <span style="font-weight:600;color:#60a5fa">${tBi('System Prompt Structure', '系统提示词结构')}</span>
+                    <span class="cp-card-chip cp-card-chip-tok">${ms.promptSectionTitles.length} ${tBi('sections', '区段')}</span>
+                    ${ms.toolCount > 0 ? `<span class="cp-card-chip cp-card-chip-step">${ms.toolCount} ${tBi('tools', '工具')}</span>` : ''}
+                </summary>
+                <div class="cp-card-body" style="white-space:normal">
+                    <div style="margin-bottom:8px;font-size:0.88em;color:var(--color-text-dim)">${esc(modelName)}</div>
+                    <div class="ci-dna-chips">${sectionChips}</div>
+                </div>
+            </details>`);
+        }
+
+        // 2. Completion Config card (with context window capacity)
+        if (ms.completionConfig) {
+            const cc = ms.completionConfig;
+            // Find the latest call for this model to get contextTokensUsed
+            let latestContextUsed = 0;
+            let maxContextSeen = 0;
+            for (const conv of s.conversations) {
+                for (const call of conv.calls) {
+                    const callModel = normalizeModelDisplayName(call.modelDisplay || call.model);
+                    if (callModel === modelName && call.contextTokensUsed > 0) {
+                        if (!latestContextUsed || call.createdAt > latestTime) {
+                            latestContextUsed = call.contextTokensUsed;
+                        }
+                        if (call.contextTokensUsed > maxContextSeen) {
+                            maxContextSeen = call.contextTokensUsed;
+                        }
+                    }
+                }
+            }
+
+            // Context capacity estimation:
+            // maxTokens from completionConfig is the OUTPUT limit (e.g. 16384)
+            // The context window threshold is not directly available, but we can show maxContextSeen
+            // and a rough heuristic: typical thresholds are 128K, 160K, 200K
+            const configRows: string[] = [];
+            configRows.push(`<div class="ci-cfg-row"><span class="ci-cfg-label">temperature</span><span class="ci-cfg-val">${cc.temperature}</span></div>`);
+            if (cc.firstTemperature !== cc.temperature) {
+                configRows.push(`<div class="ci-cfg-row"><span class="ci-cfg-label">firstTemperature</span><span class="ci-cfg-val">${cc.firstTemperature}</span></div>`);
+            }
+            configRows.push(`<div class="ci-cfg-row"><span class="ci-cfg-label">topK</span><span class="ci-cfg-val">${cc.topK}</span></div>`);
+            if (cc.topP !== 1) {
+                configRows.push(`<div class="ci-cfg-row"><span class="ci-cfg-label">topP</span><span class="ci-cfg-val">${cc.topP}</span></div>`);
+            }
+            configRows.push(`<div class="ci-cfg-row"><span class="ci-cfg-label">maxOutputTokens</span><span class="ci-cfg-val">${fmt(cc.maxTokens)}</span></div>`);
+            if (cc.stopPatternCount > 0) {
+                configRows.push(`<div class="ci-cfg-row"><span class="ci-cfg-label">stopPatterns</span><span class="ci-cfg-val">${cc.stopPatternCount}</span></div>`);
+            }
+
+            // Context window capacity bar
+            let capacityHtml = '';
+            // Use the actual truncation threshold from plannerConfig (extracted from GM data)
+            const contextCap = ms.contextWindowCapacity || 0;
+            if (contextCap > 0 || maxContextSeen > 0) {
+                const cap = contextCap > 0 ? contextCap : maxContextSeen;
+                const usagePct = cap > 0 ? Math.min(100, Math.round(latestContextUsed / cap * 100)) : 0;
+                const barColor = usagePct > 85 ? '#ef4444' : usagePct > 65 ? '#f59e0b' : '#4ade80';
+                const capLabel = contextCap > 0 ? fmt(contextCap) : `~${fmt(cap)}`;
+                capacityHtml = `
+                    <div style="margin-top:8px;padding-top:6px;border-top:1px solid var(--color-divider)">
+                        <div class="ci-cfg-row" style="margin-bottom:4px">
+                            <span class="ci-cfg-label">${tBi('Context Window', '上下文窗口')}</span>
+                            <span class="ci-cfg-val">${fmt(latestContextUsed)} / ${capLabel}</span>
+                        </div>
+                        <div style="height:6px;background:var(--color-surface-hover);border-radius:3px;overflow:hidden">
+                            <div style="height:100%;width:${usagePct}%;background:${barColor};border-radius:3px;transition:width 0.3s"></div>
+                        </div>
+                        <div style="font-size:0.78em;color:var(--color-text-dim);margin-top:3px">${usagePct}% ${tBi('used', '已使用')} · ${tBi('peak', '峰值')} ${fmt(maxContextSeen)}</div>
+                    </div>`;
+            }
+
+            dnaCards.push(`<details class="cp-card" id="ciDna-cc-${esc(modelName)}" style="--ci-color:#f59e0b">
+                <summary class="cp-card-header">
+                    <span class="ci-icon" style="color:#f59e0b;width:14px;height:14px;display:inline-flex;flex-shrink:0">${configIcon}</span>
+                    <span style="font-weight:600;color:#f59e0b">${tBi('Generation Config', '生成配置')}</span>
+                    <span class="cp-card-chip cp-card-chip-tok">T=${cc.temperature}</span>
+                    ${latestContextUsed > 0 ? `<span class="cp-card-chip cp-card-chip-step">${fmt(latestContextUsed)} ctx</span>` : ''}
+                </summary>
+                <div class="cp-card-body" style="white-space:normal">
+                    <div style="margin-bottom:8px;font-size:0.88em;color:var(--color-text-dim)">${esc(modelName)}</div>
+                    <div class="ci-cfg-grid">${configRows.join('')}</div>
+                    ${capacityHtml}
+                </div>
+            </details>`);
+        }
+    }
+
+    // 3. Token Breakdown card (from latestTokenBreakdown)
+    if (hasTokenBreakdown) {
+        const groups = s.latestTokenBreakdown;
+        const total = groups.reduce((sum, g) => sum + g.tokens, 0);
+        const breakdownColors = ['#60a5fa', '#4ade80', '#fbbf24', '#f472b6', '#2dd4bf', '#a78bfa'];
+        const breakdownRows = groups.map((g, i) => {
+            const pct = total > 0 ? Math.max(1, Math.round(g.tokens / total * 100)) : 0;
+            const col = breakdownColors[i % breakdownColors.length];
+            const gName = g.name || g.type.replace('TOKEN_TYPE_', '').replace(/_/g, ' ');
+            let childHtml = '';
+            if (g.children.length > 0) {
+                const chips = g.children.map(ch => {
+                    return `<span class="ci-dna-chip" style="border-color:${col}44;color:${col};font-size:0.82em">${esc(ch.name)} <b>${fmt(ch.tokens)}</b></span>`;
+                }).join('');
+                childHtml = `<div class="ci-dna-chips" style="margin-top:3px;padding-left:16px">${chips}</div>`;
+            }
+            return `<div style="margin-bottom:6px">
+                <div class="ci-cfg-row">
+                    <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:${col};flex-shrink:0"></span><span class="ci-cfg-label" style="min-width:0">${esc(gName)}</span></span>
+                    <span class="ci-cfg-val">${fmt(g.tokens)} (${pct}%)</span>
+                </div>
+                <div style="height:4px;background:var(--color-surface-hover);border-radius:2px;overflow:hidden;margin-top:2px">
+                    <div style="height:100%;width:${pct}%;background:${col};border-radius:2px"></div>
+                </div>
+                ${childHtml}
+            </div>`;
+        }).join('');
+        const breakdownIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 10 10"/><path d="M12 12V2"/><path d="M12 12h10"/></svg>';
+
+        dnaCards.push(`<details class="cp-card" id="ciDna-tb" style="--ci-color:#f97316">
+            <summary class="cp-card-header">
+                <span class="ci-icon" style="color:#f97316;width:14px;height:14px;display:inline-flex;flex-shrink:0">${breakdownIcon}</span>
+                <span style="font-weight:600;color:#f97316">${tBi('Token Composition', 'Token 组成')}</span>
+                <span class="cp-card-chip cp-card-chip-tok">${fmt(total)} total</span>
+            </summary>
+            <div class="cp-card-body" style="white-space:normal">
+                <div style="font-size:0.82em;color:var(--color-text-dim);margin-bottom:8px">${tBi('Latest snapshot of context window token distribution', '上下文窗口 token 分布最新快照')}</div>
+                ${breakdownRows}
+            </div>
+        </details>`);
+    }
+
+    // Combine all cards
+    const allCards = contextCards + dnaCards.join('');
+
+    // Empty state: show hint when no cards are available (e.g. after reinstall before first AI response)
+    if (!allCards) {
+        const emptyIcon = `<svg class="act-icon" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>`;
+        return `<details class="ci-section" id="ciSection">
+        <summary class="ci-section-header">${emptyIcon}${tBi('Context Intelligence', '上下文情报')}</summary>
+        <div class="cp-viewer"><div style="text-align:center;padding:var(--space-4);color:var(--color-text-dim);font-size:0.85em">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:28px;height:28px;margin:0 auto 8px;display:block;opacity:0.4"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+            ${tBi('Waiting for AI response — context data will populate automatically after the first model call in this session.', '等待 AI 回复中 — 上下文数据将在本次会话的首次模型调用后自动填充。')}
+        </div></div>
+        </details>`;
+    }
+
     // Count by type for badge
     const typeCounts = new Map<string, number>();
     for (const item of items) {
@@ -3257,12 +3487,17 @@ function buildContextIntelViewer(s: GMSummary): string {
         const conf = typeConfig[type] || typeConfig.system_preamble;
         badgeParts.push(`<span class="act-badge" style="background:${conf.color}22;color:${conf.color};border:1px solid ${conf.color}44">${conf.label}${count > 1 ? ' ' + count : ''}</span>`);
     }
+    // Add DNA badges
+    if (dnaCards.length > 0) {
+        const dnaColor = '#f59e0b';
+        badgeParts.push(`<span class="act-badge" style="background:${dnaColor}22;color:${dnaColor};border:1px solid ${dnaColor}44">${tBi('Model DNA', '模型 DNA')}${dnaCards.length > 1 ? ' ' + dnaCards.length : ''}</span>`);
+    }
 
     const titleIcon = `<svg class="act-icon" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>`;
 
     return `<details class="ci-section" id="ciSection">
     <summary class="ci-section-header">${titleIcon}${tBi('Context Intelligence', '上下文情报')} <span class="ci-badges">${badgeParts.join(' ')}</span></summary>
-    <div class="cp-viewer">${cards}</div>
+    <div class="cp-viewer">${allCards}</div>
     </details>`;
 }
 

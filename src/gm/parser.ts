@@ -310,6 +310,10 @@ function classifySystemContext(prompt: string): { type: GMSystemContextType; lab
     if (trimmed.startsWith('<workflows>')) {
         return { type: 'workflows', label: 'Workflows' };
     }
+    // Artifacts path
+    if (trimmed.startsWith('<artifacts>') || /^Artifact Directory Path:/i.test(trimmed)) {
+        return { type: 'artifacts', label: 'Artifacts' };
+    }
     // EPHEMERAL_MESSAGE
     if (trimmed.startsWith('The following is an <EPHEMERAL_MESSAGE>') || trimmed.startsWith('<EPHEMERAL_MESSAGE>')) {
         return { type: 'ephemeral', label: 'Ephemeral Message' };
@@ -707,6 +711,10 @@ export function parseGMEntry(gm: Record<string, unknown>): GMCallEntry {
         });
     }
 
+    // ── contextWindowCapacity from plannerConfig ──────────────────────────
+    const pc = (gm.plannerConfig || {}) as Record<string, unknown>;
+    const contextWindowCapacity = parseInt0(pc.truncationThresholdTokens as string);
+
     return {
         stepIndices: (gm.stepIndices as number[]) || [],
         executionId: (gm.executionId as string) || '',
@@ -755,5 +763,6 @@ export function parseGMEntry(gm: Record<string, unknown>): GMCallEntry {
         checkpointSummaries: promptData.checkpointSummaries,
         systemContextItems: promptData.systemContextItems,
         toolCallsByStep: promptData.toolCallsByStep,
+        contextWindowCapacity,
     };
 }

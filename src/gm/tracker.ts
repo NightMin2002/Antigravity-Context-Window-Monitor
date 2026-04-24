@@ -261,6 +261,7 @@ export class GMTracker {
             creditCallCount: number;
             exactCallCount: number;
             placeholderOnlyCalls: number;
+            contextWindowCapacity: number;
         }>();
 
         let totalCalls = 0;
@@ -432,6 +433,7 @@ export class GMTracker {
                         creditCallCount: 0,
                         exactCallCount: 0,
                         placeholderOnlyCalls: 0,
+                        contextWindowCapacity: 0,
                     };
                     modelAgg.set(key, agg);
                 }
@@ -459,6 +461,7 @@ export class GMTracker {
                 if (c.hasError) { agg.errorCount++; }
                 if (c.modelAccuracy === 'exact') { agg.exactCallCount++; }
                 else { agg.placeholderOnlyCalls++; }
+                if (c.contextWindowCapacity > 0) { agg.contextWindowCapacity = c.contextWindowCapacity; }
 
                 // Retry overhead aggregation
                 const retryTok = c.retryTokensIn + c.retryTokensOut;
@@ -529,6 +532,7 @@ export class GMTracker {
                 creditCallCount: agg.creditCallCount,
                 exactCallCount: agg.exactCallCount,
                 placeholderOnlyCalls: agg.placeholderOnlyCalls,
+                contextWindowCapacity: agg.contextWindowCapacity,
             };
         }
 
