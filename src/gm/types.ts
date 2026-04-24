@@ -249,15 +249,16 @@ export interface GMSummary {
     /** Per-conversation error code counts: cascadeId → { errorCode → count }.
      *  Uses sliced calls (immune to archival), used for red +x delta rendering. */
     retryErrorCodesByConv?: Record<string, Record<string, number>>;
-    /** Deduplicated unique error types: one entry per error code, first-seen only.
-     *  Provides a "catalog" of all error kinds encountered for investigation. */
+    /** Deduplicated unique error types: one entry per unique normalized message content.
+     *  Provides a cross-account "catalog" of all error kinds encountered for investigation.
+     *  Uses normalizeErrorMessage() to group semantically identical messages. */
     uniqueErrors?: UniqueErrorEntry[];
     /** Deduplicated tool catalog: one entry per tool name, first-seen timestamp.
      *  Provides a persistent inventory of all tools AI has used. */
     toolCatalog?: ToolCatalogEntry[];
 }
 
-/** A deduplicated error entry — one per unique error code, preserving only the first occurrence. */
+/** A deduplicated error entry — one per unique normalized message content, preserving only the first occurrence. */
 export interface UniqueErrorEntry {
     /** Parsed short error code (e.g. '429', '503', 'stream_error') */
     code: string;
@@ -341,7 +342,10 @@ export interface GMTrackerState {
     persistedRetryErrorCodesByAccount?: Record<string, Record<string, number>>;
     /** Per-account persisted recent errors: email → string[] (added v1.17.2) */
     persistedRecentErrorsByAccount?: Record<string, string[]>;
-    /** Per-account deduplicated unique errors: email → { errorCode → { message, firstSeen } } (added v1.17.x) */
+    /** Per-account deduplicated unique errors: email → { normalizedMessage → { message, firstSeen } } (added v1.17.x)
+     *  Key changed from errorCode to normalizeErrorMessage(msg) so different messages under
+     *  the same code are tracked separately. Collected cross-account (like tool catalog),
+     *  stored under current account key as the persistence bucket. */
     persistedUniqueErrorsByAccount?: Record<string, Record<string, { message: string; firstSeen: string }>>;
     /** Per-account tool catalog: email → { toolName → { firstSeen, description? } } (added v1.17.x) */
     persistedToolCatalogByAccount?: Record<string, Record<string, { firstSeen: string; description?: string }>>;

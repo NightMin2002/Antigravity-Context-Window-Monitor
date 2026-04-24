@@ -42,6 +42,27 @@ export function parseErrorCode(errorMsg: string): string {
     return 'unknown';
 }
 
+/**
+ * Normalize an error message for content-based deduplication.
+ * Strips volatile parts (port numbers, reset wait times) while preserving
+ * the semantic identity of the error. Two errors are considered the same
+ * "kind" if their normalized forms match.
+ *
+ * Examples:
+ *   'RESOURCE_EXHAUSTED ... reset after 0s.' → same kind as 'reset after 1s.'
+ *   'write tcp 198.18.0.1:14266->...:443' → same kind as '198.18.0.1:5167->...:443'
+ *   'failed to read file: open e:/path/file1.txt' → different from 'file2.txt'
+ */
+export function normalizeErrorMessage(msg: string): string {
+    return msg
+        // Normalize "Your quota will reset after Ns." — the wait time is volatile
+        .replace(/reset after \d+s/g, 'reset after Ns')
+        // Normalize TCP source port: "198.18.0.1:14266->" → "198.18.0.1:PORT->"
+        .replace(/(\d+\.\d+\.\d+\.\d+):\d+(->)/g, '$1:PORT$2')
+        // Trim trailing whitespace for consistency
+        .trim();
+}
+
 /** Aggregate retryErrors from a call into error code counts and recent errors list */
 function aggregateRetryErrors(
     call: GMCallEntry,

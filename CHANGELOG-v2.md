@@ -8,6 +8,54 @@
 
 ---
 
+## 错误种类按内容去重 + 跨账号可见 — 2026-04-24
+
+### 改进 / Improved
+
+- **错误种类按消息内容去重 / Error Types Deduplicated by Message Content**:
+  「错误种类」目录的去重逻辑从"按 error code 去重"（如 `429`/`500`/`unknown`）改为"按规范化消息内容去重"。不同内容的错误即使错误码相同，也会被记录为独立种类。
+
+  Error type catalog deduplication changed from error-code-based to normalized-message-content-based. Different messages under the same error code are now tracked as separate error types.
+
+  | 改前 | 改后 |
+  |------|------|
+  | 同 429 不同消息 → 合并为 1 种 | 同 429 不同消息 → 各自独立 |
+  | `wsasend:14266` 和 `wsasend:5167` → 合并（同为 500） | 合并（TCP 源端口规范化） |
+  | `reset after 0s` 和 `reset after 1s` → 合并（同为 429） | 合并（等待时间规范化） |
+  | `context canceled` 和 `wsasend` → 合并（同为 500） | 独立（内容不同） |
+  | `failed to read file` 和 `task scope too simple` → 合并（同为 unknown） | 独立（内容不同） |
+
+- **错误种类跨账号可见 / Error Types Cross-Account Visibility**:
+  错误种类目录收集逻辑移除账号过滤，跨所有账号收集（类似工具调用排行）。报错日志保持仅当前账号。
+
+  Error type catalog now collects from ALL accounts (like tool call ranking). Error log remains current-account only.
+
+### 新增 / Added
+
+- **`normalizeErrorMessage()` 规范化函数 / Error Message Normalization**:
+  新增 `normalizeErrorMessage()`（`summary.ts`），将错误消息中的易变部分规范化后用作去重 key：
+  - TCP 源端口号 `198.18.0.1:14266->` → `198.18.0.1:PORT->`
+  - Quota reset 等待时间 `reset after 0s` → `reset after Ns`
+  - 保留核心语义差异（不同文件路径、不同 URL、不同错误类型）
+
+  New `normalizeErrorMessage()` strips volatile parts (port numbers, reset wait times) while preserving semantic identity for deduplication.
+
+### 修复 / Fixed
+
+- **旧版持久化数据迁移 / Legacy Persisted Data Migration**:
+  旧版 `persistedUniqueErrorsByAccount` 以 errorCode 为 key（如 `"500"` → `{message, firstSeen}`），新版以 `normalizeErrorMessage(msg)` 为 key。合并前所有旧条目通过 `normalizeErrorMessage()` 重新分桶，避免新旧 key 共存导致同一错误出现两条。
+
+  Old persisted entries (keyed by errorCode) are migrated to normalized-message keys during merge, preventing duplicate entries from key format mismatch.
+
+### 统计 / Stats
+
+- **Files changed**: 3 (`src/gm/types.ts`, `src/gm/tracker.ts`, `src/gm/summary.ts`)
+- **UI updated**: 1 (`src/activity-panel.ts` — 注释更新)
+- **TypeScript compile**: Zero errors
+- **Tests**: 50 passed
+
+---
+
 ## 状态栏上下文窗口精准化 — GM 数据驱动 — 2026-04-24
 
 ### 变更 / Changed

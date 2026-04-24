@@ -28,7 +28,7 @@ import {
     shouldEnrichConversation,
     buildGMArchiveKey,
 } from './parser';
-import { buildSummaryFromConversations, normalizeGMSummary, parseErrorCode } from './summary';
+import { buildSummaryFromConversations, normalizeGMSummary, parseErrorCode, normalizeErrorMessage } from './summary';
 
 /** Deduplicate checkpoint summaries from multiple GM calls, keyed by stepIndex */
 function deduplicateCheckpoints(calls: GMCallEntry[]): GMCheckpointSummary[] {
@@ -561,39 +561,58 @@ export class GMTracker {
             retryErrorCodesByConv,
         };
 
-        // ── Collect unique error types (deduped by error code, first-seen wins) ──
-        // Also collect structured recentErrorEntries with parsed code + timestamp
+        // ── Collect unique error types (cross-account, like tool ranking) ──
+        // Iterates ALL calls from ALL accounts (no account filter) so the error
+        // catalog shows every error kind encountered, regardless of which account
+        // triggered it. Uses conversations[] which contain activeCalls (post-archival).
+        // Key = normalizeErrorMessage(msg) to group semantically identical errors
+        // (e.g. same 429 with different reset wait times) while keeping distinct
+        // messages (different TCP endpoints, different file paths) separate.
         const uniqueErrorMap = new Map<string, UniqueErrorEntry>();
-        const allErrorEntries: RecentErrorEntry[] = [];
         for (const conv of conversations) {
             for (const c of conv.calls) {
-                // Only process calls belonging to current account (same source as retryErrorCodes)
-                if (this._currentAccountEmail && !skipAccountFilter
-                    && c.accountEmail && c.accountEmail !== this._currentAccountEmail) {
-                    continue;
-                }
                 const callTime = c.createdAt || '';
                 for (const errMsg of c.retryErrors) {
                     const code = parseErrorCode(errMsg);
-                    const existing = uniqueErrorMap.get(code);
+                    const normKey = normalizeErrorMessage(errMsg);
+                    const existing = uniqueErrorMap.get(normKey);
                     if (!existing || (callTime && callTime < existing.firstSeen)) {
-                        uniqueErrorMap.set(code, { code, message: errMsg, firstSeen: callTime });
+                        uniqueErrorMap.set(normKey, { code, message: errMsg, firstSeen: callTime });
                     }
-                    allErrorEntries.push({ message: errMsg, code, createdAt: callTime });
                 }
                 if (c.hasError && c.errorMessage && c.retryErrors.length === 0) {
                     const code = parseErrorCode(c.errorMessage);
-                    const existing = uniqueErrorMap.get(code);
+                    const normKey = normalizeErrorMessage(c.errorMessage);
+                    const existing = uniqueErrorMap.get(normKey);
                     if (!existing || (callTime && callTime < existing.firstSeen)) {
-                        uniqueErrorMap.set(code, { code, message: c.errorMessage, firstSeen: callTime });
+                        uniqueErrorMap.set(normKey, { code, message: c.errorMessage, firstSeen: callTime });
                     }
-                    allErrorEntries.push({ message: c.errorMessage, code, createdAt: callTime });
                 }
             }
         }
         result.uniqueErrors = [...uniqueErrorMap.values()].sort((a, b) =>
             a.firstSeen.localeCompare(b.firstSeen),
         );
+
+        // ── Collect recent error entries (current-account only) ──
+        // Structured entries with parsed code + timestamp, filtered to current
+        // account for consistency with retryErrorCodes totals.
+        const allErrorEntries: RecentErrorEntry[] = [];
+        for (const conv of conversations) {
+            for (const c of conv.calls) {
+                if (this._currentAccountEmail && !skipAccountFilter
+                    && c.accountEmail && c.accountEmail !== this._currentAccountEmail) {
+                    continue;
+                }
+                const callTime = c.createdAt || '';
+                for (const errMsg of c.retryErrors) {
+                    allErrorEntries.push({ message: errMsg, code: parseErrorCode(errMsg), createdAt: callTime });
+                }
+                if (c.hasError && c.errorMessage && c.retryErrors.length === 0) {
+                    allErrorEntries.push({ message: c.errorMessage, code: parseErrorCode(c.errorMessage), createdAt: callTime });
+                }
+            }
+        }
         // Recent error entries: newest first, capped at 20
         result.recentErrorEntries = allErrorEntries
             .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
@@ -706,21 +725,35 @@ export class GMTracker {
         this._persistedRetryErrorCodes = {};
         this._persistedRecentErrors = [];
 
-        // ── Merge persisted unique errors (per-account) ──
-        const acctUniqueErrors = this._persistedUniqueErrorsByAccount[accountKey] || {};
+        // ── Merge persisted unique errors (per-account, keyed by normalized message) ──
+        // v1.17.x changed dedup key from errorCode to normalizeErrorMessage(msg)
+        // so different messages under the same code are tracked separately.
+        // Migration: re-key ALL persisted entries through normalizeErrorMessage()
+        // to collapse old errorCode-keyed entries into the new format.
+        const rawPersistedUE = this._persistedUniqueErrorsByAccount[accountKey] || {};
+        const acctUniqueErrors: Record<string, { message: string; firstSeen: string }> = {};
+        for (const [, value] of Object.entries(rawPersistedUE)) {
+            if (!value.message) { continue; } // skip corrupt entries
+            const normKey = normalizeErrorMessage(value.message);
+            const existing = acctUniqueErrors[normKey];
+            if (!existing || (value.firstSeen && value.firstSeen < existing.firstSeen)) {
+                acctUniqueErrors[normKey] = { message: value.message, firstSeen: value.firstSeen };
+            }
+        }
         if (result.uniqueErrors && result.uniqueErrors.length > 0) {
-            // Merge fresh unique errors with persisted: keep earliest firstSeen per code
+            // Merge fresh unique errors with migrated persisted: keep earliest firstSeen per normalized message
             for (const entry of result.uniqueErrors) {
-                const persisted = acctUniqueErrors[entry.code];
+                const normKey = normalizeErrorMessage(entry.message);
+                const persisted = acctUniqueErrors[normKey];
                 if (!persisted || (entry.firstSeen && entry.firstSeen < persisted.firstSeen)) {
-                    acctUniqueErrors[entry.code] = { message: entry.message, firstSeen: entry.firstSeen };
+                    acctUniqueErrors[normKey] = { message: entry.message, firstSeen: entry.firstSeen };
                 }
             }
         }
-        // Rebuild uniqueErrors from merged state
+        // Rebuild uniqueErrors from merged state (re-parse code from message)
         if (Object.keys(acctUniqueErrors).length > 0) {
             result.uniqueErrors = Object.entries(acctUniqueErrors)
-                .map(([code, { message, firstSeen }]) => ({ code, message, firstSeen }))
+                .map(([, { message, firstSeen }]) => ({ code: parseErrorCode(message), message, firstSeen }))
                 .sort((a, b) => a.firstSeen.localeCompare(b.firstSeen));
             // Persist back
             this._persistedUniqueErrorsByAccount[accountKey] = { ...acctUniqueErrors };
