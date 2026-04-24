@@ -240,36 +240,6 @@ export function getScript(): string {
             }
             // data-switch-tab links: handled by body delegation below
 
-            // ─── Info Chip Toggle ───
-            function bindChipToggles() {
-                var chips = document.querySelectorAll('.info-chip');
-                for (var ci = 0; ci < chips.length; ci++) {
-                    chips[ci].addEventListener('click', function() {
-                        var chipName = this.dataset.chip;
-                        var panelId = 'chip-' + chipName;
-                        var panel = document.getElementById(panelId);
-                        var allChips = document.querySelectorAll('.info-chip');
-                        var allDropdowns = document.querySelectorAll('.chip-dropdown');
-                        // Close others
-                        for (var ai = 0; ai < allChips.length; ai++) {
-                            if (allChips[ai] !== this) { allChips[ai].classList.remove('active'); }
-                        }
-                        for (var di = 0; di < allDropdowns.length; di++) {
-                            if (allDropdowns[di].id !== panelId) { allDropdowns[di].hidden = true; }
-                        }
-                        // Toggle this
-                        if (panel) {
-                            panel.hidden = !panel.hidden;
-                            this.classList.toggle('active', !panel.hidden);
-                        }
-                        // Persist
-                        var s = vscode.getState() || {};
-                        s.activeChip = panel && !panel.hidden ? chipName : '';
-                        vscode.setState(s);
-                    });
-                }
-            }
-            bindChipToggles();
 
             // ─── Account Popover Toggle ───
             var acctPopoverOpen = false;
@@ -420,14 +390,6 @@ export function getScript(): string {
             }
             bindHistoryCatalog();
 
-            // Restore chip state from saved state
-            var savedChip = savedState.activeChip || '';
-            if (savedChip) {
-                var chipPanel = document.getElementById('chip-' + savedChip);
-                var chipBtn = document.querySelector('.info-chip[data-chip="' + savedChip + '"]');
-                if (chipPanel) { chipPanel.hidden = false; }
-                if (chipBtn) { chipBtn.classList.add('active'); }
-            }
 
             // Restore model stats error toggle state (default: hidden)
             if (savedState.modelStatsShowErrors) {

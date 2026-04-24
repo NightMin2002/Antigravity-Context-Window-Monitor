@@ -252,152 +252,8 @@ export function getStyles(): string {
             margin-bottom: var(--space-2);
         }
 
-        /* ─── TopBar Chips (Layer 2) ──── */
-        .topbar-chips {
-            display: flex;
-            gap: var(--space-1);
-            margin-bottom: var(--space-2);
-            flex-wrap: wrap;
-        }
 
-        .info-chip {
-            appearance: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 3px;
-            padding: 2px var(--space-2);
-            border-radius: var(--radius-full, 9999px);
-            font-size: 0.72em;
-            font-family: inherit;
-            font-weight: 500;
-            cursor: pointer;
-            border: 1px solid transparent;
-            background: transparent;
-            transition: background 0.2s cubic-bezier(.4,0,.2,1), border-color 0.2s cubic-bezier(.4,0,.2,1), color 0.2s cubic-bezier(.4,0,.2,1);
-        }
-
-        .info-chip .icon {
-            width: 11px;
-            height: 11px;
-        }
-
-        .info-chip:focus-visible {
-            outline: none;
-            box-shadow: 0 0 0 2px var(--color-accent);
-        }
-
-        .info-chip:active { transform: scale(0.97); }
-
-        /* GitHub chip */
-        .chip-github {
-            color: rgba(74, 222, 128, 0.6);
-            background: rgba(74, 222, 128, 0.05);
-            border-color: rgba(74, 222, 128, 0.1);
-        }
-
-        .chip-github.active {
-            color: var(--color-ok);
-            background: rgba(74, 222, 128, 0.12);
-            border-color: rgba(74, 222, 128, 0.35);
-        }
-
-        @media (hover: hover) {
-            .chip-github:not(.active):hover {
-                color: rgba(74, 222, 128, 0.85);
-                background: rgba(74, 222, 128, 0.08);
-                border-color: rgba(74, 222, 128, 0.2);
-            }
-        }
-
-        /* Warning / Info chips */
-        .chip-warn {
-            color: rgba(250, 204, 21, 0.5);
-            background: rgba(250, 204, 21, 0.04);
-            border-color: rgba(250, 204, 21, 0.08);
-        }
-
-        .chip-warn.active {
-            color: var(--color-warn);
-            background: rgba(250, 204, 21, 0.1);
-            border-color: rgba(250, 204, 21, 0.3);
-        }
-
-        @media (hover: hover) {
-            .chip-warn:not(.active):hover {
-                color: rgba(250, 204, 21, 0.75);
-                background: rgba(250, 204, 21, 0.06);
-                border-color: rgba(250, 204, 21, 0.15);
-            }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-            .info-chip { transition: none; }
-        }
-
-        /* ─── Chip Dropdown Panels ────── */
-        .chip-dropdown {
-            margin-top: var(--space-1);
-            border: 1px solid var(--color-border);
-            border-radius: var(--radius-md);
-            padding: var(--space-2) var(--space-3);
-            font-size: 0.78em;
-            color: var(--color-text-dim);
-            line-height: 1.6;
-            animation: chipDropIn 0.2s cubic-bezier(.4,0,.2,1);
-        }
-
-        .chip-dropdown[hidden] { display: none; }
-
-        @keyframes chipDropIn {
-            from { opacity: 0; transform: translateY(-4px); }
-            to   { opacity: 1; transform: translateY(0); }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-            .chip-dropdown { animation: none; }
-        }
-
-        .chip-dropdown-github {
-            border-color: rgba(74, 222, 128, 0.15);
-            background: rgba(74, 222, 128, 0.03);
-        }
-
-        .chip-dropdown-notice {
-            border-color: rgba(250, 204, 21, 0.12);
-            background: rgba(250, 204, 21, 0.03);
-        }
-
-        .chip-dropdown-disclaimer {
-            border-color: rgba(250, 204, 21, 0.12);
-            background: rgba(250, 204, 21, 0.03);
-        }
-
-        .chip-dropdown-content {
-            display: flex;
-            align-items: flex-start;
-            gap: var(--space-2);
-            flex-wrap: wrap;
-        }
-
-        .chip-dropdown-text {
-            flex: 1;
-            min-width: 0;
-        }
-
-        /* ─── Disclaimer body (reused in chip dropdown) ── */
-        .disclaimer-body {
-            padding: 0;
-            line-height: 1.6;
-            color: var(--color-text-dim);
-            display: block;
-        }
-
-        .disclaimer-body strong {
-            color: var(--color-warn);
-            font-weight: 600;
-        }
-
-        /* ─── Star / Heart inline (inside chip dropdowns) ── */
+        /* ─── Star / Heart inline (used in About tab) ── */
         .star-inline {
             display: inline-flex;
             vertical-align: middle;
@@ -443,44 +299,7 @@ export function getStyles(): string {
             .heart-inline { animation: none; }
         }
 
-        /* ─── GitHub Link Button (reused in dropdown) ── */
-        .info-banner-link {
-            appearance: none;
-            flex-shrink: 0;
-            display: inline-flex;
-            align-items: center;
-            gap: var(--space-1);
-            padding: 2px var(--space-2);
-            border: 1px solid rgba(74, 222, 128, 0.2);
-            border-radius: var(--radius-sm);
-            background: rgba(74, 222, 128, 0.08);
-            color: var(--color-ok);
-            font-size: 0.9em;
-            font-weight: 600;
-            font-family: inherit;
-            text-decoration: none;
-            cursor: pointer;
-            transition: background 0.15s cubic-bezier(.4,0,.2,1), border-color 0.15s cubic-bezier(.4,0,.2,1), transform 0.1s;
-        }
 
-        .info-banner-link:active { transform: scale(0.98); }
-
-        .info-banner-link:focus-visible {
-            box-shadow: 0 0 0 2px var(--color-ok);
-            outline: none;
-        }
-
-        .info-banner-link .icon {
-            width: 11px;
-            height: 11px;
-        }
-
-        @media (hover: hover) {
-            .info-banner-link:hover {
-                background: rgba(74, 222, 128, 0.15);
-                border-color: rgba(74, 222, 128, 0.35);
-            }
-        }
 
         /* ─── TopBar Title h1 ────────── */
         .topbar-title h1 {
@@ -3714,16 +3533,6 @@ export function getStyles(): string {
         body.vscode-light .act-tl-tool-name { background: rgba(0,0,0,0.05); }
         body.vscode-light .act-tl-expand { background: rgba(0,0,0,0.03); }
         body.vscode-light .act-dist-note { color: var(--lt-amber-deep); opacity: 1; border-left-color: var(--lt-orange-text); }
-        body.vscode-light .github-banner { border-color: rgba(var(--lt-green),0.2); background: rgba(var(--lt-green),0.04); }
-        body.vscode-light .github-banner .info-banner-icon { color: var(--lt-green-text); }
-        body.vscode-light .info-banner-link { border-color: rgba(var(--lt-green),0.25); background: rgba(var(--lt-green),0.08); color: var(--lt-green-text); }
-        body.vscode-light .multiwin-banner { border-color: rgba(var(--lt-orange),0.15); background: rgba(var(--lt-orange),0.03); }
-        body.vscode-light .multiwin-banner .info-banner-icon { color: var(--lt-orange-text); }
-        body.vscode-light .disclaimer-banner { border-color: rgba(var(--lt-orange),0.25); background: rgba(var(--lt-orange),0.04); }
-        body.vscode-light .disclaimer-banner summary { color: var(--lt-amber-deep); }
-        body.vscode-light .disclaimer-banner[open] { border-color: rgba(var(--lt-orange),0.35); background: rgba(var(--lt-orange),0.06); }
-        body.vscode-light .disclaimer-body { color: rgba(0,0,0,0.7); border-top-color: rgba(var(--lt-orange),0.15); }
-        body.vscode-light .disclaimer-body strong { color: var(--lt-amber-deep); }
 
         /* ─── Light Theme: Settings Panel ──── */
         body.vscode-light .toggle-track { background: rgba(0,0,0,0.12); }
@@ -3751,62 +3560,6 @@ export function getStyles(): string {
         }
         body.vscode-light .panel-topbar.scrolled {
             box-shadow: 0 2px 12px rgba(0,0,0,0.08);
-        }
-
-        /* ─── Light Theme: Info Chips ──── */
-        body.vscode-light .chip-github {
-            color: var(--lt-green-text);
-            background: rgba(var(--lt-green),0.06);
-            border-color: rgba(var(--lt-green),0.15);
-        }
-        body.vscode-light .chip-github.active {
-            color: var(--lt-green-deep);
-            background: rgba(var(--lt-green),0.12);
-            border-color: rgba(var(--lt-green),0.35);
-        }
-        @media (hover: hover) {
-            body.vscode-light .chip-github:not(.active):hover {
-                color: var(--lt-green-deep);
-                background: rgba(var(--lt-green),0.1);
-                border-color: rgba(var(--lt-green),0.25);
-            }
-        }
-        body.vscode-light .chip-warn {
-            color: var(--lt-amber-text);
-            background: rgba(var(--lt-amber),0.05);
-            border-color: rgba(var(--lt-amber),0.12);
-        }
-        body.vscode-light .chip-warn.active {
-            color: var(--lt-amber-deep);
-            background: rgba(var(--lt-amber),0.12);
-            border-color: rgba(var(--lt-amber),0.3);
-        }
-        @media (hover: hover) {
-            body.vscode-light .chip-warn:not(.active):hover {
-                color: var(--lt-amber-deep);
-                background: rgba(var(--lt-amber),0.08);
-                border-color: rgba(var(--lt-amber),0.2);
-            }
-        }
-
-        /* ─── Light Theme: Chip Dropdowns ──── */
-        body.vscode-light .chip-dropdown-github {
-            border-color: rgba(var(--lt-green),0.2);
-            background: rgba(var(--lt-green),0.04);
-        }
-        body.vscode-light .chip-dropdown-notice {
-            border-color: rgba(var(--lt-orange),0.15);
-            background: rgba(var(--lt-orange),0.03);
-        }
-        body.vscode-light .chip-dropdown-disclaimer {
-            border-color: rgba(var(--lt-orange),0.2);
-            background: rgba(var(--lt-orange),0.04);
-        }
-        body.vscode-light .chip-dropdown {
-            color: rgba(0,0,0,0.7);
-        }
-        body.vscode-light .chip-dropdown .disclaimer-body strong {
-            color: var(--lt-amber-deep);
         }
 
         /* ─── Light Theme: Buttons & Inputs ──── */

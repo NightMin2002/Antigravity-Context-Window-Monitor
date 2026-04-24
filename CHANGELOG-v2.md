@@ -37,10 +37,32 @@
 
   Fix: CSS variable overrides scoped to `.about-card-icon` for light theme; GitHub link button and info boxes use darker accent colors.
 
+- **免责声明修订 / Disclaimer Revision**:
+  移除 GM 徽章描述（已无 GM 标记功能），将上下文窗口范围从 128K–200K 修正为 120K–160K。移除状态栏 tooltip 的数据来源标签行（`✅ 精确数据`）。
+
+  Removed GM badge mention from disclaimer, updated context window range to 120K–160K, removed data source label from statusbar tooltip.
+
+- **模型名暴露原始 ID / Raw Model ID Exposed in UI**:
+  成本面板和 GM 数据面板的模型名直接显示内部 ID（如 `MODEL_PLACEHOLDER_M26`）。在 `calculateCosts` 和 `buildModelCards` 中对 `modelBreakdown` key 应用 `normalizeModelDisplayName()` 归一化，仅影响显示层，不改变存储。
+
+  Fix: Apply `normalizeModelDisplayName()` to `modelBreakdown` keys in cost calculation and GM model cards. Display-only change; storage keys unchanged.
+
+### 清理 / Cleanup
+
+- **TopBar Chips 死代码清理 / Dead Code Removal**:
+  移除约 254 行已废弃代码：
+  - `webview-styles.ts`: topbar-chips / info-chip / chip-dropdown / disclaimer-body / info-banner-link CSS + 浅色主题 overrides (~210行)
+  - `webview-script.ts`: `bindChipToggles()` 函数 + `savedChip` 状态恢复 (~39行)
+  - `statusbar.ts`: `dataSourceLabel` 变量 (3行)
+  - `i18n.ts`: `tooltip.estimated` / `tooltip.precise` 翻译键 (2行)
+
+  Removed ~254 lines of dead CSS, JS, and i18n keys from the former topbar chips system.
+
 ### 统计 / Stats
 
 - **New file**: `src/webview-about-tab.ts` (About tab builder + styles)
-- **Files changed**: 3 (`src/webview-panel.ts`, `src/webview-script.ts`, `src/webview-about-tab.ts`)
+- **Files changed**: 7 (`webview-panel.ts`, `webview-script.ts`, `webview-about-tab.ts`, `webview-styles.ts`, `statusbar.ts`, `i18n.ts`, `pricing-store.ts`, `activity-panel.ts`)
+- **Dead code removed**: ~254 lines
 - **TypeScript compile**: Zero errors
 
 ---

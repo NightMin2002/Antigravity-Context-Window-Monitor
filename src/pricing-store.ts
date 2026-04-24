@@ -5,6 +5,7 @@
 // Extracted from gm-panel.ts to enable the dedicated Pricing tab.
 
 import type { GMSummary, GMModelStats } from './gm-tracker';
+import { normalizeModelDisplayName } from './models';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -102,13 +103,14 @@ export function calculateCosts(
     const calcCost = (tokens: number, pricePerM: number) => (tokens / 1_000_000) * pricePerM;
 
     for (const [name, ms] of entries) {
+        const displayName = normalizeModelDisplayName(name);
         const pricing = findPricing(ms.responseModel, mergedTable);
         // responseOutputTokens = totalOutputTokens - totalThinkingTokens
         // This avoids double-counting: outputTokens includes thinking already.
         const responseOutputTokens = Math.max(0, ms.totalOutputTokens - ms.totalThinkingTokens);
         if (!pricing) {
             rows.push({
-                name, responseModel: ms.responseModel,
+                name: displayName, responseModel: ms.responseModel,
                 inputCost: 0, outputCost: 0, cacheCost: 0, thinkingCost: 0, totalCost: 0,
                 inputTokens: ms.totalInputTokens, outputTokens: responseOutputTokens,
                 cacheTokens: ms.totalCacheRead,
@@ -125,7 +127,7 @@ export function calculateCosts(
         grandTotal += totalCost;
 
         rows.push({
-            name, responseModel: ms.responseModel,
+            name: displayName, responseModel: ms.responseModel,
             inputCost, outputCost, cacheCost, thinkingCost, totalCost,
             inputTokens: ms.totalInputTokens, outputTokens: responseOutputTokens,
             cacheTokens: ms.totalCacheRead,

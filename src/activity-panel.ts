@@ -2408,7 +2408,7 @@ function buildModelCards(s: ActivitySummary | null, gm: GMSummary | null, active
 
         html += `
         <div class="act-model-card${isCheckpointOnly ? ' act-checkpoint-model' : ''}">
-            <div class="act-card-header">${esc(name)}${isCheckpointOnly ? ` <span class="act-badge">${ICONS.save}</span>` : ''}</div>
+            <div class="act-card-header">${esc(normalizeModelDisplayName(name))}${isCheckpointOnly ? ` <span class="act-badge">${ICONS.save}</span>` : ''}</div>
             <div class="act-card-body">
                 ${gmSection}
                 ${buildAccountSection(name)}
@@ -2421,7 +2421,7 @@ function buildModelCards(s: ActivitySummary | null, gm: GMSummary | null, active
         const providerShort = gms.apiProvider ? gms.apiProvider.replace('API_PROVIDER_', '').replace(/_/g, ' ') : '';
         html += `
         <div class="act-model-card">
-            <div class="act-card-header">${esc(name)}</div>
+            <div class="act-card-header">${esc(normalizeModelDisplayName(name))}</div>
             <div class="act-card-body">
                 <div class="act-card-row"><span>${ICONS.bar} <span>${tBi('Steps', '步骤')}</span></span><span class="val val-calls">${gms.stepsCovered}</span></div>
                 <div class="act-card-row"><span>${ICONS.clock} <span>${tBi('Avg TTFT', '平均 TTFT')}</span></span><span class="val val-time">${fmtSec(gms.avgTTFT)}</span></div>
