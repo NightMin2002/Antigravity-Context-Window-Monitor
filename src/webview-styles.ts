@@ -3534,6 +3534,33 @@ export function getStyles(): string {
         body.vscode-light .act-tl-expand { background: rgba(0,0,0,0.03); }
         body.vscode-light .act-dist-note { color: var(--lt-amber-deep); opacity: 1; border-left-color: var(--lt-orange-text); }
 
+        /* ─── Light Theme: Context Intelligence Card Colors ──── */
+        body.vscode-light .cp-card[data-ci-type="checkpoint"]        { --ci-color: #b45309; }
+        body.vscode-light .cp-card[data-ci-type="context_injection"] { --ci-color: #2563eb; }
+        body.vscode-light .cp-card[data-ci-type="user_info"]         { --ci-color: #15803d; }
+        body.vscode-light .cp-card[data-ci-type="user_rules"]        { --ci-color: #0e7490; }
+        body.vscode-light .cp-card[data-ci-type="mcp_servers"]       { --ci-color: #0f766e; }
+        body.vscode-light .cp-card[data-ci-type="workflows"]         { --ci-color: #be185d; }
+        body.vscode-light .cp-card[data-ci-type="artifacts"]         { --ci-color: #7c3aed; }
+        body.vscode-light .cp-card[data-ci-type="ephemeral"]         { --ci-color: #475569; }
+        body.vscode-light .cp-card[data-ci-type="system_preamble"]   { --ci-color: #475569; }
+
+        /* DNA cards */
+        body.vscode-light .cp-card[data-ci-type="dna_prompt"]  { --ci-color: #2563eb; }
+        body.vscode-light .cp-card[data-ci-type="dna_config"]  { --ci-color: #b45309; }
+        body.vscode-light .cp-card[data-ci-type="dna_tokens"]  { --ci-color: #c2410c; }
+
+        /* CI header badges — override inline colors for readability */
+        body.vscode-light .ci-badge[data-ci-type="checkpoint"]        { color: #b45309 !important; background: rgba(180,83,9,0.1)  !important; border-color: rgba(180,83,9,0.25)  !important; }
+        body.vscode-light .ci-badge[data-ci-type="context_injection"] { color: #2563eb !important; background: rgba(37,99,235,0.1) !important; border-color: rgba(37,99,235,0.25) !important; }
+        body.vscode-light .ci-badge[data-ci-type="user_info"]         { color: #15803d !important; background: rgba(21,128,61,0.1) !important; border-color: rgba(21,128,61,0.25) !important; }
+        body.vscode-light .ci-badge[data-ci-type="user_rules"]        { color: #0e7490 !important; background: rgba(14,116,144,0.1) !important; border-color: rgba(14,116,144,0.25) !important; }
+        body.vscode-light .ci-badge[data-ci-type="mcp_servers"]       { color: #0f766e !important; background: rgba(15,118,110,0.1) !important; border-color: rgba(15,118,110,0.25) !important; }
+        body.vscode-light .ci-badge[data-ci-type="workflows"]         { color: #be185d !important; background: rgba(190,24,93,0.1)  !important; border-color: rgba(190,24,93,0.25)  !important; }
+        body.vscode-light .ci-badge[data-ci-type="artifacts"]         { color: #7c3aed !important; background: rgba(124,58,237,0.1) !important; border-color: rgba(124,58,237,0.25) !important; }
+        body.vscode-light .ci-badge[data-ci-type="ephemeral"]         { color: #475569 !important; background: rgba(71,85,105,0.1)  !important; border-color: rgba(71,85,105,0.25)  !important; }
+        body.vscode-light .ci-badge[data-ci-type="system_preamble"]   { color: #475569 !important; background: rgba(71,85,105,0.1)  !important; border-color: rgba(71,85,105,0.25)  !important; }
+
         /* ─── Light Theme: Settings Panel ──── */
         body.vscode-light .toggle-track { background: rgba(0,0,0,0.12); }
         body.vscode-light .toggle-cb:checked + .toggle-track { background: var(--color-info); }

@@ -8,6 +8,53 @@
 
 ---
 
+## About 兼容性验证 + 浅色主题上下文情报颜色适配 — 2026-04-26
+
+### 新增 / Added
+
+- **About 标签页「兼容性验证」区块 / Compatibility Section in About Tab**:
+  在「使用提示」和「免责声明」之间新增「兼容性验证」区块（盾牌勾选 SVG 图标 + 绿色左边框），记录贡献者实测通过的 Antigravity IDE 版本范围：
+  - 最稳定版本：v1.18.4、v1.19.6
+  - 验证范围：v1.19.6 → v1.20.6 → v1.23.2，全部正常运行
+  - 末尾引导至免责声明，覆盖未来版本可能失效的情况
+
+  New \"Compatibility\" section between Tips and Disclaimer in the About tab (shield-check SVG icon + green left border). Documents contributor-tested Antigravity IDE versions: most stable v1.18.4 & v1.19.6, tested range v1.19.6 → v1.23.2.
+
+### 修复 / Fixed
+
+- **浅色主题 Context Intelligence 颜色不可读 / Light Theme CI Card Color Readability**:
+  上下文情报卡片的 9 种类型颜色和 3 种 Model DNA 卡片颜色在浅色主题白色背景上可见性极差（尤其 `user_info` 的 `#4ade80` 浅绿几乎不可见）。
+
+  **重构**: 所有卡片的 inline `color:${conf.color}` 改为 CSS 变量 `var(--ci-color)` 引用，每张卡片新增 `data-ci-type` 属性。在 `webview-styles.ts` 中为浅色主题按类型覆盖 `--ci-color` 为深色值。header badge 也添加 `ci-badge` class + `data-ci-type` 用于浅色主题颜色覆盖。
+
+  Fix: Context Intelligence card colors were nearly invisible on light theme backgrounds (especially `user_info` green `#4ade80`). Refactored all inline colors to CSS variable `var(--ci-color)` with `data-ci-type` attribute per card. Added light theme overrides in `webview-styles.ts` with darker color values for all 12 card types.
+
+  | 类型 | 暗色 | 浅色覆盖 |
+  |---|---|---|
+  | user_info | `#4ade80` | `#15803d` |
+  | checkpoint | `#fbbf24` | `#b45309` |
+  | context_injection | `#60a5fa` | `#2563eb` |
+  | mcp_servers | `#2dd4bf` | `#0f766e` |
+  | user_rules | `#06b6d4` | `#0e7490` |
+  | workflows | `#f472b6` | `#be185d` |
+  | artifacts | `#a78bfa` | `#7c3aed` |
+  | dna_prompt | `#60a5fa` | `#2563eb` |
+  | dna_config | `#f59e0b` | `#b45309` |
+  | dna_tokens | `#f97316` | `#c2410c` |
+
+- **About 兼容性验证浅色主题文字不可读 / About Compat Section Light Theme Fix**:
+  `about-info-compat` 的 strong 文字使用 `var(--color-ok-light)` 在浅色主题下不可读。改用 `var(--color-ok)` + 浅色主题覆盖 `#15803d`。
+
+  Fixed: compat section strong text used light green (`--color-ok-light`) unreadable on white. Changed to `--color-ok` with light theme override `#15803d`.
+
+### 统计 / Stats
+
+- **Files changed**: 3 (`src/webview-about-tab.ts`, `src/activity-panel.ts`, `src/webview-styles.ts`)
+- **Docs updated**: 1 (`docs/project_structure.md`)
+- **TypeScript compile**: Zero errors
+
+---
+
 ## 错误种类去重增强：超长消息截断 + 文件路径归一化 — 2026-04-26
 
 ### 改进 / Improved

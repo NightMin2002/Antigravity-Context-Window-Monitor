@@ -3158,15 +3158,15 @@ function buildContextIntelViewer(s: GMSummary): string {
             .replace(/`([^`]+)`/g, '<code>$1</code>');
 
         const cpBadge = item.checkpointNumber !== undefined
-            ? `<span class="cp-card-num" style="color:${conf.color}">#${item.checkpointNumber}</span>`
+            ? `<span class="cp-card-num" style="color:var(--ci-color)">#${item.checkpointNumber}</span>`
             : '';
-        const iconHtml = `<span class="ci-icon" style="color:${conf.color};width:14px;height:14px;display:inline-flex;flex-shrink:0">${conf.icon}</span>`;
+        const iconHtml = `<span class="ci-icon" style="color:var(--ci-color);width:14px;height:14px;display:inline-flex;flex-shrink:0">${conf.icon}</span>`;
 
-        return `<details class="cp-card" id="ciCard${idx}" style="--ci-color:${conf.color}">
+        return `<details class="cp-card" id="ciCard${idx}" data-ci-type="${item.type}" style="--ci-color:${conf.color}">
             <summary class="cp-card-header">
                 ${iconHtml}
                 ${cpBadge}
-                <span style="font-weight:600;color:${conf.color}">${conf.label}</span>
+                <span style="font-weight:600;color:var(--ci-color)">${conf.label}</span>
                 ${item.stepIndex >= 0 ? `<span class="cp-card-chip cp-card-chip-step">step ${item.stepIndex.toLocaleString()}</span>` : ''}
                 ${item.tokens > 0 ? `<span class="cp-card-chip cp-card-chip-tok">${fmt(item.tokens)} tok</span>` : ''}
             </summary>
@@ -3199,10 +3199,10 @@ function buildContextIntelViewer(s: GMSummary): string {
                 const col = sectionColors[i % sectionColors.length];
                 return `<span class="ci-dna-chip" style="border-color:${col}44;color:${col}">${esc(title)}</span>`;
             }).join('');
-            dnaCards.push(`<details class="cp-card" id="ciDna-sp-${esc(modelName)}" style="--ci-color:#60a5fa">
+            dnaCards.push(`<details class="cp-card" id="ciDna-sp-${esc(modelName)}" data-ci-type="dna_prompt" style="--ci-color:#60a5fa">
                 <summary class="cp-card-header">
-                    <span class="ci-icon" style="color:#60a5fa;width:14px;height:14px;display:inline-flex;flex-shrink:0">${promptIcon}</span>
-                    <span style="font-weight:600;color:#60a5fa">${tBi('System Prompt Structure', '系统提示词结构')}</span>
+                    <span class="ci-icon" style="color:var(--ci-color);width:14px;height:14px;display:inline-flex;flex-shrink:0">${promptIcon}</span>
+                    <span style="font-weight:600;color:var(--ci-color)">${tBi('System Prompt Structure', '系统提示词结构')}</span>
                     <span class="cp-card-chip cp-card-chip-tok">${ms.promptSectionTitles.length} ${tBi('sections', '区段')}</span>
                     ${ms.toolCount > 0 ? `<span class="cp-card-chip cp-card-chip-step">${ms.toolCount} ${tBi('tools', '工具')}</span>` : ''}
                 </summary>
@@ -3273,10 +3273,10 @@ function buildContextIntelViewer(s: GMSummary): string {
                     </div>`;
             }
 
-            dnaCards.push(`<details class="cp-card" id="ciDna-cc-${esc(modelName)}" style="--ci-color:#f59e0b">
+            dnaCards.push(`<details class="cp-card" id="ciDna-cc-${esc(modelName)}" data-ci-type="dna_config" style="--ci-color:#f59e0b">
                 <summary class="cp-card-header">
-                    <span class="ci-icon" style="color:#f59e0b;width:14px;height:14px;display:inline-flex;flex-shrink:0">${configIcon}</span>
-                    <span style="font-weight:600;color:#f59e0b">${tBi('Generation Config', '生成配置')}</span>
+                    <span class="ci-icon" style="color:var(--ci-color);width:14px;height:14px;display:inline-flex;flex-shrink:0">${configIcon}</span>
+                    <span style="font-weight:600;color:var(--ci-color)">${tBi('Generation Config', '生成配置')}</span>
                     <span class="cp-card-chip cp-card-chip-tok">T=${cc.temperature}</span>
                     ${latestContextUsed > 0 ? `<span class="cp-card-chip cp-card-chip-step">${fmt(latestContextUsed)} ctx</span>` : ''}
                 </summary>
@@ -3318,10 +3318,10 @@ function buildContextIntelViewer(s: GMSummary): string {
         }).join('');
         const breakdownIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 10 10"/><path d="M12 12V2"/><path d="M12 12h10"/></svg>';
 
-        dnaCards.push(`<details class="cp-card" id="ciDna-tb" style="--ci-color:#f97316">
+        dnaCards.push(`<details class="cp-card" id="ciDna-tb" data-ci-type="dna_tokens" style="--ci-color:#f97316">
             <summary class="cp-card-header">
-                <span class="ci-icon" style="color:#f97316;width:14px;height:14px;display:inline-flex;flex-shrink:0">${breakdownIcon}</span>
-                <span style="font-weight:600;color:#f97316">${tBi('Token Composition', 'Token 组成')}</span>
+                <span class="ci-icon" style="color:var(--ci-color);width:14px;height:14px;display:inline-flex;flex-shrink:0">${breakdownIcon}</span>
+                <span style="font-weight:600;color:var(--ci-color)">${tBi('Token Composition', 'Token 组成')}</span>
                 <span class="cp-card-chip cp-card-chip-tok">${fmt(total)} total</span>
             </summary>
             <div class="cp-card-body" style="white-space:normal">
@@ -3354,7 +3354,7 @@ function buildContextIntelViewer(s: GMSummary): string {
     const badgeParts: string[] = [];
     for (const [type, count] of typeCounts) {
         const conf = typeConfig[type] || typeConfig.system_preamble;
-        badgeParts.push(`<span class="act-badge" style="background:${conf.color}22;color:${conf.color};border:1px solid ${conf.color}44">${conf.label}${count > 1 ? ' ' + count : ''}</span>`);
+        badgeParts.push(`<span class="act-badge ci-badge" data-ci-type="${type}" style="background:${conf.color}22;color:${conf.color};border:1px solid ${conf.color}44">${conf.label}${count > 1 ? ' ' + count : ''}</span>`);
     }
     // Add DNA badges
     if (dnaCards.length > 0) {

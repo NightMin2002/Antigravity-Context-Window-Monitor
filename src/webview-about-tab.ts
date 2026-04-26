@@ -28,6 +28,8 @@ const ABOUT_ICON = {
     info: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>',
     /** Alert triangle */
     alert: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+    /** Shield with check — Compatibility */
+    shieldCheck: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11.5 14.5 15.5 10"/></svg>',
     /** Globe */
     globe: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',
 } as const;
@@ -205,6 +207,21 @@ export function buildAboutTabContent(): string {
         </div>
     </div>`;
 
+    // ── Compatibility section ──
+    const compatibility = `
+    <div class="about-section">
+        <h3 class="about-section-title">
+            ${ABOUT_ICON.shieldCheck}
+            ${tBi('Compatibility', '兼容性验证')}
+        </h3>
+        <div class="about-info-box about-info-compat">
+            ${tBi(
+        '<p>The following Antigravity IDE versions have been <strong>tested by contributors</strong> and confirmed working with this plugin:</p><p><strong>Most stable:</strong> v1.18.4, v1.19.6</p><p><strong>Tested range:</strong> v1.19.6 → v1.20.6 → v1.23.2 — all versions in this range have been verified to work normally.</p><p>Future Antigravity updates may change internal APIs at any time, potentially breaking compatibility. See the Disclaimer below for details.</p>',
+        '<p>以下 Antigravity IDE 版本已经过<strong>贡献者实测验证</strong>，确认本插件可正常运行：</p><p><strong>最稳定版本：</strong>v1.18.4、v1.19.6</p><p><strong>验证范围：</strong>v1.19.6 → v1.20.6 → v1.23.2 —— 该区间内所有版本均已验证可正常使用。</p><p>未来 Antigravity 更新可能随时变更内部 API，导致插件失效。详见下方免责声明。</p>',
+    )}
+        </div>
+    </div>`;
+
     // ── Disclaimer section ──
     const disclaimer = `
     <div class="about-section">
@@ -235,7 +252,7 @@ export function buildAboutTabContent(): string {
         </div>
     </div>`;
 
-    return hero + nav + github + tips + disclaimer + langHint;
+    return hero + nav + github + tips + compatibility + disclaimer + langHint;
 }
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
@@ -427,6 +444,14 @@ export function getAboutTabStyles(): string {
     border-left: 3px solid var(--color-amber-light);
 }
 
+/* Compatibility */
+.about-info-compat {
+    border-left: 3px solid var(--color-ok);
+}
+.about-info-compat strong {
+    color: var(--color-ok);
+}
+
 /* Disclaimer */
 .about-info-disclaimer {
     border-left: 3px solid var(--vscode-editorError-foreground, #f14c4c);
@@ -475,6 +500,12 @@ export function getAboutTabStyles(): string {
 }
 [data-vscode-theme-kind="vscode-light"] .about-info-tips {
     border-left-color: #d97706;
+}
+[data-vscode-theme-kind="vscode-light"] .about-info-compat {
+    border-left-color: #16a34a;
+}
+[data-vscode-theme-kind="vscode-light"] .about-info-compat strong {
+    color: #15803d;
 }
 [data-vscode-theme-kind="vscode-light"] .about-info-disclaimer {
     border-left-color: #dc2626;

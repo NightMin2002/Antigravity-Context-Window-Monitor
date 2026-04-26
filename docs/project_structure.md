@@ -54,7 +54,7 @@ antigravity-context-monitor/
 │   ├── activity-panel.ts         # GM Data 统一标签页 HTML（Activity + GM 数据 + 检查点查看器 + 账号面板构建器 + 模型卡片/汇总行/待归档费用显示 + respOut 费用计算）
 │   ├── pricing-panel.ts          # Cost 标签页 HTML（cost-* 统一面板 — 芯片 summary bar + 分色柱状图 + 紧凑行式明细 + 月费用汇总 + 可编辑价格表 + 模型信息卡）
 │   ├── webview-calendar-tab.ts   # Calendar 标签页 HTML
-│   ├── webview-about-tab.ts      # About 标签页 HTML（Hero + 功能导航卡片 + GitHub + 提示 + 声明 + 语言，从 TopBar Chips 迁移）
+│   ├── webview-about-tab.ts      # About 标签页 HTML（Hero + 功能导航卡片 + GitHub + 提示 + 兼容性验证 + 免责声明 + 语言，从 TopBar Chips 迁移）
 │   ├── i18n.ts                   # 国际化：语言模式、翻译表、偏好持久化
 │   └── images/                   # README 截图资源
 ├── __mocks__/
