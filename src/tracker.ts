@@ -575,7 +575,7 @@ export async function fetchFullUserStatus(ls: LSInfo, signal?: AbortSignal): Pro
                 label: (c.label as string) || '',
                 supportsImages: (c.supportsImages as boolean) || false,
                 quotaInfo: qi ? {
-                    remainingFraction: (qi.remainingFraction as number) ?? 0, // LS omits field when exhausted
+                    remainingFraction: (qi.remainingFraction as number) ?? 1, // LS omits field when quota is full (untouched)
                     resetTime: (qi.resetTime as string) || '',
                 } : undefined,
                 allowedTiers: (c.allowedTiers as string[]) || [],

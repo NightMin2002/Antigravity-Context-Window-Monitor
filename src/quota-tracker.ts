@@ -188,14 +188,14 @@ export class QuotaTracker {
                 // Still update basic state so it stays in sync, but never enter tracking
                 const existing = this.modelStates.get(stateKey);
                 if (existing) {
-                    existing.lastFraction = config.quotaInfo.remainingFraction ?? 0;
+                    existing.lastFraction = config.quotaInfo.remainingFraction ?? 1;
                     existing.lastResetTime = config.quotaInfo.resetTime || '';
                 }
                 continue;
             }
 
-            // LS omits remainingFraction when quota is exhausted — default to 0
-            const fraction = config.quotaInfo.remainingFraction ?? 0;
+            // LS omits remainingFraction when quota is full (untouched) — default to 1
+            const fraction = config.quotaInfo.remainingFraction ?? 1;
             const percent = Math.round(fraction * 100);
 
             let ms = this.modelStates.get(stateKey);

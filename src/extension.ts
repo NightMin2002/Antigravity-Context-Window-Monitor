@@ -306,9 +306,9 @@ function updateAccountSnapshot(
                 pool.modelIds.push(c.model);
             }
             // remainingFraction < 1.0 means quota has been consumed (crossed 20% threshold)
-            // LS omits the field (undefined) when exhausted → treat as used
+            // LS omits the field when quota is full (untouched) — treat as unused
             const frac = c.quotaInfo.remainingFraction;
-            if (frac === undefined || frac < 1.0) {
+            if (frac !== undefined && frac < 1.0) {
                 pool.hasUsage = true;
             }
             if (frac !== undefined && frac < pool.minFraction) {
@@ -1480,7 +1480,7 @@ function checkQuotaNotification(configs: import('./models').ModelConfig[]): void
         const key = c.quotaInfo.resetTime || c.model; // fallback to model if no resetTime
         const g = groups.get(key) || { labels: [], minFraction: 1 };
         g.labels.push(c.label || c.model);
-        g.minFraction = Math.min(g.minFraction, c.quotaInfo.remainingFraction ?? 0);
+        g.minFraction = Math.min(g.minFraction, c.quotaInfo.remainingFraction ?? 1);
         groups.set(key, g);
     }
 

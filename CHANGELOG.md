@@ -1,5 +1,19 @@
 # 变更日志 / Changelog
 
+## [1.16.1] - 2026-04-28
+
+### 🐛 Fixed / 修复
+
+- **🔥 Model quota always showing 0% for full-quota users / 满额度用户模型配额始终显示 0%**: Fixed a critical bug where all model quotas displayed 0% even when the user had full credits (e.g., Pro plan with prompt=500, flow=100). Root cause: the Language Server omits the `remainingFraction` field from `quotaInfo` when quota is untouched (full), but the code incorrectly defaulted missing values to `0` (exhausted) instead of `1` (full). This caused false "Low quota" warnings and red indicators for every model. Fixed the default from `?? 0` to `?? 1` across 4 locations (`tracker.ts`, `quota-tracker.ts`, `extension.ts`), and corrected the `hasUsage` detection logic that also treated missing `remainingFraction` as "consumed".
+  修复了一个严重 bug：所有模型配额显示为 0%，即使用户拥有满额度。根因：语言服务器在额度未消耗时不返回 `quotaInfo.remainingFraction` 字段，但代码错误地将缺失值默认为 `0`（已耗尽）而非 `1`（满额）。导致所有模型显示红色低额度警告。修复了 4 处 `?? 0` → `?? 1` 的默认值，并修正了 `hasUsage` 检测逻辑。
+
+### 📝 Docs / 文档
+
+- Updated version to 1.16.1 across `package.json`, `README.md`, `readme_CN.md`, and `CHANGELOG.md`.
+  更新 `package.json`、`README.md`、`readme_CN.md` 和 `CHANGELOG.md` 中的版本号为 1.16.1。
+
+---
+
 ## [1.16.0] - 2026-04-26
 
 ### 🚀 Major / 重大更新
